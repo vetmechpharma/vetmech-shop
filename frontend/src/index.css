@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --vm-green: #045D3A;
+  --vm-green-hover: #03492D;
+  --vm-accent: #0FA45F;
+  --vm-ink: #022B18;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #022B18;
+  background: #ffffff;
+}
+
+h1, h2, h3, h4, h5, .font-heading {
+  font-family: "Manrope", system-ui, sans-serif;
+}
+
+.font-mono, code {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 158 79% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 158 79% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 158 79% 9%;
+    --primary: 156 91% 19%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 16% 96%;
+    --secondary-foreground: 156 91% 19%;
+    --muted: 150 16% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 152 85% 35%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 347 77% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 152 85% 35%;
+    --radius: 0.5rem;
+    --chart-1: 156 91% 19%;
+    --chart-2: 152 85% 35%;
+    --chart-3: 43 74% 49%;
+    --chart-4: 215 70% 50%;
+    --chart-5: 27 87% 55%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+}
+
+.vm-container { @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+.hero-overlay {
+  background: linear-gradient(90deg, rgba(2,43,24,0.82) 0%, rgba(2,43,24,0.55) 45%, rgba(2,43,24,0.15) 100%);
+}
+
+@keyframes vm-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.vm-fade-up { animation: vm-fade-up 0.5s ease-out both; }
+
+.prose-vm p { margin-bottom: 1rem; line-height: 1.75; color: #334155; }

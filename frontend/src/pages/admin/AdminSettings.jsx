@@ -1,0 +1,156 @@
+import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api, apiError } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import ImageUpload from "@/components/admin/ImageUpload";
+import { toast } from "sonner";
+import { Loader2, Save, Plus, X } from "lucide-react";
+
+function useSettingForm(id) {
+  const { data, refetch } = useQuery({ queryKey: ["admin-setting", id], queryFn: async () => (await api.get(`/admin/settings/${id}`)).data });
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { if (data) setForm(data); }, [data]);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const save = async () => {
+    setSaving(true);
+    try { await api.put(`/admin/settings/${id}`, form); toast.success("Settings saved"); refetch(); }
+    catch (e) { toast.error(apiError(e)); }
+    setSaving(false);
+  };
+  return { form, set, setForm, save, saving };
+}
+
+const Wrap = ({ title, subtitle, children, onSave, saving }) => (
+  <div>
+    <div className="flex items-center justify-between mb-6">
+      <div><h1 className="font-heading text-2xl font-bold text-vm-ink">{title}</h1>{subtitle && <p className="text-slate-500 text-sm">{subtitle}</p>}</div>
+      <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={onSave} disabled={saving} data-testid="save-settings">{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} Save</Button>
+    </div>
+    <div className="bg-white border border-[#E2E8F0] rounded-lg p-6 max-w-3xl space-y-4">{children}</div>
+  </div>
+);
+const F = ({ label, value, onChange, textarea, ...p }) => (
+  <div><Label>{label}</Label>{textarea ? <Textarea value={value || ""} onChange={(e) => onChange(e.target.value)} {...p} /> : <Input value={value || ""} onChange={(e) => onChange(e.target.value)} {...p} />}</div>
+);
+
+export function CompanySettings() {
+  const { form, set, save, saving } = useSettingForm("company");
+  const social = form.social || {};
+  const setSocial = (k, v) => set("social", { ...social, [k]: v });
+  return (
+    <Wrap title="Company Settings" subtitle="Business identity & contact info" onSave={save} saving={saving}>
+      <F label="Company Name" value={form.name} onChange={(v) => set("name", v)} />
+      <F label="Tagline" value={form.tagline} onChange={(v) => set("tagline", v)} />
+      <ImageUpload label="Logo" value={form.logo} onChange={(v) => set("logo", v)} />
+      <F label="Address" value={form.address} onChange={(v) => set("address", v)} textarea />
+      <div className="grid sm:grid-cols-2 gap-4">
+        <F label="Phone" value={form.phone} onChange={(v) => set("phone", v)} />
+        <F label="WhatsApp Number (with country code)" value={form.whatsapp} onChange={(v) => set("whatsapp", v)} />
+        <F label="Email" value={form.email} onChange={(v) => set("email", v)} />
+        <F label="GST Number" value={form.gst_number} onChange={(v) => set("gst_number", v)} />
+      </div>
+      <F label="Business Hours" value={form.business_hours} onChange={(v) => set("business_hours", v)} />
+      <div className="grid sm:grid-cols-2 gap-4">
+        {["facebook", "instagram", "linkedin", "youtube"].map((s) => <F key={s} label={s.charAt(0).toUpperCase() + s.slice(1)} value={social[s]} onChange={(v) => setSocial(s, v)} />)}
+      </div>
+    </Wrap>
+  );
+}
+
+export function WhatsAppSettings() {
+  const { form, set, save, saving } = useSettingForm("whatsapp");
+  const nums = form.admin_numbers || [];
+  const tmpl = form.status_templates || {};
+  return (
+    <Wrap title="WhatsApp Settings" subtitle="API config & message templates (simulated until API keys added)" onSave={save} saving={saving}>
+      <p className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded p-2">SIMULATED MODE: OTP & notifications are logged. Add API URL + Key to go live.</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <F label="API URL" value={form.api_url} onChange={(v) => set("api_url", v)} />
+        <F label="API Key" value={form.api_key} onChange={(v) => set("api_key", v)} type="password" />
+        <F label="Sender Number" value={form.sender_number} onChange={(v) => set("sender_number", v)} />
+      </div>
+      <div>
+        <Label>Admin Notification Numbers</Label>
+        {nums.map((n, i) => (
+          <div key={i} className="flex gap-2 mt-2"><Input value={n} onChange={(e) => set("admin_numbers", nums.map((x, xi) => xi === i ? e.target.value : x))} /><Button variant="ghost" size="icon" onClick={() => set("admin_numbers", nums.filter((_, xi) => xi !== i))}><X className="w-4 h-4" /></Button></div>
+        ))}
+        <Button variant="outline" size="sm" className="mt-2" onClick={() => set("admin_numbers", [...nums, ""])}><Plus className="w-4 h-4 mr-1" /> Add Number</Button>
+      </div>
+      <div><Label>OTP Template</Label><Input value={form.otp_template || ""} onChange={(e) => set("otp_template", e.target.value)} /></div>
+      <div className="space-y-2">
+        <Label>Order Status Templates ({"{order}"}, {"{name}"} supported)</Label>
+        {["confirmed", "processing", "ready_to_dispatch", "dispatched", "delivered", "cancelled"].map((k) => (
+          <div key={k}><span className="text-xs text-slate-500 capitalize">{k.replace(/_/g, " ")}</span><Textarea rows={2} value={tmpl[k] || ""} onChange={(e) => set("status_templates", { ...tmpl, [k]: e.target.value })} /></div>
+        ))}
+      </div>
+    </Wrap>
+  );
+}
+
+export function SmtpSettings() {
+  const { form, set, save, saving } = useSettingForm("smtp");
+  return (
+    <Wrap title="Email / SMTP Settings" subtitle="Email config (simulated until credentials added)" onSave={save} saving={saving}>
+      <p className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded p-2">SIMULATED MODE: Emails are logged. Add SMTP host & credentials to send real emails.</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <F label="SMTP Host" value={form.host} onChange={(v) => set("host", v)} />
+        <F label="SMTP Port" value={form.port} onChange={(v) => set("port", v)} />
+        <F label="Username" value={form.username} onChange={(v) => set("username", v)} />
+        <F label="Password" value={form.password} onChange={(v) => set("password", v)} type="password" />
+        <F label="Sender Name" value={form.sender_name} onChange={(v) => set("sender_name", v)} />
+        <F label="Sender Email" value={form.sender_email} onChange={(v) => set("sender_email", v)} />
+        <F label="Admin Email" value={form.admin_email} onChange={(v) => set("admin_email", v)} />
+      </div>
+    </Wrap>
+  );
+}
+
+export function SeoSettings() {
+  const { form, set, save, saving } = useSettingForm("seo");
+  return (
+    <Wrap title="SEO Settings" subtitle="Default SEO metadata" onSave={save} saving={saving}>
+      <F label="Default SEO Title" value={form.default_title} onChange={(v) => set("default_title", v)} />
+      <F label="Default Meta Description" value={form.default_description} onChange={(v) => set("default_description", v)} textarea />
+      <F label="Default Keywords" value={form.default_keywords} onChange={(v) => set("default_keywords", v)} />
+      <ImageUpload label="Default OG Image" value={form.default_og_image} onChange={(v) => set("default_og_image", v)} />
+      <F label="Robots" value={form.robots} onChange={(v) => set("robots", v)} placeholder="index, follow" />
+    </Wrap>
+  );
+}
+
+export function HomepageSettings() {
+  const { form, set, save, saving } = useSettingForm("homepage");
+  const hero = form.hero || {}, intro = form.intro || {}, quality = form.quality || {}, cta = form.cta || {};
+  return (
+    <Wrap title="Homepage Content" subtitle="Edit homepage sections" onSave={save} saving={saving}>
+      <h3 className="font-heading font-bold text-vm-ink">Hero Banner</h3>
+      <F label="Hero Title" value={hero.title} onChange={(v) => set("hero", { ...hero, title: v })} />
+      <F label="Hero Subtitle" value={hero.subtitle} onChange={(v) => set("hero", { ...hero, subtitle: v })} textarea />
+      <ImageUpload label="Hero Image" value={hero.image} onChange={(v) => set("hero", { ...hero, image: v })} />
+      <div className="grid sm:grid-cols-2 gap-4"><F label="CTA Text" value={hero.cta_text} onChange={(v) => set("hero", { ...hero, cta_text: v })} /><F label="CTA Link" value={hero.cta_link} onChange={(v) => set("hero", { ...hero, cta_link: v })} /></div>
+      <hr /><h3 className="font-heading font-bold text-vm-ink">Introduction</h3>
+      <F label="Intro Title" value={intro.title} onChange={(v) => set("intro", { ...intro, title: v })} />
+      <F label="Intro Text" value={intro.text} onChange={(v) => set("intro", { ...intro, text: v })} textarea rows={4} />
+      <hr /><h3 className="font-heading font-bold text-vm-ink">Quality Section</h3>
+      <F label="Quality Title" value={quality.title} onChange={(v) => set("quality", { ...quality, title: v })} />
+      <F label="Quality Text" value={quality.text} onChange={(v) => set("quality", { ...quality, text: v })} textarea />
+      <ImageUpload label="Quality Image" value={quality.image} onChange={(v) => set("quality", { ...quality, image: v })} />
+      <hr /><h3 className="font-heading font-bold text-vm-ink">Bottom CTA</h3>
+      <F label="CTA Title" value={cta.title} onChange={(v) => set("cta", { ...cta, title: v })} />
+      <F label="CTA Text" value={cta.text} onChange={(v) => set("cta", { ...cta, text: v })} textarea />
+    </Wrap>
+  );
+}
+
+export function WebsiteSettings() {
+  const { form, set, save, saving } = useSettingForm("website");
+  return (
+    <Wrap title="Website Settings" subtitle="Footer & general" onSave={save} saving={saving}>
+      <F label="Footer About Text" value={form.footer_about} onChange={(v) => set("footer_about", v)} textarea />
+    </Wrap>
+  );
+}
