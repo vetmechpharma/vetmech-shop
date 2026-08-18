@@ -124,7 +124,9 @@ export function SeoSettings() {
 
 export function HomepageSettings() {
   const { form, set, save, saving } = useSettingForm("homepage");
+  const { data: prods } = useQuery({ queryKey: ["hp-products"], queryFn: async () => (await api.get("/admin/products", { params: { limit: 200 } })).data });
   const hero = form.hero || {}, intro = form.intro || {}, quality = form.quality || {}, cta = form.cta || {};
+  const featIds = form.featured_product_ids || [];
   return (
     <Wrap title="Homepage Content" subtitle="Edit homepage sections" onSave={save} saving={saving}>
       <h3 className="font-heading font-bold text-vm-ink">Hero Banner</h3>
@@ -139,6 +141,17 @@ export function HomepageSettings() {
       <F label="Quality Title" value={quality.title} onChange={(v) => set("quality", { ...quality, title: v })} />
       <F label="Quality Text" value={quality.text} onChange={(v) => set("quality", { ...quality, text: v })} textarea />
       <ImageUpload label="Quality Image" value={quality.image} onChange={(v) => set("quality", { ...quality, image: v })} />
+      <hr /><h3 className="font-heading font-bold text-vm-ink">Featured Products (Homepage)</h3>
+      <p className="text-xs text-slate-400 -mt-2">Select products to feature. If none selected, products with the FEATURED badge are shown.</p>
+      <div className="grid sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto border rounded-md p-2">
+        {(prods?.items || []).map((p) => (
+          <label key={p.id} className="flex items-center gap-2 text-sm py-0.5">
+            <input type="checkbox" checked={featIds.includes(p.id)} data-testid={`feat-${p.id}`}
+              onChange={(e) => set("featured_product_ids", e.target.checked ? [...featIds, p.id] : featIds.filter((x) => x !== p.id))} />
+            {p.name}
+          </label>
+        ))}
+      </div>
       <hr /><h3 className="font-heading font-bold text-vm-ink">Bottom CTA</h3>
       <F label="CTA Title" value={cta.title} onChange={(v) => set("cta", { ...cta, title: v })} />
       <F label="CTA Text" value={cta.text} onChange={(v) => set("cta", { ...cta, text: v })} textarea />

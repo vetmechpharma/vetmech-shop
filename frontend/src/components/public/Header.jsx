@@ -56,7 +56,7 @@ export default function Header() {
                 <div className="w-9 h-9 rounded-md bg-vm-green text-white grid place-items-center font-heading font-extrabold">V</div>
                 <div className="leading-none">
                   <div className="font-heading font-extrabold text-vm-ink text-lg tracking-tight">VETMECH</div>
-                  <div className="text-[9px] tracking-[0.2em] text-vm-accent font-semibold">PHARMACEUTICALS</div>
+                  <div className="text-[9px] tracking-[0.28em] text-vm-accent font-bold">PHARMACEUTICALS</div>
                 </div>
               </div>
             )}

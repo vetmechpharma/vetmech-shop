@@ -21,7 +21,9 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post("/auth/admin/login", { email, password });
+      // Clear any stale/expired token so it can't interfere with a fresh login
+      localStorage.removeItem("vm_admin_token");
+      const { data } = await api.post("/auth/admin/login", { email: email.trim(), password });
       login(data.token, data.user);
       toast.success("Welcome back");
       navigate("/admin");

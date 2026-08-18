@@ -243,6 +243,15 @@ async def search(q: str = Query(...), limit: int = 8):
     return {"results": results}
 
 
+@router.get("/products/by-ids")
+async def products_by_ids(ids: str = Query(...)):
+    id_list = [i for i in ids.split(",") if i]
+    items = await db.products.find({"id": {"$in": id_list}, "active": True}, {"_id": 0}).to_list(100)
+    await enrich_products(items)
+    ordered = [next((p for p in items if p["id"] == i), None) for i in id_list]
+    return [p for p in ordered if p]
+
+
 @router.get("/products/{slug}")
 async def public_product(slug: str, customer=Depends(optional_customer)):
     p = await db.products.find_one({"slug": slug, "active": True}, {"_id": 0})

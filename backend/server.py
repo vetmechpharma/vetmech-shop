@@ -11,9 +11,14 @@ from starlette.middleware.cors import CORSMiddleware
 import logging
 import base64
 import uuid
+import io
+import json
+import zipfile
+from datetime import datetime, timezone
+from PIL import Image
 
 from db import db
-from security import get_current_admin
+from security import get_current_admin, require_module
 from seed_data import run_seed
 from seed_tickets import run_seed_tickets
 from routers import auth_routes, catalog, orders, cms, admin_routes, tickets
@@ -33,20 +38,84 @@ async def root():
     return {"message": "VETMECH Pharmaceuticals API", "status": "ok"}
 
 
-# --- File upload (images / PDFs) stored on disk, served via /api/uploads ---
+# --- File upload (images auto-converted to compressed WebP) stored on disk ---
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+
+
 @app.post("/api/admin/upload")
 async def upload_file(file: UploadFile = File(...), admin=Depends(get_current_admin)):
     ext = os.path.splitext(file.filename or "")[1].lower()
-    allowed = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".pdf", ".svg"}
+    allowed = IMAGE_EXTS | {".pdf", ".svg", ".doc", ".docx", ".xls", ".xlsx"}
     if ext not in allowed:
         raise HTTPException(status_code=400, detail="File type not allowed")
     data = await file.read()
-    if len(data) > 12 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large (max 12MB)")
+    if len(data) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 15MB)")
+
+    if ext in IMAGE_EXTS:
+        # Convert + compress to WebP for faster website loading
+        try:
+            img = Image.open(io.BytesIO(data))
+            if img.mode in ("P", "LA"):
+                img = img.convert("RGBA")
+            elif img.mode == "CMYK":
+                img = img.convert("RGB")
+            max_w = 1600
+            if img.width > max_w:
+                ratio = max_w / img.width
+                img = img.resize((max_w, int(img.height * ratio)))
+            name = f"{uuid.uuid4().hex}.webp"
+            out = io.BytesIO()
+            img.save(out, format="WEBP", quality=80, method=4)
+            (UPLOAD_DIR / name).write_bytes(out.getvalue())
+            return {"url": f"/api/uploads/{name}"}
+        except Exception as e:
+            logger.warning(f"Image WebP conversion failed, saving raw: {e}")
+            pass  # fall back to raw save
     name = f"{uuid.uuid4().hex}{ext}"
     (UPLOAD_DIR / name).write_bytes(data)
-    backend_url = os.environ.get("REACT_APP_BACKEND_URL", "")
     return {"url": f"/api/uploads/{name}"}
+
+
+# --- Backups (Super Admin only) ---
+BACKUP_COLLECTIONS = ["admin_users", "customers", "crm_customers", "products", "categories",
+                      "brands", "units", "schemes", "orders", "tickets", "ticket_notifications",
+                      "news", "gallery", "careers", "applications", "enquiries", "pages",
+                      "settings", "counters", "audit_logs", "notification_logs"]
+
+
+@app.get("/api/admin/backup/database")
+async def backup_database(admin=Depends(require_module("*"))):
+    dump = {}
+    for col in BACKUP_COLLECTIONS:
+        docs = await db[col].find({}, {"_id": 0}).to_list(100000)
+        dump[col] = docs
+    content = json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), "data": dump},
+                         default=str, indent=2).encode("utf-8")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return Response(content=content, media_type="application/json",
+                    headers={"Content-Disposition": f"attachment; filename=vetmech-db-{ts}.json"})
+
+
+@app.get("/api/admin/backup/images")
+async def backup_images(admin=Depends(require_module("*"))):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in UPLOAD_DIR.iterdir():
+            if f.is_file():
+                zf.write(f, f.name)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return Response(content=buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename=vetmech-images-{ts}.zip"})
+
+
+@app.get("/api/admin/backup/stats")
+async def backup_stats(admin=Depends(require_module("*"))):
+    counts = {c: await db[c].count_documents({}) for c in BACKUP_COLLECTIONS}
+    img_count = sum(1 for f in UPLOAD_DIR.iterdir() if f.is_file())
+    img_size = sum(f.stat().st_size for f in UPLOAD_DIR.iterdir() if f.is_file())
+    return {"collections": counts, "total_records": sum(counts.values()),
+            "image_count": img_count, "image_size_mb": round(img_size / 1024 / 1024, 2)}
 
 
 CONTENT_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",

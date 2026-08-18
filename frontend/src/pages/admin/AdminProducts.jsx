@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ImageUpload from "@/components/admin/ImageUpload";
@@ -18,7 +18,7 @@ import { Plus, Pencil, Trash2, Loader2, X } from "lucide-react";
 const BADGES = ["new", "featured", "best_seller", "offer", "out_of_stock", "coming_soon"];
 const STOCK = [{ value: "in_stock", label: "In Stock" }, { value: "out_of_stock", label: "Out of Stock" }, { value: "coming_soon", label: "Coming Soon" }];
 const GST = [0, 5, 12, 18];
-const emptyVariant = () => ({ pack_size: "", unit: "Bottle", sku: "", mrp: 0, selling_price: 0, gst_percent: 12, gst_inclusive: true, stock_status: "in_stock", min_order_qty: 1, max_order_qty: 0 });
+const emptyVariant = () => ({ pack_size: "", unit: "Bottle", sku: "", mrp: 0, selling_price: 0, gst_percent: 12, gst_inclusive: true, stock_status: "in_stock", min_order_qty: 1, max_order_qty: 0, units_per_case: 0 });
 
 export default function AdminProducts() {
   const qc = useQueryClient();
@@ -99,7 +99,7 @@ export default function AdminProducts() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="product-dialog">
-          <DialogHeader><DialogTitle className="font-heading">{editing ? "Edit" : "Add"} Product</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-heading">{editing ? "Edit" : "Add"} Product</DialogTitle><DialogDescription className="sr-only">Product details, variants, badges and SEO</DialogDescription></DialogHeader>
           <Tabs defaultValue="basic">
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="basic">Basic</TabsTrigger>
@@ -155,6 +155,7 @@ export default function AdminProducts() {
                       <Select value={String(v.gst_percent)} onValueChange={(val) => setVariant(i, "gst_percent", Number(val))}><SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>{GST.map((g) => <SelectItem key={g} value={String(g)}>{g}%</SelectItem>)}</SelectContent></Select></div>
                     <div><Label className="text-xs">Min Order Qty</Label><Input type="number" value={v.min_order_qty} onChange={(e) => setVariant(i, "min_order_qty", Number(e.target.value))} /></div>
+                    <div><Label className="text-xs">Units per Case</Label><Input type="number" value={v.units_per_case || 0} onChange={(e) => setVariant(i, "units_per_case", Number(e.target.value))} data-testid={`vf-case-${i}`} /></div>
                   </div>
                   <div className="flex items-center gap-2 mt-2"><Switch checked={!!v.gst_inclusive} onCheckedChange={(val) => setVariant(i, "gst_inclusive", val)} /><span className="text-xs text-slate-500">GST Inclusive</span></div>
                 </div>

@@ -1,0 +1,35 @@
+{
+  "summary": "Tested new feature batch (WebP upload, backup endpoints, variant units_per_case, homepage featured picker, admin dashboard KPI gradients, product-detail case helper). Backend: 15/15 pytest cases pass in /app/backend/tests/test_new_features.py covering (1) PNG/JPEG upload -> .webp url + image/webp content-type, PDF preserved as .pdf, unauth 401; (2) /api/admin/backup/stats returns total_records/image_count/image_size_mb, /backup/database returns JSON attachment with data.products/orders/tickets, /backup/images returns valid application/zip - all three return 403 for staff (sales_executive arun@vetmech.com) and 401/403 unauth; (3) variant units_per_case persists via PUT /api/admin/products/{id} and appears in POST /cart/calculate line items; (4) PUT /admin/settings/homepage saves featured_product_ids, public GET /settings/homepage reflects them, GET /products/by-ids returns ordered active products enriched with variants; (5) regression: NERVIPHOS-BM NBM-100 qty10 still yields free_qty=5. Frontend (admin): login OK, /admin/support renders gradient KPI cards (kpi-total dark-slate gradient, others blue/orange/yellow/red/green gradients) all clickable; sidebar has adminnav-backup---restore (33 nav items total); /admin/backup shows Total Records/Images stats and both download buttons (backup-db, backup-images); /admin/settings/homepage exposes 5 feat-<productId> checkboxes and Save persists; admin product editor Variants tab shows vf-case-0 input which accepts numeric input. Frontend (public): /products/vetkclor shows case-helper with '1 Case = 12 Bottle' and 'Buy 1 full case' button (buy-case-btn) that correctly sets qty to 12; VETMECH branded header renders on homepage.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Product editor Variants Dialog", "issue": "Radix a11y warning: DialogContent missing Description or aria-describedby. Not blocking.", "selector": "[role=dialog]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/new_features_results.xml"
+  ],
+  "action_items": [
+    "Optional: add DialogDescription (or aria-describedby) to admin product editor variants dialog to silence Radix a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py backup_images/backup_database iterate UPLOAD_DIR and load full collections in memory - fine for demo scale (image_size_mb was ~few MB, ~200 records) but should stream for large datasets in future.",
+    "upload_file falls back to raw save on Pillow exception (pass in except) - silent failure. Consider logging so a corrupt-image upload isn't confused with success.",
+    "products/by-ids uses find({id: {$in: id_list}}) with active:True. Ordering is preserved by re-mapping - correct. Missing/inactive ids are silently dropped which is intentional but could be surfaced (e.g. return {items, missing}).",
+    "backup_database dumps 21 collections with limit 100000 per collection to_list - acceptable now; would need pagination at scale."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/new_features_results.xml"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% for all screens tested"},
+  "test_credentials": "Super admin vetmechpharma@gmail.com / Admin@123 ; staff arun@vetmech.com / Vetmech@123 (sales_executive - correctly 403 on backup endpoints)",
+  "seed_data_creation": "Tests uploaded a few small PNG/JPEG/PDF files to /uploads and updated VETKCLOR variants with units_per_case=12 then 24 through admin UI. Homepage featured_product_ids was set to first two admin products.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New feature testids: kpi-total|open|in_progress|pending|overdue|completed (Support Dashboard gradient KPI cards), adminnav-backup---restore (sidebar), backup-db & backup-images (download buttons at /admin/backup), feat-<productId> (Homepage Content featured checkbox list), vf-case-<i> (product Variants tab Units per Case input), case-helper & buy-case-btn (public product detail when selected variant.units_per_case>0). Backup endpoints are super_admin only via require_module('*').",
+  "rca of the issue": "No blocking issues found in this iteration."
+}

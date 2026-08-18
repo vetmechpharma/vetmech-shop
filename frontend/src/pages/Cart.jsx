@@ -59,7 +59,7 @@ export default function Cart() {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-sm text-slate-600">{l.pack_size} {l.unit}</TableCell>
+                <TableCell className="text-sm text-slate-600">{l.pack_size} {l.unit}{l.units_per_case > 0 && <span className="block text-[11px] text-slate-400">Case of {l.units_per_case}</span>}</TableCell>
                 <TableCell>
                   <div className="flex items-center border border-[#E2E8F0] rounded-md w-fit mx-auto">
                     <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(l.variant_id, l.qty - 1)} data-testid={`cart-minus-${l.sku}`}><Minus className="w-3.5 h-3.5" /></button>

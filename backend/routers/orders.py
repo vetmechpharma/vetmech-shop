@@ -44,6 +44,7 @@ async def resolve_cart(items, customer_type=None):
             "variant_id": vid,
             "pack_size": variant.get("pack_size", ""),
             "unit": variant.get("unit", ""),
+            "units_per_case": variant.get("units_per_case") or 0,
             "sku": variant.get("sku", ""),
             "mrp": variant.get("mrp"),
             "selling_price": variant.get("selling_price"),

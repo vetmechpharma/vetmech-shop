@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, FolderTree, Tag, Layers, Percent, ShoppingBag, Users,
   Newspaper, Image, Briefcase, Mail, MessageCircle, Send, Search, BarChart3,
   UserCog, Settings, ScrollText, Menu, LogOut, FileText, Globe,
-  Ticket, ListChecks, CalendarDays, Headset, Contact, Bell,
+  Ticket, ListChecks, CalendarDays, Headset, Contact, Bell, Database,
 } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 
@@ -47,6 +47,7 @@ const NAV = [
   { to: "/admin/settings/website", label: "Footer & Website", icon: Globe, module: "cms" },
   { to: "/admin/reports", label: "Reports", icon: BarChart3, module: "reports" },
   { to: "/admin/users", label: "Admin Users", icon: UserCog, module: "*" },
+  { to: "/admin/backup", label: "Backup & Restore", icon: Database, module: "*" },
   { to: "/admin/audit", label: "Audit Logs", icon: ScrollText, module: "*" },
 ];
 

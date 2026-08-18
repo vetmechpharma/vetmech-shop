@@ -32,6 +32,7 @@ import AdminUsers from "@/pages/admin/AdminUsers";
 import { AdminCategories, AdminBrands, AdminUnits, AdminNews, AdminGallery, AdminCareers } from "@/pages/admin/SimpleCrud";
 import { CompanySettings, WhatsAppSettings, SmtpSettings, SeoSettings, HomepageSettings, WebsiteSettings } from "@/pages/admin/AdminSettings";
 import { AdminEnquiries, AdminApplications, AdminNotifications, AdminAuditLogs, AdminReports, AdminPages } from "@/pages/admin/AdminMisc";
+import BackupSettings from "@/pages/admin/BackupSettings";
 
 import SupportDashboard from "@/pages/admin/support/SupportDashboard";
 import Tickets from "@/pages/admin/support/Tickets";
@@ -97,6 +98,7 @@ function App() {
                   <Route path="settings" element={<CompanySettings />} />
                   <Route path="settings/homepage" element={<HomepageSettings />} />
                   <Route path="settings/website" element={<WebsiteSettings />} />
+                  <Route path="backup" element={<BackupSettings />} />
                   <Route path="reports" element={<AdminReports />} />
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="audit" element={<AdminAuditLogs />} />

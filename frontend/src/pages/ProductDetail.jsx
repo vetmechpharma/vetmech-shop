@@ -109,6 +109,13 @@ export default function ProductDetail() {
             {dispatchFree > 0 && <span className="text-sm text-vm-accent font-medium">+{dispatchFree} free → {qty + dispatchFree} dispatched</span>}
           </div>
 
+          {variant.units_per_case > 0 && (
+            <div className="mt-3 bg-vm-bg border border-[#E2E8F0] rounded-md px-3 py-2 text-sm text-slate-600 flex items-center gap-2 flex-wrap" data-testid="case-helper">
+              <span>📦 1 Case = <strong className="text-vm-ink">{variant.units_per_case} {variant.unit}</strong></span>
+              <button onClick={() => setQty(variant.units_per_case)} className="text-vm-green font-medium underline" data-testid="buy-case-btn">Buy 1 full case</button>
+            </div>
+          )}
+
           <div className="mt-5 flex flex-wrap gap-3">
             {comingSoon ? (
               <Button size="lg" disabled className="bg-slate-300">Coming Soon</Button>

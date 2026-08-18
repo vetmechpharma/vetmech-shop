@@ -8,12 +8,12 @@ import { CHART_COLORS } from "@/lib/ticketConstants";
 import { Ticket, FolderOpen, Loader2, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const KPIS = [
-  { key: "total", label: "Total Tickets", icon: Ticket, color: "bg-slate-100 text-slate-700", status: null },
-  { key: "open", label: "Open", icon: FolderOpen, color: "bg-blue-100 text-blue-700", status: "open" },
-  { key: "in_progress", label: "In Progress", icon: Loader2, color: "bg-orange-100 text-orange-700", status: "in_progress" },
-  { key: "pending", label: "Pending", icon: Clock, color: "bg-yellow-100 text-yellow-700", status: "pending" },
-  { key: "overdue", label: "Overdue", icon: AlertTriangle, color: "bg-red-100 text-red-700", status: "overdue" },
-  { key: "completed", label: "Completed", icon: CheckCircle2, color: "bg-green-100 text-green-700", status: "closed" },
+  { key: "total", label: "Total Tickets", icon: Ticket, grad: "from-slate-700 to-slate-900", status: null },
+  { key: "open", label: "Open", icon: FolderOpen, grad: "from-blue-500 to-blue-700", status: "open" },
+  { key: "in_progress", label: "In Progress", icon: Loader2, grad: "from-orange-400 to-orange-600", status: "in_progress" },
+  { key: "pending", label: "Pending", icon: Clock, grad: "from-yellow-400 to-amber-500", status: "pending" },
+  { key: "overdue", label: "Overdue", icon: AlertTriangle, grad: "from-red-500 to-rose-600", status: "overdue" },
+  { key: "completed", label: "Completed", icon: CheckCircle2, grad: "from-emerald-500 to-green-700", status: "closed" },
 ];
 
 const Panel = ({ title, children, className = "" }) => (
@@ -38,10 +38,10 @@ export default function SupportDashboard() {
         {KPIS.map((k) => {
           const Icon = k.icon;
           return (
-            <button key={k.key} onClick={() => goStatus(k.status)} className="bg-white border border-[#E2E8F0] rounded-xl p-4 text-left hover:border-vm-accent transition-colors" data-testid={`kpi-${k.key}`}>
-              <div className={`w-9 h-9 rounded-lg grid place-items-center ${k.color}`}><Icon className="w-5 h-5" /></div>
-              <p className="text-3xl font-heading font-bold text-vm-ink mt-3">{d.kpi[k.key]}</p>
-              <p className="text-xs text-slate-500">{k.label}</p>
+            <button key={k.key} onClick={() => goStatus(k.status)} className={`bg-gradient-to-br ${k.grad} rounded-xl p-4 text-left text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all`} data-testid={`kpi-${k.key}`}>
+              <div className="w-9 h-9 rounded-lg grid place-items-center bg-white/20"><Icon className="w-5 h-5" /></div>
+              <p className="text-3xl font-heading font-bold mt-3">{d.kpi[k.key]}</p>
+              <p className="text-xs text-white/80">{k.label}</p>
             </button>
           );
         })}

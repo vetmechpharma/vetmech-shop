@@ -29,6 +29,14 @@ Modern, professional, responsive veterinary pharmaceutical corporate website + B
 - Backend: /app/backend/routers/tickets.py (+ seed_tickets.py). Overdue derived (not stored). Notifications in db.ticket_notifications (external WhatsApp/Email/SMS MOCKED).
 - Verified: 26/26 backend tests + full frontend flows pass (iteration_2.json). Fixed api.js token routing for /tickets & /crm paths.
 
+## Implemented — Feature Batch 3 (2026-06)
+- Variant CASE quantity (units_per_case) + "buy 1 full case" helper on product page; case shown in cart.
+- Homepage Featured Products selector in admin (featured_product_ids); Home uses selection, falls back to FEATURED badge.
+- Uploaded images auto-converted to compressed WebP (max 1600px, q80) via Pillow.
+- Backup & Restore in admin (super admin): database JSON export, images ZIP export, storage stats.
+- Admin Support dashboard redesigned with colored gradient KPI cards; website header/branding polish.
+- Verified: 15/15 backend + 100% frontend (iteration_3.json). Admin login bug reported earlier not reproducible; hardened login clears stale token.
+
 ## Backlog (P1/P2)
 - P1: Real WhatsApp API + SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.

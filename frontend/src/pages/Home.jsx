@@ -18,6 +18,9 @@ export default function Home() {
   const { data: company } = useSettings("company");
   const { data: cats } = useQuery({ queryKey: ["categories"], queryFn: async () => (await api.get("/categories")).data });
   const { data: featured } = useQuery({ queryKey: ["home-featured"], queryFn: async () => (await api.get("/products", { params: { badge: "featured", limit: 4 } })).data });
+  const featIds = home?.featured_product_ids || [];
+  const { data: selFeatured } = useQuery({ queryKey: ["home-featured-sel", featIds.join(",")], enabled: featIds.length > 0, queryFn: async () => (await api.get(`/products/by-ids`, { params: { ids: featIds.join(",") } })).data });
+  const featuredList = (selFeatured && selFeatured.length) ? selFeatured : (featured?.items || []);
   const { data: newLaunch } = useQuery({ queryKey: ["home-new"], queryFn: async () => (await api.get("/products", { params: { badge: "new", limit: 4 } })).data });
   const { data: offers } = useQuery({ queryKey: ["home-offer"], queryFn: async () => (await api.get("/products", { params: { badge: "offer", limit: 4 } })).data });
   const { data: news } = useQuery({ queryKey: ["home-news"], queryFn: async () => (await api.get("/news", { params: { limit: 3 } })).data });
@@ -107,7 +110,7 @@ export default function Home() {
       </Section>
 
       {/* FEATURED */}
-      <ProductRow title="Featured Products" subtitle="Our most trusted formulations" data={featured?.items} />
+      <ProductRow title="Featured Products" subtitle="Our most trusted formulations" data={featuredList} />
 
       {/* NEW LAUNCHES */}
       {newLaunch?.items?.length > 0 && <ProductRow title="New Launches" subtitle="Latest additions to our range" data={newLaunch.items} alt />}
