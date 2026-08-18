@@ -1,0 +1,38 @@
+{
+  "summary": "Tested new Customer Support / Tickets module (backend + frontend). Backend: 26/26 pytest cases pass covering dashboard KPIs, list+filters (status/priority/mine/q + derived overdue), CRUD ticket lifecycle (create, status open->in_progress->closed with closed_date, comment updates, attachments add/delete), CRM customers list+stats+create, config get/update (11 default types, 4 priorities, channels), staff list, reports (avg_completion_hours, employee, top_customers, most_complaints), notifications list + read-all, and role gating (staff arun@vetmech.com reaches /api/tickets*, unauth => 401). Verified overdue is derived only (PATCH status=overdue rejected with 400). Frontend: after fixing critical auth-token bug in api.js the whole /admin/support/* module renders correctly - Support Dashboard shows 23 total / 1 open / 1 in-progress / 2 pending / 11 overdue / 8 completed KPI cards, Ticket Overview line chart, Tickets by Type + Priority donuts, Recent + Overdue panels; Tickets page lists 23 rows with colored status/priority badges, row click opens ticket-detail-sheet, set-status-in_progress works and updates timeline; Customers list shows 8 seeded customers; Create Ticket flow selects Radix customer/type/assignee, submits (POST /api/tickets => 200) and redirects to /admin/support/tickets; Calendar month grid renders tickets on due dates; Reports page shows employee performance table + CSV/Excel/PDF buttons; Settings shows 11 types + 4 priorities + 4 channel toggles; Notification bell popover opens.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TicketDetailSheet (Radix Dialog)", "issue": "Console a11y warning: DialogContent requires a DialogTitle for screen readers (wrap in VisuallyHidden if hidden visually). Not blocking, but should be fixed for accessibility.", "selector": "[data-testid=ticket-detail-sheet]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_tickets_backend.py",
+    "/app/test_reports/pytest/tickets_results.xml"
+  ],
+  "action_items": [
+    "Review the api.js interceptor fix (added /tickets and /crm/ to isAdmin path check) - see rca. The main agent may want a more robust approach (e.g. explicit list of admin paths or module-based token routing) but the current fix is minimal and unblocks the whole support module.",
+    "Add a DialogTitle (VisuallyHidden if not desired visually) inside TicketDetailSheet to silence Radix a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "CRITICAL (fixed): /app/frontend/src/lib/api.js interceptor gated the admin bearer token on url.includes('/admin') or '/auth/admin' only. All new tickets endpoints (/api/tickets*, /api/crm/customers*) fell through to the customer token branch => 401 across the entire support module. Fixed by extending isAdmin to also include '/tickets' and '/crm/'.",
+    "backend/routers/tickets.py: /tickets/{tid} GET is declared before /tickets/notifications/list; since 'notifications/list' contains a slash, path-param matching is safe. However /tickets/{tid} could still swallow future GET /tickets/<single-word-collection> so keep specific routes above the {tid} route (dashboard, reports, config, staff already correctly placed above).",
+    "Overdue is correctly derived in decorate() and non-persisted; PATCH status=overdue returns 400 as required.",
+    "notify() targets assignee only, so a super-admin creator does not receive their own creation notification in /notifications/list unless assigned to self - by design.",
+    "config PUT uses upsert and strips _id; safe.",
+    "Attachment DELETE does not add an activity entry (add/upload does). Minor - consider adding for audit parity."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_tickets_backend.py",
+    "/app/frontend/src/lib/api.js"
+  ],
+  "success_rate": {"backend": "100% (26/26)", "frontend": "100% for all support module screens tested"},
+  "test_credentials": "Admin vetmechpharma@gmail.com / Admin@123 ; Staff arun@vetmech.com / Vetmech@123 (sales_executive with tickets access)",
+  "seed_data_creation": "Tests created a few TEST_ CRM customers (deleted) and a TEST ticket per class (kept). Frontend flow created one TEST_UI_Ticket_Auto via /admin/support/create-ticket.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend tickets tests: pytest /app/backend/tests/test_tickets_backend.py -v. Frontend blocking bug was in /app/frontend/src/lib/api.js (token gating); already patched. Support module lives under /admin/support/* and uses testids: adminnav-*, kpi-total/open/in_progress/pending/overdue/completed, ticket-detail-sheet, set-status-in_progress|pending|closed, ct-customer, ct-type, ct-assignee, ct-title, submit-ticket, notification-bell. Overdue is derived (never PATCHed).",
+  "rca of the issue": "Frontend 401 across support module: axios request interceptor at /app/frontend/src/lib/api.js chose the token based on url.includes('/admin') or '/auth/admin'. New tickets endpoints (/api/tickets, /api/crm/customers) hit neither substring, so it fell through to localStorage.getItem('vm_customer_token') which is null for an admin session -> no Authorization header sent -> require_module('tickets') dependency returned 401. Reproduced by logging in as admin then navigating to /admin/support; DevTools showed 401s. Mitigation applied: extended isAdmin to also include '/tickets' and '/crm/' so admin token is attached. Verified: dashboard, list, create, status change, calendar, reports, settings all render with data."
+}

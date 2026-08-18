@@ -23,6 +23,12 @@ Modern, professional, responsive veterinary pharmaceutical corporate website + B
 ## Verified
 - 31/31 backend tests pass; full E2E purchase + admin flows pass (iteration_1.json).
 
+## Implemented — Customer Support / Ticketing (2026-06)
+- New admin module under /admin/support/*: Support Dashboard (KPIs + charts), CRM Customers (profiles, stats, quick call/WhatsApp/email), Tickets (statuses Open/In Progress/Pending/Closed + auto-derived Overdue, priorities, types, assignee, due dates), Ticket detail (status control, updates/comments, attachments, activity timeline), Create Ticket, My Tasks, Calendar (month grid), Reports (employee/customer/type + CSV/Excel/PDF export), Ticket Settings (types/priorities/notification channels), in-app Notification bell.
+- Roles extended: admin, manager, sales_executive, support_user (module "tickets"). Seeded 5 staff, 8 CRM customers, 22 demo tickets.
+- Backend: /app/backend/routers/tickets.py (+ seed_tickets.py). Overdue derived (not stored). Notifications in db.ticket_notifications (external WhatsApp/Email/SMS MOCKED).
+- Verified: 26/26 backend tests + full frontend flows pass (iteration_2.json). Fixed api.js token routing for /tickets & /crm paths.
+
 ## Backlog (P1/P2)
 - P1: Real WhatsApp API + SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.

@@ -15,7 +15,8 @@ import uuid
 from db import db
 from security import get_current_admin
 from seed_data import run_seed
-from routers import auth_routes, catalog, orders, cms, admin_routes
+from seed_tickets import run_seed_tickets
+from routers import auth_routes, catalog, orders, cms, admin_routes, tickets
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -86,6 +87,7 @@ app.include_router(catalog.router)
 app.include_router(orders.router)
 app.include_router(cms.router)
 app.include_router(admin_routes.router)
+app.include_router(tickets.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -104,6 +106,7 @@ async def startup():
     await db.categories.create_index("slug")
     await db.orders.create_index("order_number")
     await run_seed(db)
+    await run_seed_tickets(db)
     logger.info("VETMECH backend ready")
 
 

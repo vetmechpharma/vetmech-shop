@@ -8,10 +8,23 @@ import {
   LayoutDashboard, Package, FolderTree, Tag, Layers, Percent, ShoppingBag, Users,
   Newspaper, Image, Briefcase, Mail, MessageCircle, Send, Search, BarChart3,
   UserCog, Settings, ScrollText, Menu, LogOut, FileText, Globe,
+  Ticket, ListChecks, CalendarDays, Headset, Contact, Bell,
 } from "lucide-react";
+import NotificationBell from "./NotificationBell";
 
 const NAV = [
+  { heading: "Main" },
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, module: null, end: true },
+  { heading: "Customer Support" },
+  { to: "/admin/support", label: "Support Dashboard", icon: Headset, module: "tickets", end: true },
+  { to: "/admin/support/customers", label: "Customers", icon: Contact, module: "tickets" },
+  { to: "/admin/support/tickets", label: "Tickets", icon: Ticket, module: "tickets" },
+  { to: "/admin/support/my-tasks", label: "My Tasks", icon: ListChecks, module: "tickets" },
+  { to: "/admin/support/calendar", label: "Calendar", icon: CalendarDays, module: "tickets" },
+  { to: "/admin/support/create-ticket", label: "Create Ticket", icon: Ticket, module: "tickets" },
+  { to: "/admin/support/reports", label: "Ticket Reports", icon: BarChart3, module: "tickets" },
+  { to: "/admin/support/settings", label: "Ticket Settings", icon: Settings, module: "tickets" },
+  { heading: "Store" },
   { to: "/admin/products", label: "Products", icon: Package, module: "products" },
   { to: "/admin/categories", label: "Categories", icon: FolderTree, module: "categories" },
   { to: "/admin/brands", label: "Brands", icon: Tag, module: "brands" },
@@ -40,7 +53,10 @@ const NAV = [
 function SidebarLinks({ can, onNav }) {
   return (
     <nav className="flex flex-col gap-0.5 px-3 py-4">
-      {NAV.filter((n) => !n.module || can(n.module)).map((n) => {
+      {NAV.filter((n) => n.heading || !n.module || can(n.module)).map((n, idx) => {
+        if (n.heading) {
+          return <p key={`h-${idx}`} className="text-[10px] uppercase tracking-widest text-slate-500 px-3 mt-4 mb-1">{n.heading}</p>;
+        }
         const Icon = n.icon;
         return (
           <NavLink key={n.to} to={n.to} end={n.end} onClick={onNav}
@@ -86,6 +102,7 @@ export default function AdminLayout() {
             <span className="text-sm text-slate-500 hidden sm:block">Welcome back, <strong className="text-vm-ink">{admin.name}</strong></span>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <span className="text-xs bg-vm-bg text-vm-green px-2.5 py-1 rounded font-medium">{ROLE_LABELS[admin.role] || admin.role}</span>
             <a href="/" target="_blank" rel="noreferrer"><Button variant="ghost" size="sm"><Globe className="w-4 h-4 mr-1" /> View Site</Button></a>
             <Button variant="outline" size="sm" onClick={() => { logout(); navigate("/admin/login"); }} data-testid="admin-logout"><LogOut className="w-4 h-4 mr-1" /> Logout</Button>

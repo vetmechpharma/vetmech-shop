@@ -33,6 +33,14 @@ import { AdminCategories, AdminBrands, AdminUnits, AdminNews, AdminGallery, Admi
 import { CompanySettings, WhatsAppSettings, SmtpSettings, SeoSettings, HomepageSettings, WebsiteSettings } from "@/pages/admin/AdminSettings";
 import { AdminEnquiries, AdminApplications, AdminNotifications, AdminAuditLogs, AdminReports, AdminPages } from "@/pages/admin/AdminMisc";
 
+import SupportDashboard from "@/pages/admin/support/SupportDashboard";
+import Tickets from "@/pages/admin/support/Tickets";
+import CrmCustomers from "@/pages/admin/support/CrmCustomers";
+import CreateTicket from "@/pages/admin/support/CreateTicket";
+import SupportCalendar from "@/pages/admin/support/SupportCalendar";
+import SupportReports from "@/pages/admin/support/SupportReports";
+import TicketSettings from "@/pages/admin/support/TicketSettings";
+
 function App() {
   return (
     <div className="App">
@@ -92,6 +100,16 @@ function App() {
                   <Route path="reports" element={<AdminReports />} />
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="audit" element={<AdminAuditLogs />} />
+
+                  {/* Customer Support / Ticketing */}
+                  <Route path="support" element={<SupportDashboard />} />
+                  <Route path="support/customers" element={<CrmCustomers />} />
+                  <Route path="support/tickets" element={<Tickets />} />
+                  <Route path="support/my-tasks" element={<Tickets mine />} />
+                  <Route path="support/calendar" element={<SupportCalendar />} />
+                  <Route path="support/create-ticket" element={<CreateTicket />} />
+                  <Route path="support/reports" element={<SupportReports />} />
+                  <Route path="support/settings" element={<TicketSettings />} />
                 </Route>
               </Routes>
             </CartProvider>

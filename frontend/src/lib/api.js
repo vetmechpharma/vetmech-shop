@@ -7,7 +7,7 @@ export const api = axios.create({ baseURL: API_BASE });
 
 api.interceptors.request.use((config) => {
   const url = config.url || "";
-  const isAdmin = url.includes("/admin") || url.includes("/auth/admin");
+  const isAdmin = url.includes("/admin") || url.includes("/auth/admin") || url.includes("/tickets") || url.includes("/crm/");
   const token = isAdmin
     ? localStorage.getItem("vm_admin_token")
     : localStorage.getItem("vm_customer_token");

@@ -14,6 +14,10 @@ ROLE_MODULES = {
     "order_manager": ["orders", "customers"],
     "content_manager": ["cms", "news", "gallery", "careers", "pages", "enquiries"],
     "sales_manager": ["orders", "customers", "reports"],
+    "admin": ["tickets", "orders", "customers", "reports"],
+    "manager": ["tickets", "reports"],
+    "sales_executive": ["tickets"],
+    "support_user": ["tickets"],
 }
 
 ROLE_LABELS = {
@@ -22,6 +26,10 @@ ROLE_LABELS = {
     "order_manager": "Order Manager",
     "content_manager": "Content Manager",
     "sales_manager": "Sales Manager",
+    "admin": "Admin",
+    "manager": "Manager",
+    "sales_executive": "Sales Executive",
+    "support_user": "Support User",
 }
 
 
