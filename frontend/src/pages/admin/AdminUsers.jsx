@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import ImageUpload from "@/components/admin/ImageUpload";
 import { ROLE_OPTIONS, ROLE_LABELS } from "@/lib/adminNav";
 
 export default function AdminUsers() {
@@ -68,6 +69,14 @@ export default function AdminUsers() {
               <Select value={form.role} onValueChange={(v) => set("role", v)}><SelectTrigger data-testid="au-role"><SelectValue /></SelectTrigger>
                 <SelectContent>{ROLE_OPTIONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="flex items-center justify-between border rounded-md px-3 py-2"><Label>Active</Label><Switch checked={!!form.active} onCheckedChange={(v) => set("active", v)} /></div>
+            {editing && (
+              <div className="border-t pt-4 space-y-4">
+                <p className="text-sm font-semibold text-vm-ink">Quotation Signatory</p>
+                <div><Label>Designation</Label><Input value={form.designation || ""} onChange={(e) => set("designation", e.target.value)} placeholder="e.g. Sales Manager" data-testid="au-designation" /></div>
+                <div><Label>Signature Image</Label><ImageUpload label="" value={form.signature} onChange={(v) => set("signature", v)} testid="au-signature" /></div>
+                <div className="flex items-center justify-between border rounded-md px-3 py-2"><Label>Use signature on quotations</Label><Switch checked={form.use_signature !== false} onCheckedChange={(v) => set("use_signature", v)} data-testid="au-use-signature" /></div>
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 mt-4"><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => save.mutate(form)} disabled={save.isPending} data-testid="save-admin-user">{save.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save</Button></div>
         </DialogContent>

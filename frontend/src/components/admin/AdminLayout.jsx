@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, FolderTree, Tag, Layers, Percent, ShoppingBag, Users,
   Newspaper, Image, Briefcase, Mail, MessageCircle, Send, Search, BarChart3,
   UserCog, Settings, ScrollText, Menu, LogOut, FileText, Globe,
-  Ticket, ListChecks, CalendarDays, Headset, Contact, Bell, Database,
+  Ticket, ListChecks, CalendarDays, Headset, Contact, Bell, Database, ScrollText as ScrollIcon, FileSignature,
 } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 
@@ -31,6 +31,12 @@ const NAV = [
   { to: "/admin/units", label: "Units", icon: Layers, module: "units" },
   { to: "/admin/schemes", label: "Schemes & Offers", icon: Percent, module: "schemes" },
   { to: "/admin/orders", label: "Orders", icon: ShoppingBag, module: "orders" },
+  { heading: "Quotations" },
+  { to: "/admin/quotations", label: "Quotation Dashboard", icon: FileSignature, module: "quotations", end: true },
+  { to: "/admin/quotations/list", label: "All Quotations", icon: FileText, module: "quotations" },
+  { to: "/admin/quotations/new", label: "New Quotation", icon: FileSignature, module: "quotations" },
+  { to: "/admin/quotations/settings", label: "Quotation Settings", icon: Settings, module: "quotations" },
+  { heading: "Catalog & Sales" },
   { to: "/admin/customers", label: "Customers", icon: Users, module: "customers" },
   { to: "/admin/pages", label: "Website Pages", icon: FileText, module: "pages" },
   { to: "/admin/news", label: "News", icon: Newspaper, module: "news" },

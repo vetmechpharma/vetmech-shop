@@ -11,10 +11,10 @@ ACCESS_TOKEN_DAYS = 30
 ROLE_MODULES = {
     "super_admin": ["*"],
     "product_manager": ["products", "categories", "brands", "units", "variants", "schemes"],
-    "order_manager": ["orders", "customers"],
+    "order_manager": ["orders", "customers", "quotations"],
     "content_manager": ["cms", "news", "gallery", "careers", "pages", "enquiries"],
-    "sales_manager": ["orders", "customers", "reports"],
-    "admin": ["tickets", "orders", "customers", "reports"],
+    "sales_manager": ["orders", "customers", "reports", "quotations"],
+    "admin": ["tickets", "orders", "customers", "reports", "quotations"],
     "manager": ["tickets", "reports"],
     "sales_executive": ["tickets"],
     "support_user": ["tickets"],

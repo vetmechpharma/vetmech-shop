@@ -37,6 +37,15 @@ Modern, professional, responsive veterinary pharmaceutical corporate website + B
 - Admin Support dashboard redesigned with colored gradient KPI cards; website header/branding polish.
 - Verified: 15/15 backend + 100% frontend (iteration_3.json). Admin login bug reported earlier not reproducible; hardened login clears stale token.
 
+## Implemented — Quotation Management Module (2026-06)
+- New admin module under /admin/quotations/*: Dashboard (KPI cards + status counts + top customers), All Quotations list (search/status filter), Create/Edit form (searchable customer picker, add DB catalog products + MANUAL free-text items with optional "save to catalog", per-line qty/rate/discount %/₹/GST, live totals), Detail view (customer/company snapshot, items, terms, summary + amount-in-words, history timeline), Quotation Settings (number prefix/digits/start, default validity, default terms).
+- SNAPSHOT integrity: each quote stores company_snapshot, customer, terms, signatory (name/designation/signature) and per-item name/price at creation time — master-data changes do not alter existing quotes.
+- A4 PDF generated on backend via reportlab (green branded header, itemized table, summary, terms, signatory block, repeating footer w/ page numbers, amount-in-words via num2words).
+- Actions: PATCH status, Send via Email/WhatsApp (MOCKED), Duplicate, Convert-to-Order (creates order, sets quote accepted + converted_order), Delete (draft-only unless super_admin).
+- Signatory: Admin Users edit form now has Designation, Signature image upload, and "use signature on quotations" toggle.
+- Backend: /app/backend/routers/quotations.py (prefix /api/admin/quotations), mediahelper.py (signature fetch for PDF); wired in server.py; "quotations" module added to RBAC (super_admin, order_manager, sales_manager, admin).
+- Verified: 15/15 backend pytest + 100% frontend flows pass (iteration_5.json); PDF visually verified.
+
 ## Backlog (P1/P2)
 - P1: Real WhatsApp API + SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.

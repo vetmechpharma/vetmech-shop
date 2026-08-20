@@ -33,6 +33,11 @@ import { AdminCategories, AdminBrands, AdminUnits, AdminNews, AdminGallery, Admi
 import { CompanySettings, WhatsAppSettings, SmtpSettings, SeoSettings, HomepageSettings, WebsiteSettings } from "@/pages/admin/AdminSettings";
 import { AdminEnquiries, AdminApplications, AdminNotifications, AdminAuditLogs, AdminReports, AdminPages } from "@/pages/admin/AdminMisc";
 import BackupSettings from "@/pages/admin/BackupSettings";
+import QuotationDashboard from "@/pages/admin/quotations/QuotationDashboard";
+import QuotationList from "@/pages/admin/quotations/QuotationList";
+import QuotationForm from "@/pages/admin/quotations/QuotationForm";
+import QuotationDetail from "@/pages/admin/quotations/QuotationDetail";
+import QuotationSettings from "@/pages/admin/quotations/QuotationSettings";
 
 import SupportDashboard from "@/pages/admin/support/SupportDashboard";
 import Tickets from "@/pages/admin/support/Tickets";
@@ -102,6 +107,14 @@ function App() {
                   <Route path="reports" element={<AdminReports />} />
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="audit" element={<AdminAuditLogs />} />
+
+                  {/* Quotations */}
+                  <Route path="quotations" element={<QuotationDashboard />} />
+                  <Route path="quotations/list" element={<QuotationList />} />
+                  <Route path="quotations/new" element={<QuotationForm />} />
+                  <Route path="quotations/settings" element={<QuotationSettings />} />
+                  <Route path="quotations/:id" element={<QuotationDetail />} />
+                  <Route path="quotations/:id/edit" element={<QuotationForm />} />
 
                   {/* Customer Support / Ticketing */}
                   <Route path="support" element={<SupportDashboard />} />
