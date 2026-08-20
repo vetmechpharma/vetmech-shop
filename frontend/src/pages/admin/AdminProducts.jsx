@@ -18,7 +18,7 @@ import { Plus, Pencil, Trash2, Loader2, X } from "lucide-react";
 const BADGES = ["new", "featured", "best_seller", "offer", "out_of_stock", "coming_soon"];
 const STOCK = [{ value: "in_stock", label: "In Stock" }, { value: "out_of_stock", label: "Out of Stock" }, { value: "coming_soon", label: "Coming Soon" }];
 const GST = [0, 5, 12, 18];
-const emptyVariant = () => ({ pack_size: "", unit: "Bottle", sku: "", mrp: 0, selling_price: 0, gst_percent: 12, gst_inclusive: true, stock_status: "in_stock", min_order_qty: 1, max_order_qty: 0, units_per_case: 0 });
+const emptyVariant = () => ({ pack_size: "", unit: "Bottle", sku: "", mrp: 0, selling_price: 0, gst_percent: 12, gst_inclusive: true, stock_status: "in_stock", min_order_qty: 1, max_order_qty: 0, units_per_case: 0, images: [] });
 
 export default function AdminProducts() {
   const qc = useQueryClient();
@@ -158,6 +158,18 @@ export default function AdminProducts() {
                     <div><Label className="text-xs">Units per Case</Label><Input type="number" value={v.units_per_case || 0} onChange={(e) => setVariant(i, "units_per_case", Number(e.target.value))} data-testid={`vf-case-${i}`} /></div>
                   </div>
                   <div className="flex items-center gap-2 mt-2"><Switch checked={!!v.gst_inclusive} onCheckedChange={(val) => setVariant(i, "gst_inclusive", val)} /><span className="text-xs text-slate-500">GST Inclusive</span></div>
+                  <div className="mt-3">
+                    <Label className="text-xs">Variant Images (shown in order)</Label>
+                    <div className="flex flex-wrap gap-2 mt-1 mb-1">
+                      {(v.images || []).map((img, xi) => (
+                        <div key={xi} className="relative w-14 h-14 bg-[#F8FAF9] rounded border p-1">
+                          <img src={mediaUrl(img)} alt="" className="w-full h-full object-contain" />
+                          <button onClick={() => setVariant(i, "images", v.images.filter((_, k) => k !== xi))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 grid place-items-center"><X className="w-3 h-3" /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <ImageUpload label="" value="" square testid={`vf-img-${i}`} onChange={(url) => url && setVariant(i, "images", [...(v.images || []), url])} />
+                  </div>
                 </div>
               ))}
               <Button variant="outline" size="sm" onClick={() => set("variants", [...form.variants, emptyVariant()])} data-testid="add-variant"><Plus className="w-4 h-4 mr-1" /> Add Variant</Button>
@@ -175,7 +187,7 @@ export default function AdminProducts() {
                   ))}
                 </div>
               </div>
-              <ImageUpload label="Main Image" value={form.image} onChange={(v) => set("image", v)} testid="pf-image" />
+              <ImageUpload label="Main Image" value={form.image} onChange={(v) => set("image", v)} testid="pf-image" square />
               <div>
                 <Label className="mb-2 block">Additional Images</Label>
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -183,7 +195,7 @@ export default function AdminProducts() {
                     <div key={i} className="relative w-16 h-16 bg-[#F8FAF9] rounded border p-1"><img src={mediaUrl(img)} alt="" className="w-full h-full object-contain" /><button onClick={() => set("images", form.images.filter((_, x) => x !== i))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 grid place-items-center"><X className="w-3 h-3" /></button></div>
                   ))}
                 </div>
-                <ImageUpload label="" value="" onChange={(v) => v && set("images", [...(form.images || []), v])} />
+                <ImageUpload label="" value="" square onChange={(v) => v && set("images", [...(form.images || []), v])} />
               </div>
               <ImageUpload label="Brochure (PDF)" value={form.brochure_url} onChange={(v) => set("brochure_url", v)} isPdf accept="application/pdf" />
               <ImageUpload label="Visual Aid (PDF)" value={form.visual_aid_url} onChange={(v) => set("visual_aid_url", v)} isPdf accept="application/pdf" />

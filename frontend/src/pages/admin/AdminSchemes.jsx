@@ -28,6 +28,8 @@ export default function AdminSchemes() {
     onError: (e) => toast.error(apiError(e)),
   });
   const del = useMutation({ mutationFn: async (id) => (await api.delete(`/admin/schemes/${id}`)).data, onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-schemes"] }); toast.success("Deleted"); } });
+  const toggle = useMutation({ mutationFn: async ({ id, active }) => (await api.put(`/admin/schemes/${id}`, { active })).data, onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-schemes"] }); toast.success("Updated"); } });
+  const [q, setQ] = useState("");
 
   const openNew = () => { setEditing(null); setForm({ scheme_type: "free_qty", customer_type: "all", active: true }); setOpen(true); };
   const openEdit = (s) => { setEditing(s); setForm({ ...s }); setOpen(true); };
@@ -37,9 +39,12 @@ export default function AdminSchemes() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div><h1 className="font-heading text-2xl font-bold text-vm-ink">Schemes & Offers</h1><p className="text-slate-500 text-sm">Auto-applied quantity schemes & special prices</p></div>
-        <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={openNew} data-testid="add-scheme"><Plus className="w-4 h-4 mr-2" /> Add Scheme</Button>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div><h1 className="font-heading text-2xl font-bold text-vm-ink">Schemes & Offers</h1><p className="text-slate-500 text-sm">Multiple offers per variant — lowest price + best free qty auto-apply</p></div>
+        <div className="flex gap-2">
+          <Input placeholder="Search schemes..." value={q} onChange={(e) => setQ(e.target.value)} className="w-52" data-testid="scheme-search" />
+          <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={openNew} data-testid="add-scheme"><Plus className="w-4 h-4 mr-2" /> Add Scheme</Button>
+        </div>
       </div>
 
       <div className="border border-[#E2E8F0] rounded-lg overflow-x-auto bg-white">
@@ -47,17 +52,15 @@ export default function AdminSchemes() {
           <TableHeader><TableRow className="bg-vm-bg"><TableHead>Name</TableHead><TableHead>Product</TableHead><TableHead>Type</TableHead><TableHead>Rule</TableHead><TableHead>Active</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
           <TableBody>
             {isLoading ? <TableRow><TableCell colSpan={6} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
-              : (schemes || []).map((s) => (
+              : (schemes || []).filter((s) => !q || (s.name || "").toLowerCase().includes(q.toLowerCase()) || productName(s.product_id).toLowerCase().includes(q.toLowerCase())).map((s) => (
                 <TableRow key={s.id} data-testid={`scheme-row-${s.id}`}>
                   <TableCell className="font-medium text-vm-ink">{s.name}</TableCell>
                   <TableCell className="text-sm">{productName(s.product_id)}</TableCell>
-                  <TableCell className="text-sm">{s.scheme_type === "special_price" ? "Special Price" : "Free Qty"}</TableCell>
-                  <TableCell className="text-sm text-vm-accent font-medium">{s.scheme_type === "special_price" ? `${s.min_quantity} @ ₹${s.special_price}` : `${s.buy_quantity}+${s.free_quantity}`}</TableCell>
-                  <TableCell>{s.active ? <span className="text-green-600 text-xs">Yes</span> : <span className="text-slate-400 text-xs">No</span>}</TableCell>
+                  <TableCell className="text-sm">{s.scheme_type === "case_price" ? "Case Price" : s.scheme_type === "special_price" ? "Special Price" : "Free Qty"}</TableCell>
+                  <TableCell className="text-sm text-vm-accent font-medium">{(s.scheme_type === "special_price" || s.scheme_type === "case_price") ? `${s.min_quantity} @ ₹${s.special_price}` : `${s.buy_quantity}+${s.free_quantity}`}</TableCell>
+                  <TableCell><Switch checked={!!s.active} onCheckedChange={(v) => toggle.mutate({ id: s.id, active: v })} data-testid={`scheme-toggle-${s.id}`} /></TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="w-4 h-4" /></Button>
-                    <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
-                      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete scheme?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-600" onClick={() => del.mutate(s.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(s)} data-testid={`edit-scheme-${s.id}`}><Pencil className="w-4 h-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -72,16 +75,16 @@ export default function AdminSchemes() {
             <div><Label>Scheme Name</Label><Input value={form.name || ""} onChange={(e) => set("name", e.target.value)} data-testid="sf-name" /></div>
             <div><Label>Scheme Type</Label>
               <Select value={form.scheme_type} onValueChange={(v) => set("scheme_type", v)}><SelectTrigger data-testid="sf-type"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="free_qty">Free Quantity (e.g. 10+5)</SelectItem><SelectItem value="special_price">Special Price</SelectItem></SelectContent></Select></div>
+                <SelectContent><SelectItem value="free_qty">Free Quantity (e.g. 10+2)</SelectItem><SelectItem value="special_price">Special Price (min qty)</SelectItem><SelectItem value="case_price">Case Price (buy full case)</SelectItem></SelectContent></Select></div>
             <div><Label>Product</Label>
               <Select value={form.product_id || ""} onValueChange={(v) => set("product_id", v)}><SelectTrigger data-testid="sf-product"><SelectValue placeholder="Select product" /></SelectTrigger>
                 <SelectContent>{(products?.items || []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Variant (optional — applies to all if empty)</Label>
               <Select value={form.variant_id || "all"} onValueChange={(v) => set("variant_id", v === "all" ? null : v)}><SelectTrigger><SelectValue placeholder="All variants" /></SelectTrigger>
                 <SelectContent><SelectItem value="all">All variants</SelectItem>{(selectedProduct?.variants || []).map((v) => <SelectItem key={v.id} value={v.id}>{v.pack_size} {v.unit}</SelectItem>)}</SelectContent></Select></div>
-            {form.scheme_type === "special_price" ? (
+            {form.scheme_type === "special_price" || form.scheme_type === "case_price" ? (
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Min Quantity</Label><Input type="number" value={form.min_quantity || ""} onChange={(e) => set("min_quantity", Number(e.target.value))} data-testid="sf-min" /></div>
+                <div><Label>{form.scheme_type === "case_price" ? "Case Qty (min)" : "Min Quantity"}</Label><Input type="number" value={form.min_quantity || ""} onChange={(e) => set("min_quantity", Number(e.target.value))} data-testid="sf-min" /></div>
                 <div><Label>Special Price (₹)</Label><Input type="number" value={form.special_price || ""} onChange={(e) => set("special_price", Number(e.target.value))} data-testid="sf-price" /></div>
               </div>
             ) : (

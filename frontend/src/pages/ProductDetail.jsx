@@ -26,7 +26,8 @@ export default function ProductDetail() {
   const variants = p.variants || [];
   const variant = variants.find((v) => v.id === variantId) || variants[0] || {};
   const scheme = (variant.active_schemes || [])[0];
-  const images = p.images?.length ? p.images : [p.image];
+  const images = (variant.images && variant.images.length) ? variant.images : (p.images?.length ? p.images : [p.image]);
+  const schemes = variant.active_schemes || [];
   const outOfStock = p.badges?.out_of_stock || variant.stock_status === "out_of_stock";
   const comingSoon = variant.stock_status === "coming_soon";
 
@@ -50,7 +51,7 @@ export default function ProductDetail() {
         <div>
           <div className="relative bg-[#F8FAF9] border border-[#E2E8F0] rounded-lg aspect-square p-8">
             <ProductBadges badges={p.badges} className="absolute top-3 left-3 z-10" />
-            <img src={mediaUrl(images[activeImg])} alt={p.name} className="w-full h-full object-contain" data-testid="product-main-image" />
+            <img src={mediaUrl(images[activeImg] || images[0])} alt={p.name} className="w-full h-full object-contain" data-testid="product-main-image" />
           </div>
           {images.length > 1 && (
             <div className="flex gap-2 mt-3">
@@ -81,7 +82,7 @@ export default function ProductDetail() {
             <p className="text-sm font-medium text-vm-ink mb-2">Select Pack Size</p>
             <div className="flex flex-wrap gap-2">
               {variants.map((v) => (
-                <button key={v.id} onClick={() => setVariantId(v.id)}
+                <button key={v.id} onClick={() => { setVariantId(v.id); setActiveImg(0); }}
                         className={`px-4 py-2 rounded-md border text-sm font-medium ${v.id === variant.id ? "border-vm-green bg-vm-green text-white" : "border-[#E2E8F0] text-slate-700 hover:border-vm-accent"}`}
                         data-testid={`variant-${v.sku}`}>
                   {v.pack_size} {v.unit}
@@ -90,12 +91,17 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {scheme && (
-            <div className="mt-4 bg-vm-bg border border-vm-accent/30 rounded-lg p-3 text-sm text-vm-green flex items-center gap-2" data-testid="product-scheme">
-              <Check className="w-4 h-4" />
-              {scheme.type === "special_price"
-                ? <span>Special scheme: buy <strong>{scheme.min}</strong> at <strong>₹{scheme.special_price}</strong> each</span>
-                : <span>Scheme <strong>{scheme.buy}+{scheme.free}</strong> — buy {scheme.buy}, get {scheme.free} free</span>}
+          {schemes.length > 0 && (
+            <div className="mt-4 space-y-2" data-testid="product-scheme">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Available Offers</p>
+              {schemes.map((sc) => (
+                <div key={sc.id} className="bg-vm-bg border border-vm-accent/30 rounded-lg p-2.5 text-sm text-vm-green flex items-center gap-2">
+                  <Check className="w-4 h-4 flex-shrink-0" />
+                  {sc.type === "special_price" || sc.type === "case_price"
+                    ? <span>{sc.name || "Offer"}: buy <strong>{sc.min}</strong>+ at <strong>₹{sc.special_price}</strong> each</span>
+                    : <span>{sc.name || "Offer"}: <strong>{sc.buy}+{sc.free}</strong> — buy {sc.buy}, get {sc.free} free</span>}
+                </div>
+              ))}
             </div>
           )}
 

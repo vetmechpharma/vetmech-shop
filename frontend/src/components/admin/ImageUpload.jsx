@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Upload, X, Loader2, FileText } from "lucide-react";
 
-export default function ImageUpload({ value, onChange, label = "Image", accept = "image/*", isPdf = false, testid }) {
+export default function ImageUpload({ value, onChange, label = "Image", accept = "image/*", isPdf = false, testid, square = false }) {
   const ref = useRef();
   const [loading, setLoading] = useState(false);
 
@@ -16,7 +16,7 @@ export default function ImageUpload({ value, onChange, label = "Image", accept =
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const { data } = await api.post("/admin/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const { data } = await api.post(`/admin/upload${square ? "?square=true" : ""}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
       onChange(data.url);
       toast.success("Uploaded");
     } catch (err) { toast.error(apiError(err)); }

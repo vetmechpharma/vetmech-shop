@@ -1,0 +1,39 @@
+{
+  "summary": "Tested feature batch 4 (square uploads, multi-scheme per variant incl. case_price, per-variant images, admin schemes list toggle/search, admin create/edit/delete orders, regressions). Backend: 12/12 pytest cases pass in /app/backend/tests/test_batch4_features.py — square upload returns padded WebP with equal width/height; non-square param still resizes to <=1600w; multi-scheme (free_qty 10+2 + special_price 95) coexist on same variant with free_qty=2 AND unit_price=95; when a lower special (88) is added it wins; case_price scheme_type 80 with min 12 wins at qty 12 but falls back to 88 at qty 10; GET /api/products/nerviphos-bm variant.active_schemes lists ALL four TEST schemes with types free_qty/special_price/case_price; variant.images array persists through PUT /api/admin/products/{id} and GET returns them; admin create order returns VM-2026-##### with 'created by admin' activity and appears in listing; PUT recomputes totals with 'edited' activity; DELETE removes order and next GET is 404; regression NERVIPHOS-BM NBM-100 qty10 still yields free_qty=5. Frontend: admin login OK; /admin/schemes has scheme-search (filters rows), scheme-toggle-<id> switches (role=switch, click flips data-state), edit-scheme-<id> present, NO delete-scheme buttons (confirmed via DOM inspection); scheme dialog sf-type dropdown exposes three options including 'Case Price (buy full case)'; /admin/orders shows admin-create-order button and delete-order-<orderNumber> buttons per row; create-order-dialog opens, co-name/co-mobile/co-add-item/co-product-0/co-variant-0/co-qty-0/co-submit all work AFTER fixing setRow stale-closure bug — order created (toast success, dialog closes, row appears when searching by mobile), delete-order flow shows AlertDialog with Cancel/Delete and successfully removes the row.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminSchemes row rule column", "issue": "For scheme_type='case_price', the row's Rule/Type columns render as free_qty branch ('undefined+undefined') because the ternary only checks 'special_price'. Cosmetic — case_price rows in the list will display incorrectly until logic includes case_price.", "selector": "tr[data-testid^='scheme-row-']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin Create Order (fixed during testing)", "issue": "CreateOrderDialog.setRow used a stale form.items closure and setForm without functional updater, so two synchronous setRow calls in the product select's onValueChange (setRow product_id, setRow variant_id='') overwrote each other and the product selection never persisted — blocking the entire admin-create-order flow via UI. Fixed by rewriting setRow to use setForm(f => ({...f, items: f.items.map(...)})). Backend endpoint itself was never broken.", "affected_selectors": ["co-product-0", "co-variant-0", "co-submit"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_batch4_features.py",
+    "/app/test_reports/pytest/batch4_results.xml"
+  ],
+  "action_items": [
+    "Update AdminSchemes.jsx row rendering to handle scheme_type === 'case_price' in the Type column ('Case Price') and Rule column (e.g. `${min_quantity} @ ₹${special_price}` / case), otherwise case_price schemes will show 'undefined+undefined' in the admin list.",
+    "(Applied by testing agent) CreateOrderDialog setRow was rewritten to a functional setState — main agent should review the fix in /app/frontend/src/pages/admin/AdminOrders.jsx line 97 and keep it."
+  ],
+  "critical_code_review_comments": [
+    "helpers.compute_scheme: when both free_qty and special_price schemes match, the returned scheme_id/scheme_name/scheme_label reflect only the free_qty scheme (special-price info is only exposed via unit_price). Frontend must render offers from variant.active_schemes rather than order.items.scheme_label to show BOTH offers on the product page — the API supports this (verified) but any UI that shows only line.scheme_label will hide the special-price offer text.",
+    "AdminSchemes row Type/Rule ternary does not handle 'case_price' — will render as free_qty branch (see action_items).",
+    "CreateOrderDialog originally used non-functional setState in setRow — pattern should be avoided across the codebase to prevent similar stale-closure regressions (e.g. any component doing setState(a); setState(b) synchronously that both read from the same rendered state).",
+    "orders.py admin_create_order/edit_order do not validate mobile/pincode/state format — accepts empty strings. Fine for admin flow but consider Pydantic model for safety."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/admin/AdminOrders.jsx",
+    "/app/backend/tests/test_batch4_features.py",
+    "/app/test_reports/pytest/batch4_results.xml"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% for tested flows after setRow fix"},
+  "test_credentials": "vetmechpharma@gmail.com / Admin@123 (super_admin) from /app/memory/test_credentials.md",
+  "seed_data_creation": "TEST_free_10_2, TEST_special_95, TEST_special_88, TEST_case_80 schemes attached to NERVIPHOS-BM NBM-500 variant (backend fixture auto-deletes them). One TEST admin order (mobile 9998887777) created + deleted via UI during frontend test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend feature-batch tests live at /app/backend/tests/test_batch4_features.py (12 cases, all pass). Frontend fix: /app/frontend/src/pages/admin/AdminOrders.jsx setRow now uses functional setState. Remaining known cosmetic issue: /admin/schemes list Rule/Type columns don't handle 'case_price' branch (renders as free_qty with undefineds). Multi-scheme active_schemes API contract verified: GET /api/products/{slug} variants[].active_schemes returns array of {id,name,type,buy,free,special_price,min}. Testids of interest: scheme-search, scheme-toggle-<id>, edit-scheme-<id>, sf-type/sf-min/sf-price/sf-buy/sf-free, admin-create-order, create-order-dialog, co-name/co-mobile/co-add-item/co-product-<i>/co-variant-<i>/co-qty-<i>/co-submit, delete-order-<orderNumber>.",
+  "rca of the issue": "Admin Create Order UI was silently broken (product select value never stuck): CreateOrderDialog defined setRow as `set('items', form.items.map(...))` where `set` used a functional setForm updater but `form.items.map(...)` was evaluated against the closure's snapshot. The product Select's onValueChange fired setRow twice synchronously (product_id, then variant_id=''); React batched both setForm calls, and because the second's newItems was computed from the original snapshot (product_id still empty), it overwrote the first. Reproduction: open /admin/orders → Create Order → Add Product → pick any product → UI shows 'Product' placeholder still. Mitigation applied: rewrote setRow to `setForm(f => ({...f, items: f.items.map(...)}))` so each functional update composes on top of the pending state. Retested — order created, appears in list, delete works."
+}

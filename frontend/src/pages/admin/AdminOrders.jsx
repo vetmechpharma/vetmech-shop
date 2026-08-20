@@ -8,9 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Eye, Download, FileText } from "lucide-react";
-import { ORDER_STATUSES, statusMeta, CUSTOMER_CATEGORIES } from "@/lib/constants";
+import { Loader2, Eye, Download, FileText, Plus, Trash2, X } from "lucide-react";
+import { ORDER_STATUSES, statusMeta, CUSTOMER_CATEGORIES, INDIAN_STATES } from "@/lib/constants";
 import { exportRows } from "@/lib/exportUtils";
 
 export default function AdminOrders() {
@@ -18,6 +20,8 @@ export default function AdminOrders() {
   const [status, setStatus] = useState("all");
   const [q, setQ] = useState("");
   const [detailId, setDetailId] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const delOrder = useMutation({ mutationFn: async (id) => (await api.delete(`/admin/orders/${id}`)).data, onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-orders"] }); toast.success("Order deleted"); }, onError: (e) => toast.error(apiError(e)) });
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-orders", status, q],
@@ -38,6 +42,7 @@ export default function AdminOrders() {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div><h1 className="font-heading text-2xl font-bold text-vm-ink">Orders</h1><p className="text-slate-500 text-sm">Manage and track all orders</p></div>
         <div className="flex gap-2">
+          <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => setCreateOpen(true)} data-testid="admin-create-order"><Plus className="w-4 h-4 mr-1" /> Create Order</Button>
           <Button variant="outline" size="sm" onClick={() => doExport("csv")} data-testid="export-csv"><Download className="w-4 h-4 mr-1" /> CSV</Button>
           <Button variant="outline" size="sm" onClick={() => doExport("xlsx")} data-testid="export-xlsx"><Download className="w-4 h-4 mr-1" /> Excel</Button>
           <Button variant="outline" size="sm" onClick={() => doExport("pdf")} data-testid="export-pdf"><FileText className="w-4 h-4 mr-1" /> PDF</Button>
@@ -66,7 +71,11 @@ export default function AdminOrders() {
                   <TableCell className="text-center">{o.total_qty}</TableCell>
                   <TableCell className="text-center text-vm-accent">{o.total_free}</TableCell>
                   <TableCell><span className={`text-xs font-semibold px-2.5 py-1 rounded ${statusMeta(o.status).color}`}>{statusMeta(o.status).label}</span></TableCell>
-                  <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => setDetailId(o.id)} data-testid={`view-order-${o.order_number}`}><Eye className="w-4 h-4" /></Button></TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    <Button variant="ghost" size="icon" onClick={() => setDetailId(o.id)} data-testid={`view-order-${o.order_number}`}><Eye className="w-4 h-4" /></Button>
+                    <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500" data-testid={`delete-order-${o.order_number}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
+                      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete order {o.order_number}?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-600" onClick={() => delOrder.mutate(o.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                  </TableCell>
                 </TableRow>
               ))}
           </TableBody>
@@ -74,7 +83,69 @@ export default function AdminOrders() {
       </div>
 
       <OrderDetail id={detailId} onClose={() => setDetailId(null)} onChange={() => qc.invalidateQueries({ queryKey: ["admin-orders"] })} />
+      <CreateOrderDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={() => qc.invalidateQueries({ queryKey: ["admin-orders"] })} />
     </div>
+  );
+}
+
+function CreateOrderDialog({ open, onOpenChange, onCreated }) {
+  const [form, setForm] = useState({ category: "doctor", items: [], line1: "", pincode: "", state: "", district: "" });
+  const [saving, setSaving] = useState(false);
+  const { data: products } = useQuery({ queryKey: ["ao-products"], queryFn: async () => (await api.get("/admin/products", { params: { limit: 200 } })).data, enabled: open });
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const addRow = () => set("items", [...form.items, { product_id: "", variant_id: "", qty: 1 }]);
+  const setRow = (i, k, v) => setForm((f) => ({ ...f, items: f.items.map((r, ri) => ri === i ? { ...r, [k]: v } : r) }));
+  const variantsOf = (pid) => (products?.items || []).find((p) => p.id === pid)?.variants || [];
+
+  const submit = async () => {
+    const items = form.items.filter((r) => r.variant_id && r.qty > 0).map((r) => ({ variant_id: r.variant_id, qty: Number(r.qty) }));
+    if (!form.name || !form.mobile) { toast.error("Customer name and mobile required"); return; }
+    if (items.length === 0) { toast.error("Add at least one product"); return; }
+    setSaving(true);
+    try {
+      await api.post("/admin/orders", {
+        name: form.name, mobile: form.mobile, company_name: form.company_name, category: form.category,
+        address: { line1: form.line1, pincode: form.pincode, state: form.state, district: form.district },
+        items, status: form.status || "new",
+      });
+      toast.success("Order created");
+      onCreated(); onOpenChange(false);
+      setForm({ category: "doctor", items: [], line1: "", pincode: "", state: "", district: "" });
+    } catch (e) { toast.error(apiError(e)); }
+    setSaving(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto" data-testid="create-order-dialog">
+        <DialogHeader><DialogTitle className="font-heading">Create Order (Admin)</DialogTitle></DialogHeader>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div><Label>Customer Name</Label><Input value={form.name || ""} onChange={(e) => set("name", e.target.value)} data-testid="co-name" /></div>
+          <div><Label>Mobile</Label><Input value={form.mobile || ""} onChange={(e) => set("mobile", e.target.value)} data-testid="co-mobile" /></div>
+          <div><Label>Company (optional)</Label><Input value={form.company_name || ""} onChange={(e) => set("company_name", e.target.value)} /></div>
+          <div><Label>Category</Label><Select value={form.category} onValueChange={(v) => set("category", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CUSTOMER_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="sm:col-span-2"><Label>Address Line</Label><Input value={form.line1} onChange={(e) => set("line1", e.target.value)} /></div>
+          <div><Label>District</Label><Input value={form.district} onChange={(e) => set("district", e.target.value)} /></div>
+          <div><Label>Pincode</Label><Input value={form.pincode} onChange={(e) => set("pincode", e.target.value)} /></div>
+          <div className="sm:col-span-2"><Label>State</Label><Select value={form.state} onValueChange={(v) => set("state", v)}><SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger><SelectContent className="max-h-52">{INDIAN_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
+        </div>
+        <div className="mt-2">
+          <Label>Products</Label>
+          <div className="space-y-2 mt-1">
+            {form.items.map((r, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <Select value={r.product_id} onValueChange={(v) => { setRow(i, "product_id", v); setRow(i, "variant_id", ""); }}><SelectTrigger className="flex-1" data-testid={`co-product-${i}`}><SelectValue placeholder="Product" /></SelectTrigger><SelectContent>{(products?.items || []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
+                <Select value={r.variant_id} onValueChange={(v) => setRow(i, "variant_id", v)}><SelectTrigger className="w-32" data-testid={`co-variant-${i}`}><SelectValue placeholder="Pack" /></SelectTrigger><SelectContent>{variantsOf(r.product_id).map((v) => <SelectItem key={v.id} value={v.id}>{v.pack_size} {v.unit}</SelectItem>)}</SelectContent></Select>
+                <Input type="number" className="w-20" value={r.qty} onChange={(e) => setRow(i, "qty", e.target.value)} data-testid={`co-qty-${i}`} />
+                <Button variant="ghost" size="icon" onClick={() => set("items", form.items.filter((_, ri) => ri !== i))}><X className="w-4 h-4" /></Button>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" className="mt-2" onClick={addRow} data-testid="co-add-item"><Plus className="w-4 h-4 mr-1" /> Add Product</Button>
+        </div>
+        <div className="flex justify-end gap-2 mt-3"><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={submit} disabled={saving} data-testid="co-submit">{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Create Order</Button></div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

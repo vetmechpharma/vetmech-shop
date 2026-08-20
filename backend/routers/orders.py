@@ -257,6 +257,52 @@ async def admin_order(oid: str, admin=Depends(require_module("orders"))):
     return order
 
 
+@router.post("/admin/orders")
+async def admin_create_order(body: dict = Body(...), admin=Depends(require_module("orders"))):
+    cust = None
+    if body.get("customer_id"):
+        cust = await db.customers.find_one({"id": body["customer_id"]}, {"_id": 0})
+    if not cust:
+        cust = {
+            "id": new_id(), "prefix": body.get("prefix", "Mr."), "name": body.get("name", "Customer"),
+            "mobile": body.get("mobile", ""), "whatsapp": body.get("whatsapp") or body.get("mobile", ""),
+            "company_name": body.get("company_name", ""), "category": body.get("category", "other"),
+            "addresses": [], "default_address": body.get("address"), "active": True, "created_at": now_iso(),
+        }
+        if body.get("save_customer", True):
+            await db.customers.insert_one(dict(cust)); cust.pop("_id", None)
+    lines = await resolve_cart(body.get("items", []), cust.get("category"))
+    if not lines:
+        raise HTTPException(status_code=400, detail="Add at least one product")
+    order_no = await next_order_number(db)
+    total_qty = sum(l["qty"] for l in lines)
+    total_free = sum(l["free_qty"] for l in lines)
+    addr = body.get("address") or cust.get("default_address") or {}
+    order = {
+        "id": new_id(), "order_number": order_no, "customer_id": cust["id"], "customer_name": cust["name"],
+        "customer_mobile": cust["mobile"], "customer_whatsapp": cust.get("whatsapp", cust["mobile"]),
+        "company_name": cust.get("company_name", ""), "customer_category": cust.get("category", "other"),
+        "address": addr, "items": lines, "total_qty": total_qty, "total_free": total_free,
+        "total_dispatch": total_qty + total_free, "status": body.get("status", "new"),
+        "notes": body.get("notes", ""), "internal_notes": body.get("internal_notes", ""),
+        "activity": [], "created_at": now_iso(), "updated_at": now_iso(),
+    }
+    add_order_activity(order, f"Order created by admin ({len(lines)} products, qty {total_qty})", admin["name"])
+    await db.orders.insert_one(dict(order))
+    await log_audit(db, admin, "create", "order", order["id"], {"number": order_no})
+    order.pop("_id", None)
+    return order
+
+
+@router.delete("/admin/orders/{oid}")
+async def delete_order(oid: str, admin=Depends(require_module("orders"))):
+    res = await db.orders.delete_one({"id": oid})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    await log_audit(db, admin, "delete", "order", oid)
+    return {"deleted": True}
+
+
 @router.patch("/admin/orders/{oid}/status")
 async def update_status(oid: str, body: dict = Body(...), admin=Depends(require_module("orders"))):
     order = await db.orders.find_one({"id": oid})

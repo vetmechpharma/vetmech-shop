@@ -43,7 +43,7 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
 
 
 @app.post("/api/admin/upload")
-async def upload_file(file: UploadFile = File(...), admin=Depends(get_current_admin)):
+async def upload_file(file: UploadFile = File(...), square: bool = False, admin=Depends(get_current_admin)):
     ext = os.path.splitext(file.filename or "")[1].lower()
     allowed = IMAGE_EXTS | {".pdf", ".svg", ".doc", ".docx", ".xls", ".xlsx"}
     if ext not in allowed:
@@ -53,17 +53,27 @@ async def upload_file(file: UploadFile = File(...), admin=Depends(get_current_ad
         raise HTTPException(status_code=400, detail="File too large (max 15MB)")
 
     if ext in IMAGE_EXTS:
-        # Convert + compress to WebP for faster website loading
+        # Convert + compress to WebP for faster loading. Original bytes are never stored.
         try:
             img = Image.open(io.BytesIO(data))
             if img.mode in ("P", "LA"):
                 img = img.convert("RGBA")
             elif img.mode == "CMYK":
                 img = img.convert("RGB")
-            max_w = 1600
-            if img.width > max_w:
-                ratio = max_w / img.width
-                img = img.resize((max_w, int(img.height * ratio)))
+            if square:
+                # Pad to a uniform square canvas so all product images share identical dimensions
+                size = min(max(img.width, img.height), 1200)
+                canvas = Image.new("RGBA", (size, size), (255, 255, 255, 255))
+                scale = min(size / img.width, size / img.height)
+                nw, nh = int(img.width * scale), int(img.height * scale)
+                resized = img.convert("RGBA").resize((nw, nh))
+                canvas.paste(resized, ((size - nw) // 2, (size - nh) // 2), resized)
+                img = canvas.convert("RGB")
+            else:
+                max_w = 1600
+                if img.width > max_w:
+                    ratio = max_w / img.width
+                    img = img.resize((max_w, int(img.height * ratio)))
             name = f"{uuid.uuid4().hex}.webp"
             out = io.BytesIO()
             img.save(out, format="WEBP", quality=80, method=4)

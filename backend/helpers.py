@@ -62,14 +62,16 @@ def compute_scheme(qty, schemes):
         max_q = s.get("max_quantity") or 0
         if max_q and qty > max_q:
             continue
-        if s.get("scheme_type") == "special_price":
-            if qty >= (min_q or 1) and s.get("special_price") is not None:
-                # special price scheme
-                if best["special_price"] is None:
-                    best["special_price"] = s.get("special_price")
-                    best["scheme_id"] = s["id"]
-                    best["scheme_name"] = s.get("name")
-                    best["scheme_label"] = f"{min_q} @ ₹{s.get('special_price')}"
+        if s.get("scheme_type") in ("special_price", "case_price"):
+            sp = s.get("special_price")
+            if qty >= (min_q or 1) and sp is not None:
+                # one-to-many: pick the lowest applicable price
+                if best["special_price"] is None or sp < best["special_price"]:
+                    best["special_price"] = sp
+                    if best["scheme_id"] is None:
+                        best["scheme_id"] = s["id"]
+                        best["scheme_name"] = s.get("name")
+                    best["scheme_label"] = f"{min_q} @ ₹{sp}"
             continue
         # free_qty type
         if buy and qty >= buy:
