@@ -64,7 +64,7 @@ def compute_scheme(qty, schemes):
     best = {"scheme_id": None, "scheme_name": None, "scheme_label": None,
             "free_qty": 0, "special_price": None}
     best_free = 0
-    best_tier = 0
+    sp_best = {"id": None, "name": None, "label": None, "price": None, "min": None}
     for s in schemes:
         buy = s.get("buy_quantity") or 0
         min_q = s.get("min_quantity") or buy or 0
@@ -74,26 +74,23 @@ def compute_scheme(qty, schemes):
         if s.get("scheme_type") in ("special_price", "case_price"):
             sp = s.get("special_price")
             if qty >= (min_q or 1) and sp is not None:
-                # one-to-many: pick the lowest applicable price
-                if best["special_price"] is None or sp < best["special_price"]:
-                    best["special_price"] = sp
-                    if best["scheme_id"] is None:
-                        best["scheme_id"] = s["id"]
-                        best["scheme_name"] = s.get("name")
-                    best["scheme_label"] = f"{min_q} @ ₹{sp}"
+                if sp_best["price"] is None or sp < sp_best["price"]:
+                    sp_best = {"id": s["id"], "name": s.get("name"), "label": f"{min_q} @ ₹{sp}", "price": sp, "min": min_q}
             continue
-        # free_qty type
+        # free_qty type — pick the scheme giving the MOST free units (best value, no stacking)
         if buy and qty >= buy:
-            times = qty // buy
-            free = times * (s.get("free_quantity") or 0)
-            # prefer the scheme with highest buy tier the qty qualifies for
-            if buy > best_tier or (buy == best_tier and free > best_free):
-                best_tier = buy
+            free = (qty // buy) * (s.get("free_quantity") or 0)
+            if free > best_free:
                 best_free = free
-                best["scheme_id"] = s["id"]
-                best["scheme_name"] = s.get("name")
-                best["scheme_label"] = f"{buy}+{s.get('free_quantity')}"
-                best["free_qty"] = free
+                best.update({"scheme_id": s["id"], "scheme_name": s.get("name"),
+                             "scheme_label": f"{buy}+{s.get('free_quantity')}", "free_qty": free})
+    if sp_best["price"] is not None:
+        best["special_price"] = sp_best["price"]
+        if best_free == 0:
+            # no free offer applied — the special/case price IS the offer
+            best["scheme_id"] = sp_best["id"]
+            best["scheme_name"] = sp_best["name"]
+            best["scheme_label"] = sp_best["label"]
     return best
 
 

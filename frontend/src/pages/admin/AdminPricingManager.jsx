@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, Save, ChevronsUpDown, Package, User, Plus, Trash2, ShieldCheck, IndianRupee } from "lucide-react";
+import { Loader2, Save, ChevronsUpDown, Package, User, Plus, Trash2, ShieldCheck, IndianRupee, Tag } from "lucide-react";
 import { CUSTOMER_CATEGORIES } from "@/lib/constants";
 
 const CAT_LABEL = (v) => CUSTOMER_CATEGORIES.find((c) => c.value === v)?.label || v;
@@ -51,6 +51,7 @@ function CategoryPricing() {
   const [edits, setEdits] = useState({});
   const [preview, setPreview] = useState(null); // {changes, affected, mode}
   const [busy, setBusy] = useState(false);
+  const [offersVariant, setOffersVariant] = useState(null);
   const { data, isLoading } = useQuery({ queryKey: ["cat-pricing", product?.id], queryFn: async () => (await api.get(`/admin/pricing/product/${product.id}`)).data, enabled: !!product });
 
   const key = (vid, cat) => `${vid}|${cat}`;
@@ -106,7 +107,7 @@ function CategoryPricing() {
             <div className="border border-[#E2E8F0] rounded-lg overflow-x-auto bg-white">
               <Table>
                 <TableHeader><TableRow className="bg-vm-bg"><TableHead>Variant</TableHead><TableHead className="text-right">MRP</TableHead><TableHead className="text-right">Public</TableHead>
-                  {data.categories.map((c) => <TableHead key={c} className="text-right">{CAT_LABEL(c)}</TableHead>)}</TableRow></TableHeader>
+                  {data.categories.map((c) => <TableHead key={c} className="text-right">{CAT_LABEL(c)}</TableHead>)}<TableHead className="text-center">Offers</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {data.variants.map((v) => (
                     <TableRow key={v.variant_id} data-testid={`cat-variant-${v.variant_id}`}>
@@ -120,13 +121,14 @@ function CategoryPricing() {
                             className="w-24 h-8 text-right ml-auto" data-testid={`cat-input-${v.variant_id}-${c}`} />
                         </TableCell>
                       ))}
+                      <TableCell className="text-center"><Button variant="outline" size="sm" onClick={() => setOffersVariant({ id: v.variant_id, product_id: data.product_id, label: `${v.pack_size} ${v.unit}` })} data-testid={`cat-offers-${v.variant_id}`}><Tag className="w-3.5 h-3.5 mr-1" /> Offers</Button></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
           )}
-      <p className="text-xs text-slate-400 mt-3">Rates are per unit. Leave blank to use the public price. Category-wise <b>offers</b> (10+2, case price, slabs) are managed in <b>Schemes & Offers</b>.</p>
+      <p className="text-xs text-slate-400 mt-3">Rates are per unit. Leave blank to use the public price. Category-wise <b>offers</b> (10+2, case price, slabs) are managed via the <b>Offers</b> button next to each variant.</p>
 
       <Dialog open={!!preview} onOpenChange={(v) => !v && setPreview(null)}>
         <DialogContent className="max-w-lg" data-testid="cat-change-dialog">
@@ -156,7 +158,59 @@ function CategoryPricing() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {offersVariant && <OffersDialog variant={offersVariant} onClose={() => setOffersVariant(null)} />}
     </div>
+  );
+}
+
+function OffersDialog({ variant, onClose }) {
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ["offers", variant.id], queryFn: async () => (await api.get(`/admin/pricing/offers/${variant.id}`)).data });
+  const [f, setF] = useState({ customer_type: "all", scheme_type: "free_qty", buy_quantity: "", free_quantity: "", special_price: "", min_quantity: "" });
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  const add = useMutation({
+    mutationFn: async () => {
+      const body = { product_id: variant.product_id, variant_id: variant.id, customer_type: f.customer_type, scheme_type: f.scheme_type };
+      if (f.scheme_type === "free_qty") { body.buy_quantity = Number(f.buy_quantity); body.free_quantity = Number(f.free_quantity); body.name = `${f.buy_quantity}+${f.free_quantity}`; }
+      else { body.special_price = Number(f.special_price); body.min_quantity = Number(f.min_quantity || 1); body.name = `${f.min_quantity || 1} @ ₹${f.special_price}`; }
+      return (await api.post("/admin/pricing/offers", body)).data;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["offers", variant.id] }); setF({ customer_type: "all", scheme_type: "free_qty", buy_quantity: "", free_quantity: "", special_price: "", min_quantity: "" }); toast.success("Offer added"); },
+    onError: (e) => toast.error(apiError(e)),
+  });
+  const del = useMutation({ mutationFn: async (sid) => (await api.delete(`/admin/pricing/offers/${sid}`)).data, onSuccess: () => { qc.invalidateQueries({ queryKey: ["offers", variant.id] }); toast.success("Offer removed"); } });
+  const CT = [{ value: "all", label: "Public / All" }, ...CUSTOMER_CATEGORIES];
+
+  return (
+    <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-xl" data-testid="offers-dialog">
+        <DialogHeader><DialogTitle className="font-heading">Offers — {variant.label}</DialogTitle>
+          <DialogDescription>Multiple offers per category. Best value (most free units) is auto-applied; no stacking.</DialogDescription>
+        </DialogHeader>
+        <div className="border rounded-lg divide-y max-h-56 overflow-y-auto">
+          {(data?.items || []).length === 0 ? <p className="text-sm text-slate-400 p-3">No offers yet.</p>
+            : data.items.map((s) => (
+              <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm" data-testid={`offer-row-${s.id}`}>
+                <span><span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 mr-2">{CT.find((c) => c.value === s.customer_type)?.label || s.customer_type}</span>
+                  {s.scheme_type === "free_qty" ? `${s.buy_quantity}+${s.free_quantity}` : `${s.scheme_type === "case_price" ? "Case " : ""}${s.min_quantity} @ ₹${s.special_price}`}</span>
+                <Button variant="ghost" size="icon" className="text-red-500 h-7 w-7" onClick={() => del.mutate(s.id)} data-testid={`offer-del-${s.id}`}><Trash2 className="w-4 h-4" /></Button>
+              </div>
+            ))}
+        </div>
+        <div className="border rounded-lg p-3 space-y-2 bg-vm-bg">
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label className="text-xs">Applies to</Label><Select value={f.customer_type} onValueChange={(v) => set("customer_type", v)}><SelectTrigger data-testid="offer-ct"><SelectValue /></SelectTrigger><SelectContent>{CT.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Type</Label><Select value={f.scheme_type} onValueChange={(v) => set("scheme_type", v)}><SelectTrigger data-testid="offer-type"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="free_qty">Buy X get Y free</SelectItem><SelectItem value="special_price">Special price @ qty</SelectItem><SelectItem value="case_price">Case price @ qty</SelectItem></SelectContent></Select></div>
+          </div>
+          {f.scheme_type === "free_qty" ? (
+            <div className="grid grid-cols-2 gap-2"><div><Label className="text-xs">Buy</Label><Input type="number" value={f.buy_quantity} onChange={(e) => set("buy_quantity", e.target.value)} data-testid="offer-buy" /></div><div><Label className="text-xs">Free</Label><Input type="number" value={f.free_quantity} onChange={(e) => set("free_quantity", e.target.value)} data-testid="offer-free" /></div></div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2"><div><Label className="text-xs">Min Qty</Label><Input type="number" value={f.min_quantity} onChange={(e) => set("min_quantity", e.target.value)} data-testid="offer-min" /></div><div><Label className="text-xs">Price ₹/unit</Label><Input type="number" value={f.special_price} onChange={(e) => set("special_price", e.target.value)} data-testid="offer-price" /></div></div>
+          )}
+          <Button size="sm" className="bg-vm-green hover:bg-vm-greenhover" onClick={() => add.mutate()} disabled={add.isPending} data-testid="offer-add"><Plus className="w-4 h-4 mr-1" /> Add Offer</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

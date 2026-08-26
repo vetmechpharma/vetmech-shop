@@ -58,6 +58,8 @@ async def resolve_cart(items, customer=None):
             "scheme_label": pl["scheme_label"],
             "free_qty": pl["free_qty"],
             "dispatch_qty": qty + pl["free_qty"],
+            "upsell": pl.get("upsell"),
+            "case_suggestion": pl.get("case_suggestion"),
         })
     return lines
 

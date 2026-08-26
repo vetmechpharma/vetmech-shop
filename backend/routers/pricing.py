@@ -183,6 +183,47 @@ async def customer_price_history(customer_id: str, admin=Depends(require_module(
     return {"items": rows}
 
 
+# =============== VARIANT OFFERS (schemes, managed inline with pricing) ===============
+@router.get("/offers/{variant_id}")
+async def variant_offers(variant_id: str, admin=Depends(require_module("customers"))):
+    rows = await db.schemes.find({"variant_id": variant_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    return {"items": rows}
+
+
+@router.post("/offers")
+async def create_offer(body: dict = Body(...), admin=Depends(require_module("customers"))):
+    ct = body.get("customer_type", "all")
+    if ct != "all" and ct not in CATEGORIES:
+        raise HTTPException(400, "Invalid customer category")
+    stype = body.get("scheme_type", "free_qty")
+    buy, free = body.get("buy_quantity"), body.get("free_quantity")
+    if stype == "free_qty" and (not buy or not free):
+        raise HTTPException(400, "Buy and Free quantities required")
+    if stype in ("special_price", "case_price") and body.get("special_price") is None:
+        raise HTTPException(400, "Special price required")
+    doc = {
+        "id": new_id(), "name": body.get("name") or "Offer", "scheme_type": stype,
+        "product_id": body.get("product_id"), "variant_id": body.get("variant_id"),
+        "buy_quantity": buy, "free_quantity": free, "special_price": body.get("special_price"),
+        "min_quantity": body.get("min_quantity") or buy, "max_quantity": body.get("max_quantity"),
+        "customer_type": body.get("customer_type", "all"), "start_date": body.get("start_date"),
+        "end_date": body.get("end_date"), "active": body.get("active", True),
+        "created_at": now_iso(),
+    }
+    await db.schemes.insert_one(dict(doc))
+    await log_audit(db, admin, "create", "offer", doc["id"], {"variant": doc["variant_id"]})
+    doc.pop("_id", None)
+    return doc
+
+
+@router.delete("/offers/{sid}")
+async def delete_offer(sid: str, admin=Depends(require_module("customers"))):
+    res = await db.schemes.delete_one({"id": sid})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Offer not found")
+    return {"deleted": True}
+
+
 # =============== CATEGORY PRICE CHANGE (master price change) ===============
 @router.post("/category-change/preview")
 async def category_change_preview(body: dict = Body(...), admin=Depends(require_module("customers"))):

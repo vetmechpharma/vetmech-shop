@@ -29,7 +29,6 @@ const NAV = [
   { to: "/admin/categories", label: "Categories", icon: FolderTree, module: "categories" },
   { to: "/admin/brands", label: "Brands", icon: Tag, module: "brands" },
   { to: "/admin/units", label: "Units", icon: Layers, module: "units" },
-  { to: "/admin/schemes", label: "Schemes & Offers", icon: Percent, module: "schemes" },
   { to: "/admin/orders", label: "Orders", icon: ShoppingBag, module: "orders" },
   { heading: "Quotations" },
   { to: "/admin/quotations", label: "Quotation Dashboard", icon: FileSignature, module: "quotations", end: true },

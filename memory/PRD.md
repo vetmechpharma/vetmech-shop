@@ -70,6 +70,14 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
 - pricing_audit collection logs category + customer + last-confirmed price changes.
 - Backend: /app/backend/routers/pricing.py (prefix /api/admin/pricing), pricing_engine.py; catalog.enrich_products + orders.resolve_cart refactored to full pricing engine.
 
+## Enhanced — Variant Offers merge + Best-Value + Upsell (2026-06)
+- Category-wise **rate + multiple offers per variant** managed inline from Pricing Manager → Category tab → per-variant **Offers** button (shared `schemes` data). Standalone "Schemes & Offers" nav link removed (route still exists, unlinked).
+- A variant supports different rate AND different offers per category (Doctor ₹170 10+3, Agency ₹140 10+1, etc.) and multiple offers per category (10+3, 20+6, 60+22).
+- **Best-value offer selection**: `compute_scheme` now picks the offer giving the MOST free units (no stacking). Special/case price tracked separately (label/id consistency fixed).
+- **Upsell nudges** (`pricing_engine.compute_upsell` + `case_suggestion`): "Add N more to reach X and get Y free" on ProductDetail (near qty, with Apply) + cart line; full-case suggestion when cheaper per unit.
+- Offers CRUD: GET/POST/DELETE `/api/admin/pricing/offers` (validates customer_type, 404 on unknown delete).
+- Verified: 14/14 backend pytest (/app/backend/tests/test_offers_upsell.py) + frontend flows (iteration_9.json).
+
 ## Backlog (P1/P2)
 - P1: Real WhatsApp API + SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.

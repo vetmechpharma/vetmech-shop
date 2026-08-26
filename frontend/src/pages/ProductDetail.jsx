@@ -45,6 +45,19 @@ export default function ProductDetail() {
   const dispatchFree = scheme && scheme.type === "free_qty" && variant.min_order_qty
     ? Math.floor(qty / scheme.buy) * scheme.free : (scheme?.type === "free_qty" && qty >= scheme.buy ? Math.floor(qty / scheme.buy) * scheme.free : 0);
 
+  // Best-value free-qty across all offer tiers + smallest upsell nudge
+  const freeSchemes = schemes.filter((s) => (s.type === "free_qty" || !s.type) && s.buy && s.free);
+  const bestFree = freeSchemes.reduce((m, s) => Math.max(m, qty >= s.buy ? Math.floor(qty / s.buy) * s.free : 0), 0);
+  const upsell = freeSchemes.reduce((best, s) => {
+    const thr = (Math.floor(qty / s.buy) + 1) * s.buy;
+    if (s.max && thr > s.max) return best;
+    const freeAt = (thr / s.buy) * s.free;
+    if (freeAt <= bestFree) return best;
+    const add = thr - qty;
+    if (!best || add < best.add) return { add, target: thr, free: freeAt, label: `${s.buy}+${s.free}` };
+    return best;
+  }, null);
+
   return (
     <div className="vm-container py-8">
       <SEO title={p.name} description={p.short_description} ogImage={p.image} seo={p.seo} />
@@ -137,6 +150,12 @@ export default function ProductDetail() {
             </div>
             {dispatchFree > 0 && <span className="text-sm text-vm-accent font-medium">+{dispatchFree} free → {qty + dispatchFree} dispatched</span>}
           </div>
+          {upsell && (
+            <div className="mt-2 flex items-center gap-2 text-sm text-vm-green bg-vm-bg border border-vm-green/20 rounded-md px-3 py-2" data-testid="product-upsell">
+              <Plus className="w-3.5 h-3.5" /> Add <b>{upsell.add}</b> more to reach {upsell.target} and get <b>{upsell.free} free</b> ({upsell.label})
+              <button onClick={() => setQty(upsell.target)} className="ml-auto text-xs font-semibold underline" data-testid="product-upsell-apply">Apply</button>
+            </div>
+          )}
 
           {variant.units_per_case > 0 && (
             <div className="mt-3 bg-vm-bg border border-[#E2E8F0] rounded-md px-3 py-2 text-sm text-slate-600 flex items-center gap-2 flex-wrap" data-testid="case-helper">
