@@ -5,8 +5,8 @@ from collections import Counter
 
 from db import db, paginate
 from security import (require_module, get_current_admin, hash_password,
-                      ROLE_MODULES, ROLE_LABELS)
-from helpers import new_id, now_iso, log_audit
+                      ROLE_MODULES, ROLE_LABELS, customer_status_label, resolved_status)
+from helpers import new_id, now_iso, log_audit, normalize_mobile, send_whatsapp, send_email
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -49,6 +49,7 @@ async def dashboard(admin=Depends(get_current_admin)):
     category_performance = [{"name": n, "qty": q} for n, q in cat_counter.most_common()]
 
     total_customers = await db.customers.count_documents({})
+    pending_customers = await db.customers.count_documents({"status": "pending"})
     thirty_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
     new_customers = await db.customers.count_documents({"created_at": {"$gte": thirty_ago}})
     repeat_customers = sum(1 for n, c in cust_counter.items() if c > 1)
@@ -73,6 +74,7 @@ async def dashboard(admin=Depends(get_current_admin)):
         "total_orders": len(all_orders),
         "sales_value": round(sales_value, 2),
         "total_customers": total_customers,
+        "pending_customers": pending_customers,
         "new_customers": new_customers,
         "repeat_customers": repeat_customers,
         "top_products": top_products,
@@ -84,26 +86,39 @@ async def dashboard(admin=Depends(get_current_admin)):
 
 # =============== CUSTOMERS ===============
 @router.get("/customers")
-async def list_customers(category: Optional[str] = None, q: Optional[str] = None,
+async def list_customers(category: Optional[str] = None, status: Optional[str] = None,
+                         q: Optional[str] = None,
                          page: int = 1, limit: int = 20, admin=Depends(require_module("customers"))):
     query = {}
     if category:
         query["category"] = category
+    if status:
+        query["status"] = status
     if q:
         import re
         rx = {"$regex": re.escape(q), "$options": "i"}
-        query["$or"] = [{"name": rx}, {"mobile": rx}, {"company_name": rx}]
+        query["$or"] = [{"name": rx}, {"mobile": rx}, {"company_name": rx}, {"email": rx}]
     res = await paginate(db.customers, query, page, limit)
     for c in res["items"]:
+        c.pop("password_hash", None)
+        c["status"] = resolved_status(c)
+        c["status_label"] = customer_status_label(c["status"])
         c["order_count"] = await db.orders.count_documents({"customer_id": c["id"]})
     return res
 
 
+@router.get("/customers-pending-count")
+async def pending_count(admin=Depends(require_module("customers"))):
+    return {"count": await db.customers.count_documents({"status": "pending"})}
+
+
 @router.get("/customers/{cid}")
 async def get_customer(cid: str, admin=Depends(require_module("customers"))):
-    cust = await db.customers.find_one({"id": cid}, {"_id": 0})
+    cust = await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0})
     if not cust:
         raise HTTPException(status_code=404, detail="Not found")
+    cust["status"] = resolved_status(cust)
+    cust["status_label"] = customer_status_label(cust["status"])
     orders = await db.orders.find({"customer_id": cid}, {"_id": 0}).sort("created_at", -1).to_list(200)
     cust["orders"] = orders
     prod_counter = Counter()
@@ -114,12 +129,120 @@ async def get_customer(cid: str, admin=Depends(require_module("customers"))):
     return cust
 
 
+@router.post("/customers")
+async def create_customer(body: dict = Body(...), admin=Depends(require_module("customers"))):
+    mobile = normalize_mobile(body.get("mobile", ""))
+    if len(mobile) != 10:
+        raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number")
+    dup = await db.customers.find_one({"$or": [{"normalized_mobile": mobile}, {"mobile": {"$regex": mobile + "$"}}]})
+    if dup:
+        raise HTTPException(status_code=409, detail="A customer already exists with this mobile number.")
+    doc = {
+        "id": new_id(), "prefix": body.get("prefix", "Mr."), "name": (body.get("name") or "Customer").strip(),
+        "mobile": mobile, "normalized_mobile": mobile,
+        "whatsapp": normalize_mobile(body.get("whatsapp")) or mobile,
+        "email": (body.get("email") or "").lower().strip(), "company_name": body.get("company_name", ""),
+        "address": body.get("address", ""), "pincode": body.get("pincode", ""),
+        "district": body.get("district", ""), "state": body.get("state", ""),
+        "category": body.get("category", "other"), "status": body.get("status", "active"),
+        "active": True, "price_protected": bool(body.get("price_protected", False)),
+        "addresses": [], "created_at": now_iso(), "source": "admin_created",
+    }
+    if body.get("password"):
+        doc["password_hash"] = hash_password(body["password"])
+    await db.customers.insert_one(dict(doc))
+    await log_audit(db, admin, "create", "customer", doc["id"], {"name": doc["name"]})
+    doc.pop("_id", None); doc.pop("password_hash", None)
+    return doc
+
+
 @router.put("/customers/{cid}")
 async def update_customer(cid: str, body: dict = Body(...), admin=Depends(require_module("customers"))):
-    body.pop("id", None); body.pop("_id", None); body.pop("orders", None)
+    for k in ("id", "_id", "orders", "password_hash", "status_label", "frequent_products", "order_count"):
+        body.pop(k, None)
+    if body.get("mobile"):
+        nm = normalize_mobile(body["mobile"])
+        body["normalized_mobile"] = nm
+        dup = await db.customers.find_one({"id": {"$ne": cid},
+                                           "$or": [{"normalized_mobile": nm}, {"mobile": {"$regex": nm + "$"}}]})
+        if dup:
+            raise HTTPException(status_code=409, detail="Another customer already uses this mobile number.")
     await db.customers.update_one({"id": cid}, {"$set": body})
     await log_audit(db, admin, "update", "customer", cid)
-    return await db.customers.find_one({"id": cid}, {"_id": 0})
+    return await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0})
+
+
+async def _set_status(cid, status, admin, notify=None):
+    cust = await db.customers.find_one({"id": cid}, {"_id": 0})
+    if not cust:
+        raise HTTPException(status_code=404, detail="Not found")
+    await db.customers.update_one({"id": cid}, {"$set": {"status": status, "active": status == "active"}})
+    await log_audit(db, admin, "status_change", "customer", cid, {"status": status})
+    if notify and cust.get("whatsapp"):
+        await send_whatsapp(db, cust.get("whatsapp") or cust.get("mobile"), notify, kind=f"customer_{status}")
+    out = await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0})
+    out["status_label"] = customer_status_label(status)
+    return out
+
+
+@router.post("/customers/{cid}/approve")
+async def approve_customer(cid: str, admin=Depends(require_module("customers"))):
+    cust = await db.customers.find_one({"id": cid}, {"_id": 0})
+    msg = (f"Dear {cust.get('name','Customer')}, your VETMECH account has been APPROVED. "
+           f"You can now log in to view your special pricing.") if cust else None
+    return await _set_status(cid, "active", admin, notify=msg)
+
+
+@router.post("/customers/{cid}/reject")
+async def reject_customer(cid: str, admin=Depends(require_module("customers"))):
+    return await _set_status(cid, "rejected", admin)
+
+
+@router.post("/customers/{cid}/suspend")
+async def suspend_customer(cid: str, admin=Depends(require_module("customers"))):
+    return await _set_status(cid, "suspended", admin)
+
+
+@router.post("/customers/{cid}/reactivate")
+async def reactivate_customer(cid: str, admin=Depends(require_module("customers"))):
+    return await _set_status(cid, "active", admin)
+
+
+@router.delete("/customers/{cid}")
+async def delete_customer(cid: str, hard: bool = False, admin=Depends(require_module("customers"))):
+    if hard:
+        res = await db.customers.delete_one({"id": cid})
+        if res.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Not found")
+        await log_audit(db, admin, "delete", "customer", cid)
+        return {"deleted": True}
+    return await _set_status(cid, "deleted", admin)
+
+
+@router.post("/customers/{cid}/reset-password")
+async def reset_customer_password(cid: str, body: dict = Body(...), admin=Depends(require_module("customers"))):
+    pwd = body.get("password")
+    if not pwd or len(pwd) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+    res = await db.customers.update_one({"id": cid}, {"$set": {"password_hash": hash_password(pwd)}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    await log_audit(db, admin, "reset_password", "customer", cid)
+    return {"ok": True}
+
+
+@router.post("/customers/{cid}/change-category")
+async def change_category(cid: str, body: dict = Body(...), admin=Depends(require_module("customers"))):
+    cat = body.get("category")
+    if not cat:
+        raise HTTPException(status_code=400, detail="Category required")
+    cust = await db.customers.find_one({"id": cid}, {"_id": 0})
+    if not cust:
+        raise HTTPException(status_code=404, detail="Not found")
+    await db.customers.update_one({"id": cid}, {"$set": {"category": cat}})
+    await log_audit(db, admin, "change_category", "customer", cid,
+                    {"from": cust.get("category"), "to": cat})
+    return await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0})
 
 
 # =============== ADMIN USERS ===============

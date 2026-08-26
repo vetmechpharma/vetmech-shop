@@ -29,3 +29,14 @@ export const ORDER_STATUSES = [
 ];
 
 export const statusMeta = (v) => ORDER_STATUSES.find((s) => s.value === v) || ORDER_STATUSES[0];
+
+export const CUSTOMER_STATUSES = [
+  { value: "pending", label: "Pending Approval", color: "bg-amber-100 text-amber-700" },
+  { value: "active", label: "Active", color: "bg-green-100 text-green-700" },
+  { value: "suspended", label: "Suspended", color: "bg-red-100 text-red-700" },
+  { value: "rejected", label: "Rejected", color: "bg-slate-200 text-slate-500" },
+  { value: "deleted", label: "Deleted", color: "bg-slate-200 text-slate-400" },
+];
+
+export const customerStatusMeta = (v) => CUSTOMER_STATUSES.find((s) => s.value === v) || CUSTOMER_STATUSES[1];
+

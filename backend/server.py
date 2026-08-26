@@ -21,7 +21,7 @@ from db import db
 from security import get_current_admin, require_module
 from seed_data import run_seed
 from seed_tickets import run_seed_tickets
-from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations
+from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations, pricing
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -168,6 +168,7 @@ app.include_router(cms.router)
 app.include_router(admin_routes.router)
 app.include_router(tickets.router)
 app.include_router(quotations.router)
+app.include_router(pricing.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -182,11 +183,27 @@ app.add_middleware(
 async def startup():
     await db.admin_users.create_index("email", unique=True)
     await db.customers.create_index("mobile")
+    await db.customers.create_index("normalized_mobile")
+    await db.login_attempts.create_index("identifier")
     await db.products.create_index("slug")
     await db.categories.create_index("slug")
     await db.orders.create_index("order_number")
     await run_seed(db)
     await run_seed_tickets(db)
+    await migrate_customers(db)
+    await pricing.ensure_settings()
+
+
+async def migrate_customers(db):
+    """Grandfather existing customers as active/approved and backfill normalized_mobile."""
+    from helpers import normalize_mobile
+    async for c in db.customers.find({"$or": [{"status": {"$exists": False}}, {"normalized_mobile": {"$exists": False}}]},
+                                     {"_id": 0, "id": 1, "mobile": 1, "status": 1}):
+        upd = {}
+        if not c.get("status"):
+            upd["status"] = "active"
+        upd["normalized_mobile"] = normalize_mobile(c.get("mobile", ""))
+        await db.customers.update_one({"id": c["id"]}, {"$set": upd})
     logger.info("VETMECH backend ready")
 
 

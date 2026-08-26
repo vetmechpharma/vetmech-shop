@@ -1,0 +1,34 @@
+{
+  "summary": "Phase 2 User-Wise Pricing Engine + storefront YOUR PRICE tested end-to-end. Backend: 21/21 pytest passed covering guest public pricing (product detail/list/cart all source='public', no your_price, no category_prices matrix leak), category pricing CRUD (GET matrix, PUT sets/updates, blank clears), doctor sees category rate 130 (source='category', is_special=true), customer-specific override sets 120 + 10+3 offer (source='manual', offer_source='customer', free_qty=3), toggle protected works, DELETE resets to category, price history endpoint, order/cart lines include price_source+offer_source, master switch enable_customer_pricing=false forces public for everyone, enable_customer_specific_pricing=false falls back to category, pending customer gets public pricing (no your_price). Settings restored to True and doctor left with 120 + 10+3 offer as required. SECURITY verified: storefront never leaks category_prices matrix. Frontend UI: ProductDetail correctly shows YOUR SPECIAL PRICE ₹120 with 10+3 offer for logged-in doctor, and 'Login to view your special price' button for guests. Products listing ProductCard shows ₹120 YOUR PRICE + 10+3 badge (initially rendered stale bundle - fixed by frontend restart). AdminPricingManager routes at /admin/pricing-manager with tab-category-pricing + tab-customer-pricing, cat-product-picker+search, cat-input-<variant>-<category> matrix (doctor 100ml showed 130 loaded correctly), and cust-picker on customer tab. No critical bugs found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin sidebar", "issues": ["No 'Pricing Manager' link in admin sidebar navigation (Store section) despite route existing at /admin/pricing-manager — admins have to know the URL. Add a sidebar entry."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pricing_phase2.py",
+    "/app/test_reports/pytest/phase2_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Add 'Pricing Manager' link under Store or Customer sidebar section pointing to /admin/pricing-manager for discoverability"
+  ],
+  "critical_code_review_comments": [
+    "pricing_engine.pick_offer_schemes: correctly enforces category>public with no stacking. Consider adding time-window (start_date/end_date) filter here too — currently applicable_schemes handles it but worth verifying.",
+    "catalog.enrich_products: only exposes your_price/price_source/is_special when source != 'public'. This is the correct security guard preventing leak. Confirmed via test that category_prices matrix never appears in storefront responses.",
+    "pricing.upsert_customer_price: no validation that supplied 'offer' dict has valid scheme_type/buy_quantity/etc — a malformed offer would still be stored. Consider Pydantic model for offer body.",
+    "pricing.set_product_pricing: accepts float(rate) but no lower bound; a negative rate would be persisted. Add rate >= 0 guard.",
+    "orders.resolve_cart: correctly re-prices server-side using price_line for each cart item — never trusts frontend price. Good.",
+    "During testing the /products listing initially showed stale bundle (ProductCard without your_price code) despite source having it. A frontend supervisor restart fixed it. Suggest verifying HMR is picking up component changes reliably during deploy."
+  ],
+  "updated_files": ["/app/backend/tests/test_pricing_phase2.py"],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% of Phase 2 flows verified"},
+  "test_credentials": "Admin vetmechpharma@gmail.com/Admin@123; Doctor 9876500011/pass123 (active, category=doctor, left with customer-specific price 120 + 10+3 offer on NERVIPHOS-BM 100ml variant as required).",
+  "seed_data_creation": "Test creates one TEST_ prefixed pending customer with random mobile (via /api/auth/register) to verify pending -> public pricing. Not cleaned up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 2 stable. Doctor 9876500011 has customer-specific 120 + 10+3 offer on variant 723814ff-2701-4beb-8d95-8a97962be4fe (NERVIPHOS-BM 100ml). Category price for that variant/doctor = 130. Pricing settings toggles enable_customer_pricing/enable_category_pricing/enable_customer_specific_pricing all restored to True. Phase 3 (order-edit rate override, Update-Customer-Pricing, category-change preview, quotation pricing integration) NOT built yet — do not test.",
+  "rca_of_the_issue": "No production bugs. One transient testing issue: the deployed frontend bundle initially did not include the ProductCard your_price rendering despite the source containing it — resolved by 'sudo supervisorctl restart frontend'. Root cause: CRA HMR did not incorporate the latest ProductCard.jsx changes into the served bundle until full restart. Not a code bug."
+}

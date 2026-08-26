@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, mediaUrl } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import AuthDialog from "@/components/public/AuthDialog";
 import SEO from "@/components/SEO";
 import ProductBadges from "@/components/public/ProductBadges";
 import ProductCard from "@/components/public/ProductCard";
@@ -9,12 +11,15 @@ import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShoppingCart, Minus, Plus, FileDown, Check, MessageCircle } from "lucide-react";
+import { ShoppingCart, Minus, Plus, FileDown, Check, MessageCircle, Lock, Tag } from "lucide-react";
 
 export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { addItem } = useCart();
+  const { customer } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
   const { data: p, isLoading } = useQuery({ queryKey: ["product", slug], queryFn: async () => (await api.get(`/products/${slug}`)).data });
   const [variantId, setVariantId] = useState(null);
   const [qty, setQty] = useState(1);
@@ -70,10 +75,28 @@ export default function ProductDetail() {
           <p className="text-slate-600 mt-3">{p.short_description}</p>
 
           {variant.selling_price != null && (
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-heading text-2xl font-bold text-vm-green">₹{variant.selling_price}</span>
-              {variant.mrp > variant.selling_price && <span className="text-slate-400 line-through text-sm">₹{variant.mrp}</span>}
-              <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
+            <div className="mt-4">
+              {variant.your_price != null ? (
+                <div className="rounded-lg border border-vm-green/30 bg-vm-bg p-3 inline-block" data-testid="your-price-block">
+                  <p className="text-[11px] uppercase tracking-widest text-vm-green font-bold flex items-center gap-1"><Tag className="w-3 h-3" /> Your Special Price</p>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="font-heading text-3xl font-bold text-vm-green">₹{variant.your_price}</span>
+                    <span className="text-slate-400 line-through text-sm">MRP ₹{variant.mrp}</span>
+                    <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  <span className="font-heading text-2xl font-bold text-vm-green">₹{variant.selling_price}</span>
+                  {variant.mrp > variant.selling_price && <span className="text-slate-400 line-through text-sm">₹{variant.mrp}</span>}
+                  <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
+                </div>
+              )}
+              {!customer && (
+                <button onClick={() => setAuthOpen(true)} className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-vm-accent hover:underline" data-testid="login-for-price-btn">
+                  <Lock className="w-3.5 h-3.5" /> Login to view your special price
+                </button>
+              )}
             </div>
           )}
 
@@ -182,6 +205,8 @@ export default function ProductDetail() {
           </div>
         </div>
       )}
+
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} onLoggedIn={() => qc.invalidateQueries({ queryKey: ["product", slug] })} />
     </div>
   );
 }

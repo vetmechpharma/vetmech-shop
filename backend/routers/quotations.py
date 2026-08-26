@@ -202,7 +202,7 @@ async def duplicate(qid: str, admin=admin_dep):
 
 
 @router.post("/{qid}/convert")
-async def convert_to_order(qid: str, admin=admin_dep):
+async def convert_to_order(qid: str, body: dict = Body(default={}), admin=admin_dep):
     q = await db.quotations.find_one({"id": qid}, {"_id": 0})
     if not q:
         raise HTTPException(404, "Not found")
@@ -227,6 +227,24 @@ async def convert_to_order(qid: str, admin=admin_dep):
     }
     add_order_activity(order, f"Order created from quotation {q['number']}", admin["name"])
     await db.orders.insert_one(dict(order))
+    # Optionally save quotation rates as the customer's negotiated pricing
+    if body.get("update_customer_pricing") and q.get("customer_id"):
+        for it in q.get("items", []):
+            if not it.get("variant_id") or it.get("rate") is None:
+                continue
+            doc = {"rate": float(it["rate"]), "offer": None, "source": "last_confirmed",
+                   "active": True, "updated_at": now_iso()}
+            existing = await db.customer_prices.find_one(
+                {"customer_id": q["customer_id"], "variant_id": it["variant_id"]}, {"_id": 0})
+            if existing:
+                doc["protected"] = existing.get("protected", False)
+                await db.customer_prices.update_one(
+                    {"customer_id": q["customer_id"], "variant_id": it["variant_id"]}, {"$set": doc})
+            else:
+                doc.update({"id": new_id(), "protected": False, "customer_id": q["customer_id"],
+                            "product_id": it.get("product_id"), "variant_id": it["variant_id"], "created_at": now_iso()})
+                await db.customer_prices.insert_one(doc)
+        add_order_activity(order, "Updated customer pricing from quotation", admin["name"])
     q.setdefault("history", []).append({"at": now_iso(), "user": admin["name"], "action": f"Converted to Order {order_no}", "channel": ""})
     q["status"] = "accepted"; q["converted_order"] = order_no
     await _persist(qid, q)

@@ -1,9 +1,18 @@
+import re
 import uuid
 from datetime import datetime, timezone
 
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
+
+
+def normalize_mobile(m):
+    """Normalize an Indian mobile number to its 10-digit form."""
+    d = re.sub(r"\D", "", m or "")
+    if len(d) > 10:
+        d = d[-10:]
+    return d
 
 
 def new_id():

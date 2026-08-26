@@ -15,12 +15,13 @@ export default function QuotationDetail() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const { data: q, isLoading } = useQuery({ queryKey: ["qtn", id], queryFn: async () => (await api.get(`/admin/quotations/${id}`)).data });
+  const [updatePricing, setUpdatePricing] = React.useState(false);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["qtn", id] });
 
   const setStatus = useMutation({ mutationFn: async (status) => (await api.patch(`/admin/quotations/${id}/status`, { status })).data, onSuccess: () => { refresh(); toast.success("Status updated"); }, onError: (e) => toast.error(apiError(e)) });
   const send = useMutation({ mutationFn: async (channel) => (await api.post(`/admin/quotations/${id}/send`, { channel })).data, onSuccess: (r) => { refresh(); toast.success(`Sent via ${r.channel} (simulated)`); }, onError: (e) => toast.error(apiError(e)) });
-  const convert = useMutation({ mutationFn: async () => (await api.post(`/admin/quotations/${id}/convert`)).data, onSuccess: (r) => { refresh(); toast.success(`Order ${r.order_number} created`); }, onError: (e) => toast.error(apiError(e)) });
+  const convert = useMutation({ mutationFn: async () => (await api.post(`/admin/quotations/${id}/convert`, { update_customer_pricing: updatePricing })).data, onSuccess: (r) => { refresh(); toast.success(`Order ${r.order_number} created`); }, onError: (e) => toast.error(apiError(e)) });
 
   const downloadPdf = async () => {
     try {
@@ -62,6 +63,13 @@ export default function QuotationDetail() {
           <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => convert.mutate()} disabled={convert.isPending || !!q.converted_order} data-testid="qtn-convert-btn"><ArrowRightLeft className="w-4 h-4 mr-2" /> {q.converted_order ? "Converted" : "Convert to Order"}</Button>
         </div>
       </div>
+
+      {!q.converted_order && (
+        <label className="flex items-center gap-2 text-sm text-slate-600 -mt-3 mb-4 cursor-pointer" data-testid="qtn-update-pricing-wrap">
+          <input type="checkbox" checked={updatePricing} onChange={(e) => setUpdatePricing(e.target.checked)} data-testid="qtn-update-pricing" />
+          On convert, save these rates as the customer's negotiated pricing
+        </label>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4 mb-5">
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4">

@@ -1,0 +1,34 @@
+{
+  "summary": "Phase 1 (User-Wise Pricing: Customer Accounts & Auth) fully tested. 19/19 pytest backend tests pass covering: registration (pending status, dup 409, invalid mobile), OTP request/verify (unregistered + registered + wrong OTP), password login (success/401/lockout-429 after 5 fails), full admin customer lifecycle (create, dup 409, approve, change-category, reset-password + verify new password logs in, suspend->403 for password AND otp, reactivate, reject, delete), pending customer login (returns status_label 'Pending Approval'), grandfathered active (existing 9876500011), pricing settings GET/PUT + persistence, toggle enforcement (enable_password_login=false -> 400, enable_otp=false -> 400) with proper restore to true. UI test verified: /register creates pending customer and shows correct success message; AuthDialog password login flow works (logout btn appears); AuthDialog OTP login flow shows dev_otp, verifies, logs in, pending banner visible on /account; admin login + /admin/customers status-tab-pending, search, approve action all functional; /admin/pricing-settings shows 9 toggles + behavior select + save. Zero critical bugs found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin sidebar", "issues": ["'Customers' menu item appears twice (once under Customer Support and once under Catalog & Sales) - minor duplication, could confuse admin users"]},
+      {"screen": "AuthDialog (OTP + Password)", "issues": ["React a11y console warning: 'Missing Description or aria-describedby for DialogContent'. Add DialogDescription for screen readers."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth_pricing.py",
+    "/app/test_reports/pytest/phase1_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Add DialogDescription to AuthDialog to silence a11y warning",
+    "(Optional) De-duplicate 'Customers' entry in admin sidebar navigation"
+  ],
+  "critical_code_review_comments": [
+    "auth_routes.register: 'existing = find_one({mobile: {$regex: mobile + \"$\"}})' fallback used before normalized_mobile is guaranteed for old records — this is intentional for migration but the same $regex is unanchored at start, so a stored mobile '19876500011' would match '9876500011'. In practice normalize_mobile trims to 10 digits so risk is low; still consider anchoring with ^ once migration is complete.",
+    "auth_routes.otp/verify: expiry check happens AFTER marking wrong_attempts and AFTER matching OTP — correct order, but note if user submits correct OTP after expiry they'll get 400 'expired' which is fine.",
+    "admin_routes.update_customer: does not re-check duplicate mobile — an admin could set customer B's mobile to customer A's mobile creating a duplicate. Consider adding a duplicate guard on PUT if mobile changed.",
+    "pricing.update_settings: no field whitelist — any arbitrary key from body is persisted into settings doc. Consider whitelisting to prevent injection of unrelated keys."
+  ],
+  "updated_files": ["/app/backend/tests/test_auth_pricing.py"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% of flows tested"},
+  "test_credentials": "Admin vetmechpharma@gmail.com/Admin@123; Customer 9876500011/pass123 (approved). Test creates random 10-digit customers TEST_* prefixed.",
+  "seed_data_creation": "Test run created a handful of TEST_* pending/active customers (random mobiles); one was approved via admin UI. Not cleaned up (soft-delete only for lifecycle test).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 1 is stable. Phases 2-4 (customer/category-specific pricing, price protection, last-confirmed-order pricing) are NOT built yet — do not test them. Pricing settings toggles for those categories exist but only wire up in later phases. Restored enable_otp=true and enable_password_login=true after enforcement tests.",
+  "rca_of_the_issue": "No bugs found."
+}

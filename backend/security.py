@@ -33,6 +33,21 @@ ROLE_LABELS = {
 }
 
 
+CUSTOMER_BLOCKED_STATUSES = {"suspended", "rejected", "deleted"}
+CUSTOMER_STATUS_LABELS = {
+    "pending": "Pending Approval", "active": "Active", "suspended": "Suspended",
+    "rejected": "Rejected", "deleted": "Deleted",
+}
+
+
+def customer_status_label(status: str) -> str:
+    return CUSTOMER_STATUS_LABELS.get(status, status.title() if status else "Active")
+
+
+def resolved_status(cust: dict) -> str:
+    return cust.get("status") or ("active" if cust.get("active", True) else "suspended")
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
@@ -90,8 +105,11 @@ async def get_current_customer(request: Request) -> dict:
     if payload.get("kind") != "customer":
         raise HTTPException(status_code=401, detail="Customer authentication required")
     cust = await db.customers.find_one({"id": payload["sub"]}, {"_id": 0})
-    if not cust or not cust.get("active", True):
-        raise HTTPException(status_code=401, detail="Customer account not found or disabled")
+    if not cust:
+        raise HTTPException(status_code=401, detail="Customer account not found")
+    if resolved_status(cust) in CUSTOMER_BLOCKED_STATUSES:
+        raise HTTPException(status_code=403, detail="Your account is not active. Please contact support.")
+    cust.pop("password_hash", None)
     return cust
 
 

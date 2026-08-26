@@ -153,6 +153,9 @@ function OrderDetail({ id, onClose, onChange }) {
   const qc = useQueryClient();
   const { data: order } = useQuery({ queryKey: ["admin-order", id], queryFn: async () => (await api.get(`/admin/orders/${id}`)).data, enabled: !!id });
   const [notes, setNotes] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [rows, setRows] = useState([]);
+  const [updatePricing, setUpdatePricing] = useState(false);
 
   const setStatus = useMutation({
     mutationFn: async (status) => (await api.patch(`/admin/orders/${id}/status`, { status })).data,
@@ -163,6 +166,28 @@ function OrderDetail({ id, onClose, onChange }) {
     mutationFn: async () => (await api.put(`/admin/orders/${id}`, { internal_notes: notes })).data,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); toast.success("Notes saved"); },
   });
+  const savePricing = useMutation({
+    mutationFn: async () => {
+      const items = rows.map((r) => ({
+        variant_id: r.variant_id, qty: Number(r.qty),
+        rate: r.rate === "" ? null : Number(r.rate),
+        offer: (r.buy && r.free) ? { buy_quantity: Number(r.buy), free_quantity: Number(r.free) } : null,
+      }));
+      return (await api.put(`/admin/orders/${id}`, { items, update_customer_pricing: updatePricing })).data;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); setEditMode(false); toast.success(updatePricing ? "Order & customer pricing updated" : "Order updated"); },
+    onError: (e) => toast.error(apiError(e)),
+  });
+
+  const startEdit = () => {
+    setRows((order.items || []).map((l) => {
+      const m = /^(\d+)\+(\d+)$/.exec(l.scheme_label || "");
+      return { variant_id: l.variant_id, name: l.product_name, pack: `${l.pack_size} ${l.unit}`, qty: l.qty, rate: l.unit_price ?? "", buy: m ? m[1] : "", free: m ? m[2] : "" };
+    }));
+    setUpdatePricing(false);
+    setEditMode(true);
+  };
+  const setRow = (i, k, v) => setRows((rs) => rs.map((r, ri) => ri === i ? { ...r, [k]: v } : r));
 
   return (
     <Sheet open={!!id} onOpenChange={(v) => !v && onClose()}>
@@ -186,16 +211,47 @@ function OrderDetail({ id, onClose, onChange }) {
               </div>
 
               <div>
-                <Label>Products</Label>
-                <div className="border rounded-lg mt-1 divide-y">
-                  {order.items.map((l) => (
-                    <div key={l.variant_id} className="p-3 flex justify-between">
-                      <div><p className="font-medium text-vm-ink">{l.product_name}</p><p className="text-xs text-slate-400">{l.pack_size} {l.unit} · ₹{l.unit_price}</p></div>
-                      <div className="text-right"><p className="text-vm-ink">Qty {l.qty}</p>{l.free_qty > 0 && <p className="text-xs text-vm-accent">+{l.free_qty} free ({l.scheme_label})</p>}<p className="text-xs text-slate-400">Dispatch {l.dispatch_qty}</p></div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <Label>Products & Pricing</Label>
+                  {!editMode && <Button size="sm" variant="outline" onClick={startEdit} data-testid="order-edit-pricing">Edit Pricing</Button>}
                 </div>
-                <div className="flex gap-4 mt-2 text-xs"><span>Ordered <strong>{order.total_qty}</strong></span><span>Free <strong className="text-vm-accent">{order.total_free}</strong></span><span>Dispatch <strong className="text-vm-green">{order.total_dispatch}</strong></span></div>
+                {!editMode ? (
+                  <>
+                    <div className="border rounded-lg mt-1 divide-y">
+                      {order.items.map((l) => (
+                        <div key={l.variant_id} className="p-3 flex justify-between">
+                          <div><p className="font-medium text-vm-ink">{l.product_name}</p><p className="text-xs text-slate-400">{l.pack_size} {l.unit} · ₹{l.unit_price} {l.price_source && <span className="text-vm-accent">({l.price_source})</span>}</p></div>
+                          <div className="text-right"><p className="text-vm-ink">Qty {l.qty}</p>{l.free_qty > 0 && <p className="text-xs text-vm-accent">+{l.free_qty} free ({l.scheme_label})</p>}<p className="text-xs text-slate-400">Dispatch {l.dispatch_qty}</p></div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-4 mt-2 text-xs"><span>Ordered <strong>{order.total_qty}</strong></span><span>Free <strong className="text-vm-accent">{order.total_free}</strong></span><span>Dispatch <strong className="text-vm-green">{order.total_dispatch}</strong></span></div>
+                  </>
+                ) : (
+                  <div className="border rounded-lg mt-1 divide-y">
+                    {rows.map((r, i) => (
+                      <div key={r.variant_id} className="p-3 space-y-2" data-testid={`order-edit-row-${i}`}>
+                        <p className="font-medium text-vm-ink">{r.name} <span className="text-xs text-slate-400">{r.pack}</span></p>
+                        <div className="grid grid-cols-4 gap-2">
+                          <div><Label className="text-[10px]">Qty</Label><Input type="number" value={r.qty} onChange={(e) => setRow(i, "qty", e.target.value)} className="h-8" data-testid={`order-qty-${i}`} /></div>
+                          <div><Label className="text-[10px]">Rate ₹</Label><Input type="number" value={r.rate} onChange={(e) => setRow(i, "rate", e.target.value)} className="h-8" data-testid={`order-rate-${i}`} /></div>
+                          <div><Label className="text-[10px]">Buy</Label><Input type="number" value={r.buy} onChange={(e) => setRow(i, "buy", e.target.value)} className="h-8" data-testid={`order-buy-${i}`} /></div>
+                          <div><Label className="text-[10px]">Free</Label><Input type="number" value={r.free} onChange={(e) => setRow(i, "free", e.target.value)} className="h-8" data-testid={`order-free-${i}`} /></div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="p-3 space-y-3">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" checked={updatePricing} onChange={(e) => setUpdatePricing(e.target.checked)} data-testid="order-update-pricing" />
+                        Update this customer's negotiated pricing from these values
+                      </label>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="bg-vm-green hover:bg-vm-greenhover" onClick={() => savePricing.mutate()} disabled={savePricing.isPending} data-testid="order-save-pricing">{savePricing.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save & Confirm</Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

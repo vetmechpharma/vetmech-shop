@@ -1,0 +1,33 @@
+{
+  "summary": "Phase 3 (User-Wise Pricing final phase) tested end-to-end. Backend: 16/16 pytest passed in /app/backend/tests/test_pricing_phase3.py covering (a) pricing priority: guest=public, doctor+no-cp falls back to category 170, doctor with cp=that rate; (b) admin order edit with manual rate=125 + offer buy=10/free=4 sets unit_price 125, price_source='manual_admin', free_qty=8 (=(20//10)*4), scheme_label='10+4'; (c) update_customer_pricing=true writes source='last_confirmed' with offer preserved and doctor cart YOUR PRICE reflects 125+10+4; (d) order snapshot integrity: existing order line stays at stored unit_price=125 even after cp changes to 99 later; (e) category-change/preview lists affected customers correctly with old/new/protected badge; (f) apply mode 'keep_protected' removes non-protected cps (customers_reset>=1) while cp.protected=true kept; customer-level price_protected=true also treated as protected; (g) mode 'keep_all' resets 0 and preserves cp; (h) mode 'reset_all' removes protected too; (i) preview count=0 when no customer cps; (j) quotation convert with update_customer_pricing=true writes source='last_confirmed' rate from quote line. Frontend UI: admin login OK; Pricing Manager > Category Pricing shows cat-change-dialog with cat-affected-0 + cat-change-mode + cat-change-apply when saving a rate that affects an existing customer (verified with NERVIPHOS-BM doctor cell -> 165 shows doctor as affected 125->165). Order detail Edit Pricing reveals order-qty-0/rate-0/buy-0/free-0 + order-update-pricing checkbox + order-save-pricing button. Quotation detail for unconverted draft shows qtn-update-pricing checkbox + qtn-convert-btn. Doctor left with valid state: customer-specific 125 + 10+4 offer (source last_confirmed) on NERVIPHOS-BM 100ml.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Category change dialog", "issues": ["Radix Dialog console warnings: missing DialogDescription and DialogTitle (aria-describedby) for cat-change-dialog and add-price dialog - accessibility only, no functional impact"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pricing_phase3.py",
+    "/app/test_reports/pytest/phase3_results.xml"
+  ],
+  "action_items": [
+    "(A11y polish only) Add DialogDescription / VisuallyHidden DialogTitle to AdminPricingManager cat-change-dialog and AddPriceDialog to silence Radix a11y console warnings",
+    "(UX) qtn-update-pricing checkbox is hidden once q.converted_order exists — correct, but the QuotationList currently has 7 quotations all already converted so UI can look empty of that field; not a bug"
+  ],
+  "critical_code_review_comments": [
+    "orders.build_priced_lines: when rate override provided without an offer AND free_qty positive int passed in raw, scheme_label falls back to `+N free` but customer_offer stays None — so update_customer_pricing writes offer=None. Consider persisting a simple free-qty offer when free was manually entered without buy_quantity.",
+    "orders.apply_last_confirmed: writes offer even when scheme_label was `+N free` (customer_offer None). This is by design (no buy_quantity), but Pricing Manager's Customer tab shows offer='—' in that case. Consider a display-only note like '+N free (manual)'.",
+    "pricing.category_change_apply: uses `customer_prices.delete_one({id})` — correct — but does not audit-log per-customer resets (only aggregate `customers_reset` count). Consider per-customer audit entries for compliance.",
+    "quotations.convert_to_order + update_customer_pricing: writes rate only, does NOT write offer (backend hard-codes offer=None). If a quote line implicitly has a scheme, that context is lost. Acceptable for now (matches spec §31) but flag for future.",
+    "AdminPricingManager.CategoryPricing.handleSave: iterates each edited cell -> calls /category-change/preview individually then aggregates. Works but O(N) round-trips; fine for typical variant count (<10)."
+  ],
+  "updated_files": ["/app/backend/tests/test_pricing_phase3.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% (login, cat-change-dialog with affected+mode+apply, order edit-pricing fields+checkbox+save, qtn-update-pricing+convert-btn on unconverted quote all verified)"},
+  "test_credentials": "Admin vetmechpharma@gmail.com/Admin@123; Doctor mobile 9876500011 password pass123. Doctor left with customer-specific rate 125 + 10+4 offer on variant 723814ff-2701-4beb-8d95-8a97962be4fe (NERVIPHOS-BM 100ml), source=last_confirmed. Pricing engine settings all restored to True.",
+  "seed_data_creation": "Test suite created one admin order for doctor (used as edit target) and one quotation (used to verify convert-to-order + update_customer_pricing). UI test created one draft quotation VMP/QTN/2026/00010 with TEST_UI item to verify qtn-update-pricing checkbox. Not cleaned up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 3 fully stable and shipped. Doctor 9876500011 has customer-specific 125 + 10+4 offer (last_confirmed) on NERVIPHOS-BM 100ml variant. Category rate for doctor on that variant = 170. Pricing settings all True. Test file /app/backend/tests/test_pricing_phase3.py is reusable as a regression."
+}

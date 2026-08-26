@@ -184,15 +184,24 @@ def build_product(body, existing=None):
     }
 
 
-async def enrich_products(products, customer_type=None):
+async def enrich_products(products, customer=None):
+    from pricing_engine import resolve_pricing, pick_offer_schemes, scheme_desc, is_active_customer, get_pricing_settings, _scheme_from_custom
+    settings = await get_pricing_settings(db)
+    active = is_active_customer(customer)
     for p in products:
         for v in p.get("variants", []):
-            schemes = await applicable_schemes(db, v["id"], p["id"], customer_type)
-            v["active_schemes"] = [{"id": s["id"], "name": s.get("name"),
-                                    "type": s.get("scheme_type"),
-                                    "buy": s.get("buy_quantity"), "free": s.get("free_quantity"),
-                                    "special_price": s.get("special_price"),
-                                    "min": s.get("min_quantity")} for s in schemes]
+            pr = await resolve_pricing(db, p, v, customer, settings)
+            if pr["custom_offer"]:
+                offer_schemes = [_scheme_from_custom(pr["custom_offer"])]
+            else:
+                ct = pr["category"] if active else None
+                schemes = await applicable_schemes(db, v["id"], p["id"], ct)
+                offer_schemes = pick_offer_schemes(schemes, ct)
+            v["active_schemes"] = [scheme_desc(s) for s in offer_schemes]
+            if active and pr["source"] != "public":
+                v["your_price"] = pr["rate"]
+                v["price_source"] = pr["source"]
+                v["is_special"] = True
     return products
 
 
@@ -200,7 +209,7 @@ async def enrich_products(products, customer_type=None):
 async def public_products(
     q: Optional[str] = None, category: Optional[str] = None, subcategory: Optional[str] = None,
     brand: Optional[str] = None, availability: Optional[str] = None, badge: Optional[str] = None,
-    page: int = 1, limit: int = 12,
+    page: int = 1, limit: int = 12, customer=Depends(optional_customer),
 ):
     query = {"active": True}
     if category:
@@ -218,7 +227,7 @@ async def public_products(
         query["$or"] = [{"name": rx}, {"brand_name": rx}, {"product_code": rx},
                         {"sku": rx}, {"composition": rx}]
     res = await paginate(db.products, query, page, limit, sort_field="order", sort_dir=1)
-    res["items"] = await enrich_products(res["items"])
+    res["items"] = await enrich_products(res["items"], customer)
     if availability:
         for p in res["items"]:
             p["variants"] = [v for v in p.get("variants", []) if v.get("stock_status") == availability]
@@ -244,10 +253,10 @@ async def search(q: str = Query(...), limit: int = 8):
 
 
 @router.get("/products/by-ids")
-async def products_by_ids(ids: str = Query(...)):
+async def products_by_ids(ids: str = Query(...), customer=Depends(optional_customer)):
     id_list = [i for i in ids.split(",") if i]
     items = await db.products.find({"id": {"$in": id_list}, "active": True}, {"_id": 0}).to_list(100)
-    await enrich_products(items)
+    await enrich_products(items, customer)
     ordered = [next((p for p in items if p["id"] == i), None) for i in id_list]
     return [p for p in ordered if p]
 
@@ -257,8 +266,7 @@ async def public_product(slug: str, customer=Depends(optional_customer)):
     p = await db.products.find_one({"slug": slug, "active": True}, {"_id": 0})
     if not p:
         raise HTTPException(status_code=404, detail="Product not found")
-    ct = (customer or {}).get("category")
-    await enrich_products([p], ct)
+    await enrich_products([p], customer)
     related = []
     for rid in p.get("related_product_ids", []):
         rp = await db.products.find_one({"id": rid, "active": True}, {"_id": 0})

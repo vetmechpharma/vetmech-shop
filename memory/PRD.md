@@ -46,6 +46,30 @@ Modern, professional, responsive veterinary pharmaceutical corporate website + B
 - Backend: /app/backend/routers/quotations.py (prefix /api/admin/quotations), mediahelper.py (signature fetch for PDF); wired in server.py; "quotations" module added to RBAC (super_admin, order_manager, sales_manager, admin).
 - Verified: 15/15 backend pytest + 100% frontend flows pass (iteration_5.json); PDF visually verified.
 
+## Implemented — User-Wise Pricing & Offer Management Module (2026-06)
+Built in 4 tested phases. Extends the existing scheme engine + adds a pricing layer.
+
+**Phase 1 — Accounts & Auth** (iteration_6.json, 19/19 backend + frontend pass)
+- Customer self-registration (/register, all fields) with admin-approval workflow (pending→active→suspended/rejected/deleted); existing customers grandfathered to active.
+- Duplicate-mobile prevention via normalized Indian mobile (helpers.normalize_mobile); enforced on registration + admin manual create + edit.
+- Dual login: Mobile+OTP and Mobile+Password (bcrypt), admin-toggleable; OTP expiry + attempt limit + request rate limit; password login lockout (5 fails/15min); suspended/rejected/deleted blocked.
+- Admin Customers overhaul: status tabs, approve/reject/suspend/reactivate/delete/reset-password/change-category, manual Add Customer, pending count on dashboard.
+- Admin → Pricing Engine settings (/admin/pricing-settings): all toggles + price_change_behavior.
+
+**Phase 2 — Pricing Engine Core** (iteration_7.json, 21/21 backend + frontend pass)
+- /app/backend/pricing_engine.py: resolve_pricing() + price_line(). Priority rate: customer-specific(manual/last_confirmed) > category > public > MRP. Offer: customer > category > public, NO stacking (pick_offer_schemes).
+- Per-variant category_prices + per-customer customer_prices collections. Server-side cart/checkout pricing (never trusts frontend). Guests/pending get PUBLIC pricing.
+- SECURITY: storefront (enrich_products) returns only the logged-in customer's your_price/price_source — never other categories' rates.
+- Admin Pricing Manager (/admin/pricing-manager): Category tab (per-variant×category rate matrix) + Customer tab (add/edit/delete/protect customer-specific price + offer).
+- Storefront: ProductDetail/ProductCard show "YOUR PRICE"/offer for logged-in active customers + "Login to view your special price" (AuthDialog OTP/Password) for guests.
+
+**Phase 3 — Orders, Category Change & Quotation Integration** (iteration_8.json, 16/16 backend + frontend pass)
+- Admin order edit with per-line manual rate/offer override (price_source 'manual_admin') + "Update Customer Pricing = Yes/No" → writes last-confirmed pricing (customer_prices source last_confirmed, preserves protected flag). Old orders never change (snapshots).
+- Category price change as MASTER change: /category-change/preview lists affected customers (old→new + protected), /category-change/apply with mode keep_protected|reset_all|keep_all. Price protection respected (cp.protected OR customer.price_protected).
+- Quotation convert-to-order optional update_customer_pricing.
+- pricing_audit collection logs category + customer + last-confirmed price changes.
+- Backend: /app/backend/routers/pricing.py (prefix /api/admin/pricing), pricing_engine.py; catalog.enrich_products + orders.resolve_cart refactored to full pricing engine.
+
 ## Backlog (P1/P2)
 - P1: Real WhatsApp API + SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.

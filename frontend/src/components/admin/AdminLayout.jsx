@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, FolderTree, Tag, Layers, Percent, ShoppingBag, Users,
   Newspaper, Image, Briefcase, Mail, MessageCircle, Send, Search, BarChart3,
   UserCog, Settings, ScrollText, Menu, LogOut, FileText, Globe,
-  Ticket, ListChecks, CalendarDays, Headset, Contact, Bell, Database, ScrollText as ScrollIcon, FileSignature,
+  Ticket, ListChecks, CalendarDays, Headset, Contact, Bell, Database, ScrollText as ScrollIcon, FileSignature, IndianRupee,
 } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 
@@ -17,7 +17,7 @@ const NAV = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, module: null, end: true },
   { heading: "Customer Support" },
   { to: "/admin/support", label: "Support Dashboard", icon: Headset, module: "tickets", end: true },
-  { to: "/admin/support/customers", label: "Customers", icon: Contact, module: "tickets" },
+  { to: "/admin/support/customers", label: "CRM Contacts", icon: Contact, module: "tickets" },
   { to: "/admin/support/tickets", label: "Tickets", icon: Ticket, module: "tickets" },
   { to: "/admin/support/my-tasks", label: "My Tasks", icon: ListChecks, module: "tickets" },
   { to: "/admin/support/calendar", label: "Calendar", icon: CalendarDays, module: "tickets" },
@@ -38,6 +38,8 @@ const NAV = [
   { to: "/admin/quotations/settings", label: "Quotation Settings", icon: Settings, module: "quotations" },
   { heading: "Catalog & Sales" },
   { to: "/admin/customers", label: "Customers", icon: Users, module: "customers" },
+  { to: "/admin/pricing-manager", label: "Pricing Manager", icon: IndianRupee, module: "customers" },
+  { to: "/admin/pricing-settings", label: "Pricing Engine", icon: Percent, module: "customers" },
   { to: "/admin/pages", label: "Website Pages", icon: FileText, module: "pages" },
   { to: "/admin/news", label: "News", icon: Newspaper, module: "news" },
   { to: "/admin/gallery", label: "Gallery", icon: Image, module: "gallery" },

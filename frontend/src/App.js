@@ -33,6 +33,9 @@ import { AdminCategories, AdminBrands, AdminUnits, AdminNews, AdminGallery, Admi
 import { CompanySettings, WhatsAppSettings, SmtpSettings, SeoSettings, HomepageSettings, WebsiteSettings } from "@/pages/admin/AdminSettings";
 import { AdminEnquiries, AdminApplications, AdminNotifications, AdminAuditLogs, AdminReports, AdminPages } from "@/pages/admin/AdminMisc";
 import BackupSettings from "@/pages/admin/BackupSettings";
+import AdminPricingSettings from "@/pages/admin/AdminPricingSettings";
+import AdminPricingManager from "@/pages/admin/AdminPricingManager";
+import Register from "@/pages/Register";
 import QuotationDashboard from "@/pages/admin/quotations/QuotationDashboard";
 import QuotationList from "@/pages/admin/quotations/QuotationList";
 import QuotationForm from "@/pages/admin/quotations/QuotationForm";
@@ -66,6 +69,7 @@ function App() {
                   <Route path="/checkout" element={<Checkout />} />
                   <Route path="/order-confirmed/:id" element={<OrderConfirmation />} />
                   <Route path="/account" element={<Account />} />
+                  <Route path="/register" element={<Register />} />
                   <Route path="/about" element={<CmsPage slug="about" />} />
                   <Route path="/quality" element={<CmsPage slug="quality" />} />
                   <Route path="/infrastructure" element={<CmsPage slug="infrastructure" />} />
@@ -113,6 +117,8 @@ function App() {
                   <Route path="quotations/list" element={<QuotationList />} />
                   <Route path="quotations/new" element={<QuotationForm />} />
                   <Route path="quotations/settings" element={<QuotationSettings />} />
+                  <Route path="pricing-settings" element={<AdminPricingSettings />} />
+                  <Route path="pricing-manager" element={<AdminPricingManager />} />
                   <Route path="quotations/:id" element={<QuotationDetail />} />
                   <Route path="quotations/:id/edit" element={<QuotationForm />} />
 

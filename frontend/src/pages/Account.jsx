@@ -5,7 +5,7 @@ import { api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import SEO from "@/components/SEO";
-import OtpDialog from "@/components/public/OtpDialog";
+import AuthDialog from "@/components/public/AuthDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function Account() {
   const { customer, loading, logout } = useAuth();
-  const [otpOpen, setOtpOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   if (loading) return <div className="vm-container py-20 text-center text-slate-400">Loading...</div>;
 
@@ -26,9 +26,10 @@ export default function Account() {
         <SEO title="My Account" />
         <User className="w-14 h-14 mx-auto text-slate-300 mb-4" />
         <h1 className="font-heading text-2xl font-bold text-vm-ink">Login to your account</h1>
-        <p className="text-slate-500 mt-2">Returning customer? Verify your mobile with WhatsApp OTP to view your orders and reorder quickly.</p>
-        <Button className="mt-6 bg-vm-green hover:bg-vm-greenhover" onClick={() => setOtpOpen(true)} data-testid="account-login-btn">Login with WhatsApp OTP</Button>
-        <OtpDialog open={otpOpen} onOpenChange={setOtpOpen} onVerified={() => {}} />
+        <p className="text-slate-500 mt-2">Login with WhatsApp OTP or your password to view your special pricing, orders and reorder quickly.</p>
+        <Button className="mt-6 bg-vm-green hover:bg-vm-greenhover" onClick={() => setAuthOpen(true)} data-testid="account-login-btn">Login</Button>
+        <p className="text-sm text-slate-500 mt-3">New customer? <Link to="/register" className="text-vm-green font-semibold hover:underline">Create an account</Link></p>
+        <AuthDialog open={authOpen} onOpenChange={setAuthOpen} onLoggedIn={() => {}} />
       </div>
     );
   }
@@ -63,6 +64,9 @@ function Dashboard({ customer, logout }) {
         <div>
           <h1 className="font-heading text-3xl font-bold text-vm-ink tracking-tight">Welcome, {customer.name}</h1>
           <p className="text-slate-500 mt-1">{customer.company_name} · {CUSTOMER_CATEGORIES.find((c) => c.value === customer.category)?.label}</p>
+          {customer.status === "pending" && (
+            <p className="mt-2 inline-block text-xs px-3 py-1 rounded bg-amber-100 text-amber-700" data-testid="account-pending-banner">Account pending approval — your special pricing unlocks once an admin approves your account.</p>
+          )}
         </div>
         <Button variant="outline" onClick={logout} data-testid="logout-btn"><LogOut className="w-4 h-4 mr-2" /> Logout</Button>
       </div>
