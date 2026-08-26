@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NavLink, Outlet, useNavigate, Navigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { NavLink, Outlet, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -8,70 +8,137 @@ import {
   LayoutDashboard, Package, FolderTree, Tag, Layers, Percent, ShoppingBag, Users,
   Newspaper, Image, Briefcase, Mail, MessageCircle, Send, Search, BarChart3,
   UserCog, Settings, ScrollText, Menu, LogOut, FileText, Globe,
-  Ticket, ListChecks, CalendarDays, Headset, Contact, Bell, Database, ScrollText as ScrollIcon, FileSignature, IndianRupee,
+  Ticket, ListChecks, CalendarDays, Headset, Contact, Database, FileSignature,
+  IndianRupee, ChevronDown, LayoutGrid,
 } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 
-const NAV = [
-  { heading: "Main" },
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, module: null, end: true },
-  { heading: "Customer Support" },
-  { to: "/admin/support", label: "Support Dashboard", icon: Headset, module: "tickets", end: true },
-  { to: "/admin/support/customers", label: "CRM Contacts", icon: Contact, module: "tickets" },
-  { to: "/admin/support/tickets", label: "Tickets", icon: Ticket, module: "tickets" },
-  { to: "/admin/support/my-tasks", label: "My Tasks", icon: ListChecks, module: "tickets" },
-  { to: "/admin/support/calendar", label: "Calendar", icon: CalendarDays, module: "tickets" },
-  { to: "/admin/support/create-ticket", label: "Create Ticket", icon: Ticket, module: "tickets" },
-  { to: "/admin/support/reports", label: "Ticket Reports", icon: BarChart3, module: "tickets" },
-  { to: "/admin/support/settings", label: "Ticket Settings", icon: Settings, module: "tickets" },
-  { heading: "Store" },
-  { to: "/admin/products", label: "Products", icon: Package, module: "products" },
-  { to: "/admin/categories", label: "Categories", icon: FolderTree, module: "categories" },
-  { to: "/admin/brands", label: "Brands", icon: Tag, module: "brands" },
-  { to: "/admin/units", label: "Units", icon: Layers, module: "units" },
-  { to: "/admin/orders", label: "Orders", icon: ShoppingBag, module: "orders" },
-  { heading: "Quotations" },
-  { to: "/admin/quotations", label: "Quotation Dashboard", icon: FileSignature, module: "quotations", end: true },
-  { to: "/admin/quotations/list", label: "All Quotations", icon: FileText, module: "quotations" },
-  { to: "/admin/quotations/new", label: "New Quotation", icon: FileSignature, module: "quotations" },
-  { to: "/admin/quotations/settings", label: "Quotation Settings", icon: Settings, module: "quotations" },
-  { heading: "Catalog & Sales" },
-  { to: "/admin/customers", label: "Customers", icon: Users, module: "customers" },
-  { to: "/admin/pricing-manager", label: "Pricing Manager", icon: IndianRupee, module: "customers" },
-  { to: "/admin/pricing-settings", label: "Pricing Engine", icon: Percent, module: "customers" },
-  { to: "/admin/pages", label: "Website Pages", icon: FileText, module: "pages" },
-  { to: "/admin/news", label: "News", icon: Newspaper, module: "news" },
-  { to: "/admin/gallery", label: "Gallery", icon: Image, module: "gallery" },
-  { to: "/admin/careers", label: "Careers", icon: Briefcase, module: "careers" },
-  { to: "/admin/applications", label: "Applications", icon: FileText, module: "careers" },
-  { to: "/admin/enquiries", label: "Enquiries", icon: Mail, module: "enquiries" },
-  { to: "/admin/notifications", label: "WhatsApp Log", icon: MessageCircle, module: null },
-  { to: "/admin/whatsapp", label: "WhatsApp Settings", icon: Send, module: "cms" },
-  { to: "/admin/smtp", label: "Email / SMTP", icon: Mail, module: "cms" },
-  { to: "/admin/seo", label: "SEO", icon: Search, module: "cms" },
-  { to: "/admin/settings", label: "Company Settings", icon: Settings, module: "cms" },
-  { to: "/admin/settings/homepage", label: "Homepage Content", icon: LayoutDashboard, module: "cms" },
-  { to: "/admin/settings/website", label: "Footer & Website", icon: Globe, module: "cms" },
-  { to: "/admin/reports", label: "Reports", icon: BarChart3, module: "reports" },
-  { to: "/admin/users", label: "Admin Users", icon: UserCog, module: "*" },
-  { to: "/admin/backup", label: "Backup & Restore", icon: Database, module: "*" },
-  { to: "/admin/audit", label: "Audit Logs", icon: ScrollText, module: "*" },
+// Grouped, collapsible navigation (TailAdmin style)
+const GROUPS = [
+  { single: true, to: "/admin", label: "Dashboard", icon: LayoutDashboard, module: null, end: true },
+  {
+    label: "Catalog", icon: Package, children: [
+      { to: "/admin/products", label: "Products", module: "products" },
+      { to: "/admin/categories", label: "Categories", module: "categories" },
+      { to: "/admin/brands", label: "Brands", module: "brands" },
+      { to: "/admin/units", label: "Units", module: "units" },
+    ],
+  },
+  {
+    label: "Sales & Pricing", icon: IndianRupee, children: [
+      { to: "/admin/orders", label: "Orders", module: "orders" },
+      { to: "/admin/customers", label: "Customers", module: "customers" },
+      { to: "/admin/pricing-manager", label: "Pricing Manager", module: "customers" },
+      { to: "/admin/pricing-settings", label: "Pricing Engine", module: "customers" },
+    ],
+  },
+  {
+    label: "Quotations", icon: FileSignature, children: [
+      { to: "/admin/quotations", label: "Dashboard", module: "quotations", end: true },
+      { to: "/admin/quotations/list", label: "All Quotations", module: "quotations" },
+      { to: "/admin/quotations/new", label: "New Quotation", module: "quotations" },
+      { to: "/admin/quotations/settings", label: "Settings", module: "quotations" },
+    ],
+  },
+  {
+    label: "Support", icon: Headset, children: [
+      { to: "/admin/support", label: "Support Dashboard", module: "tickets", end: true },
+      { to: "/admin/support/tickets", label: "Tickets", module: "tickets" },
+      { to: "/admin/support/my-tasks", label: "My Tasks", module: "tickets" },
+      { to: "/admin/support/calendar", label: "Calendar", module: "tickets" },
+      { to: "/admin/support/customers", label: "CRM Contacts", module: "tickets" },
+      { to: "/admin/support/create-ticket", label: "Create Ticket", module: "tickets" },
+      { to: "/admin/support/reports", label: "Ticket Reports", module: "tickets" },
+      { to: "/admin/support/settings", label: "Ticket Settings", module: "tickets" },
+    ],
+  },
+  {
+    label: "Content", icon: LayoutGrid, children: [
+      { to: "/admin/pages", label: "Website Pages", module: "pages" },
+      { to: "/admin/news", label: "News", module: "news" },
+      { to: "/admin/gallery", label: "Gallery", module: "gallery" },
+      { to: "/admin/careers", label: "Careers", module: "careers" },
+      { to: "/admin/applications", label: "Applications", module: "careers" },
+      { to: "/admin/enquiries", label: "Enquiries", module: "enquiries" },
+      { to: "/admin/settings/homepage", label: "Homepage Content", module: "cms" },
+      { to: "/admin/settings/website", label: "Footer & Website", module: "cms" },
+      { to: "/admin/seo", label: "SEO", module: "cms" },
+    ],
+  },
+  {
+    label: "Communications", icon: MessageCircle, children: [
+      { to: "/admin/notifications", label: "WhatsApp Log", module: null },
+      { to: "/admin/whatsapp", label: "WhatsApp Settings", module: "cms" },
+      { to: "/admin/smtp", label: "Email / SMTP", module: "cms" },
+    ],
+  },
+  {
+    label: "System", icon: Settings, children: [
+      { to: "/admin/settings", label: "Company Settings", module: "cms" },
+      { to: "/admin/reports", label: "Reports", module: "reports" },
+      { to: "/admin/users", label: "Admin Users", module: "*" },
+      { to: "/admin/backup", label: "Backup & Restore", module: "*" },
+      { to: "/admin/audit", label: "Audit Logs", module: "*" },
+    ],
+  },
 ];
 
+const testid = (s) => `adminnav-${s.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "")}`;
+
 function SidebarLinks({ can, onNav }) {
+  const { pathname } = useLocation();
+  const visibleGroups = GROUPS.map((g) => {
+    if (g.single) return can === undefined || !g.module || can(g.module) || g.module === null ? g : (g.module ? (can(g.module) ? g : null) : g);
+    const children = g.children.filter((c) => !c.module || can(c.module));
+    return children.length ? { ...g, children } : null;
+  }).filter(Boolean);
+
+  const groupHasActive = (g) => !g.single && g.children.some((c) => c.end ? pathname === c.to : pathname.startsWith(c.to));
+  const [open, setOpen] = useState({});
+  useEffect(() => {
+    const active = {};
+    visibleGroups.forEach((g) => { if (groupHasActive(g)) active[g.label] = true; });
+    setOpen((o) => ({ ...o, ...active }));
+    // eslint-disable-next-line
+  }, [pathname]);
+
+  const toggle = (label) => setOpen((o) => ({ ...o, [label]: !o[label] }));
+
   return (
-    <nav className="flex flex-col gap-0.5 px-3 py-4">
-      {NAV.filter((n) => n.heading || !n.module || can(n.module)).map((n, idx) => {
-        if (n.heading) {
-          return <p key={`h-${idx}`} className="text-[10px] uppercase tracking-widest text-slate-500 px-3 mt-4 mb-1">{n.heading}</p>;
+    <nav className="flex flex-col gap-1 px-4 py-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-3 mb-2">Menu</p>
+      {visibleGroups.map((g) => {
+        if (g.single) {
+          const Icon = g.icon;
+          return (
+            <NavLink key={g.to} to={g.to} end={g.end} onClick={onNav} data-testid={testid(g.label)}
+              className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-vm-green/10 text-vm-green" : "text-slate-600 hover:bg-slate-100"}`}>
+              {({ isActive }) => (<><Icon className={`w-5 h-5 ${isActive ? "text-vm-green" : "text-slate-400"}`} /> {g.label}</>)}
+            </NavLink>
+          );
         }
-        const Icon = n.icon;
+        const Icon = g.icon;
+        const isOpen = !!open[g.label];
+        const active = groupHasActive(g);
         return (
-          <NavLink key={n.to} to={n.to} end={n.end} onClick={onNav}
-            className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${isActive ? "bg-vm-accent text-white font-medium" : "text-slate-300 hover:bg-white/10 hover:text-white"}`}
-            data-testid={`adminnav-${n.label.toLowerCase().replace(/[^a-z]/g, "-")}`}>
-            <Icon className="w-4 h-4" /> {n.label}
-          </NavLink>
+          <div key={g.label}>
+            <button onClick={() => toggle(g.label)} data-testid={`adminnav-group-${g.label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+              className={`flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active ? "text-vm-green" : "text-slate-600 hover:bg-slate-100"}`}>
+              <Icon className={`w-5 h-5 ${active ? "text-vm-green" : "text-slate-400"}`} />
+              <span className="flex-1 text-left">{g.label}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+            </button>
+            <div className={`overflow-hidden transition-all duration-200 ${isOpen ? "max-h-[600px]" : "max-h-0"}`}>
+              <div className="mt-1 ml-4 pl-4 border-l border-slate-200 flex flex-col gap-0.5">
+                {g.children.map((c) => (
+                  <NavLink key={c.to} to={c.to} end={c.end} onClick={onNav} data-testid={testid(c.label)}
+                    className={({ isActive }) => `px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? "text-vm-green font-medium bg-vm-green/5" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"}`}>
+                    {c.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          </div>
         );
       })}
     </nav>
@@ -87,36 +154,36 @@ export default function AdminLayout() {
   if (!admin) return <Navigate to="/admin/login" replace />;
 
   const Brand = (
-    <div className="flex items-center gap-2 px-5 h-16 border-b border-white/10">
-      <div className="w-8 h-8 rounded-md bg-vm-accent text-white grid place-items-center font-heading font-extrabold">V</div>
-      <div className="text-white font-heading font-bold">VETMECH <span className="text-vm-accent text-xs">Admin</span></div>
+    <div className="flex items-center gap-2.5 px-6 h-16 border-b border-slate-100">
+      <div className="w-9 h-9 rounded-lg bg-vm-green text-white grid place-items-center font-heading font-extrabold">V</div>
+      <div className="font-heading font-bold text-vm-ink leading-tight">VETMECH <span className="block text-[10px] font-medium text-vm-green tracking-wide">ADMIN PANEL</span></div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#F4F7F5] flex">
-      <aside className="hidden lg:flex flex-col w-64 bg-vm-ink fixed inset-y-0 overflow-y-auto">
+    <div className="min-h-screen bg-slate-50 flex">
+      <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-slate-200 fixed inset-y-0 overflow-y-auto">
         {Brand}
         <SidebarLinks can={can} />
       </aside>
 
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
-        <header className="h-16 bg-white border-b border-[#E2E8F0] flex items-center justify-between px-4 sticky top-0 z-30">
-          <div className="flex items-center gap-2">
+      <div className="flex-1 lg:ml-72 flex flex-col min-h-screen">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-30">
+          <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu className="w-5 h-5" /></Button></SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0 bg-vm-ink border-0">{Brand}<SidebarLinks can={can} onNav={() => setMobileOpen(false)} /></SheetContent>
+              <SheetContent side="left" className="w-72 p-0 bg-white border-0 overflow-y-auto">{Brand}<SidebarLinks can={can} onNav={() => setMobileOpen(false)} /></SheetContent>
             </Sheet>
             <span className="text-sm text-slate-500 hidden sm:block">Welcome back, <strong className="text-vm-ink">{admin.name}</strong></span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <NotificationBell />
-            <span className="text-xs bg-vm-bg text-vm-green px-2.5 py-1 rounded font-medium">{ROLE_LABELS[admin.role] || admin.role}</span>
-            <a href="/" target="_blank" rel="noreferrer"><Button variant="ghost" size="sm"><Globe className="w-4 h-4 mr-1" /> View Site</Button></a>
-            <Button variant="outline" size="sm" onClick={() => { logout(); navigate("/admin/login"); }} data-testid="admin-logout"><LogOut className="w-4 h-4 mr-1" /> Logout</Button>
+            <span className="text-xs bg-vm-green/10 text-vm-green px-2.5 py-1 rounded-full font-medium hidden sm:block">{ROLE_LABELS[admin.role] || admin.role}</span>
+            <a href="/" target="_blank" rel="noreferrer"><Button variant="ghost" size="sm" className="text-slate-600"><Globe className="w-4 h-4 mr-1" /> <span className="hidden md:inline">View Site</span></Button></a>
+            <Button variant="outline" size="sm" onClick={() => { logout(); navigate("/admin/login"); }} data-testid="admin-logout"><LogOut className="w-4 h-4 md:mr-1" /> <span className="hidden md:inline">Logout</span></Button>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-8"><Outlet /></main>
+        <main className="flex-1 p-4 md:p-6"><Outlet /></main>
       </div>
     </div>
   );
