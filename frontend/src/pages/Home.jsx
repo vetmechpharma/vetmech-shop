@@ -50,7 +50,7 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link to={hero.cta_link || "/products"}>
-              <Button size="lg" className="bg-vm-accent hover:bg-[#0C8A4F]" data-testid="hero-cta">
+              <Button size="lg" className="bg-vm-accent hover:bg-vm-accent/90" data-testid="hero-cta">
                 {hero.cta_text || "Explore Products"} <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>

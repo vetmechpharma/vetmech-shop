@@ -16,6 +16,7 @@ import Checkout from "@/pages/Checkout";
 import OrderConfirmation from "@/pages/OrderConfirmation";
 import Account from "@/pages/Account";
 import CmsPage from "@/pages/CmsPage";
+import About from "@/pages/About";
 import { NewsList, NewsArticle } from "@/pages/News";
 import Gallery from "@/pages/Gallery";
 import Careers from "@/pages/Careers";
@@ -70,7 +71,7 @@ function App() {
                   <Route path="/order-confirmed/:id" element={<OrderConfirmation />} />
                   <Route path="/account" element={<Account />} />
                   <Route path="/register" element={<Register />} />
-                  <Route path="/about" element={<CmsPage slug="about" />} />
+                  <Route path="/about" element={<About />} />
                   <Route path="/quality" element={<CmsPage slug="quality" />} />
                   <Route path="/infrastructure" element={<CmsPage slug="infrastructure" />} />
                   <Route path="/research" element={<CmsPage slug="research" />} />

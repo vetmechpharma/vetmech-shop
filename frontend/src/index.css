@@ -3,23 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --vm-green: #045D3A;
-  --vm-green-hover: #03492D;
-  --vm-accent: #0FA45F;
-  --vm-ink: #022B18;
+  --vm-green: #065F46;
+  --vm-green-hover: #054C38;
+  --vm-accent: #D97706;
+  --vm-ink: #0F172A;
 }
+
+html { font-size: 17px; }
 
 body {
   margin: 0;
   font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #022B18;
+  color: #0F172A;
   background: #ffffff;
 }
 
 h1, h2, h3, h4, h5, .font-heading {
-  font-family: "Manrope", system-ui, sans-serif;
+  font-family: "Ubuntu", system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 .font-mono, code {

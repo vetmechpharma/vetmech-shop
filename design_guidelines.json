@@ -1,165 +1,103 @@
 {
   "theme": "light",
-  "brand_identity": {
-    "name": "Vetmech Pharmaceuticals",
-    "emotion": "Trust, Clinical Precision, Authority, Growth, Veterinary Focus",
-    "style": "Professional, Clean, Modern, Trustworthy, Medical B2B",
-    "archetype": "Organic & Earthy mixed with Swiss & High-Contrast"
-  },
-  "colors": {
-    "background": {
-      "primary": "#FFFFFF",
-      "secondary": "#F4F7F5",
-      "tertiary": "#EAF0EC"
-    },
-    "brand": {
-      "primary": "#045D3A", 
-      "primary_hover": "#03492D",
-      "accent": "#0FA45F",
-      "accent_hover": "#0C8A4F"
-    },
-    "text": {
-      "primary": "#022B18", 
-      "secondary": "#475569", 
-      "muted": "#94A3B8",
-      "inverse": "#FFFFFF"
-    },
-    "status": {
-      "success": "#10B981", 
-      "warning": "#F59E0B",
-      "error": "#E11D48",
-      "info": "#3B82F6"
-    },
-    "borders": {
-      "default": "#E2E8F0",
-      "focus": "#0FA45F"
-    }
-  },
   "typography": {
     "fonts": {
-      "heading": "Manrope",
-      "body": "IBM Plex Sans",
-      "mono": "IBM Plex Mono"
+      "headings": "Ubuntu, sans-serif",
+      "body": "'IBM Plex Sans', sans-serif"
     },
-    "scale": {
-      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-tight",
-      "h2": "text-3xl sm:text-4xl tracking-tight leading-snug",
-      "h3": "text-2xl sm:text-3xl tracking-tight leading-snug",
-      "h4": "text-xl sm:text-2xl font-semibold",
-      "body": "text-base leading-relaxed",
-      "small": "text-sm leading-normal",
-      "tiny": "text-xs tracking-wider uppercase"
+    "scales": {
+      "h1": "text-5xl md:text-6xl tracking-tight leading-none font-bold",
+      "h2": "text-4xl md:text-5xl tracking-tight leading-tight font-bold",
+      "h3": "text-2xl md:text-3xl leading-snug font-bold",
+      "h4": "text-xl md:text-2xl leading-snug font-semibold",
+      "body": "text-lg md:text-xl leading-relaxed text-vm-ink",
+      "small": "text-base text-vm-ink/70",
+      "overline": "text-sm tracking-[0.2em] uppercase font-bold text-vm-green"
     },
-    "installation": "yarn add @fontsource/manrope @fontsource/ibm-plex-sans"
+    "instructions_to_main_agent": "User explicitly requested Ubuntu. Pair Ubuntu for headings (friendly, tech/pharma feel) with IBM Plex Sans for body (highly legible, clinical, crisp). Implement increased font sizes universally as requested (base body is text-lg/text-xl)."
   },
-  "layouts": {
-    "corporate_pages": {
-      "spacing": "Generous (p-8 to p-24) to create a clinical, airy feel. Use Swiss Grid for section layout.",
-      "hero": "Max overlay bg-black/40 to let lab/pharma images breathe. Avoid heavy gradients.",
-      "sections": "Alternate between bg-white and bg-[#F4F7F5] to separate content gracefully."
+  "colors": {
+    "palette": {
+      "vm-green": "#065F46",
+      "vm-ink": "#0F172A",
+      "vm-accent": "#D97706",
+      "vm-bg": "#F8FAFC",
+      "vm-surface": "#FFFFFF",
+      "vm-border": "#E2E8F0"
     },
-    "b2b_ecommerce": {
-      "product_grid": "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6",
-      "cart_table": "High density grid. Compact spacing for B2B ordering (Pack, Qty, Scheme, Free Qty, Dispatch Qty).",
-      "mobile": "Bottom navigation bar (fixed, z-50, backdrop-blur-md bg-white/90 border-t border-gray-200) with icons for Home, Products, Search, Cart, Account, WhatsApp Order."
+    "css_variables": {
+      "--vm-green": "6 95 70",
+      "--vm-ink": "15 23 42",
+      "--vm-accent": "217 119 6",
+      "--vm-bg": "248 250 252",
+      "--vm-surface": "255 255 255",
+      "--vm-border": "226 232 240"
     },
-    "admin_dashboard": {
-      "style": "High-density grid (Mode B Bento), compact padding.",
-      "sidebar": "Fixed left sidebar, bg-[#022B18] text-white for authoritative admin feel, or pure white with green active states.",
-      "cards": "Flat, 1px border (#E2E8F0), no shadow, rectangular (rounded-md)."
-    }
-  },
-  "components": {
-    "buttons": {
-      "primary": "bg-[#045D3A] text-white rounded-md px-6 py-2.5 font-medium hover:bg-[#03492D] transition-colors shadow-sm",
-      "secondary": "bg-white text-[#045D3A] border border-[#045D3A] rounded-md px-6 py-2.5 font-medium hover:bg-[#F4F7F5] transition-colors",
-      "ghost": "text-[#475569] hover:text-[#045D3A] hover:bg-[#F4F7F5] rounded-md px-4 py-2"
-    },
-    "product_cards": {
-      "style": "bg-white border border-[#E2E8F0] rounded-lg overflow-hidden transition-all hover:border-[#0FA45F] hover:shadow-md",
-      "image_container": "aspect-square bg-[#F8FAF9] p-4 flex items-center justify-center relative",
-      "badges": {
-        "new": "bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-medium absolute top-2 left-2",
-        "offer": "bg-[#10B981] text-white text-xs px-2 py-1 rounded font-medium absolute top-2 right-2",
-        "out_of_stock": "bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-medium absolute top-2 left-2",
-        "best_seller": "bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-medium absolute top-2 left-2"
-      }
-    },
-    "inputs": {
-      "style": "border border-[#E2E8F0] rounded-md bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0FA45F]/20 focus:border-[#0FA45F]"
-    },
-    "tables": {
-      "style": "w-full text-sm text-left text-[#475569]",
-      "header": "text-xs text-[#022B18] uppercase bg-[#F4F7F5] border-b border-[#E2E8F0]",
-      "row": "bg-white border-b border-[#E2E8F0] hover:bg-[#F8FAF9]"
-    },
-    "glassmorphism": {
-      "usage": "Use ONLY for sticky headers, mobile bottom nav, and modal overlays.",
-      "style": "backdrop-blur-xl bg-white/90 border-b border-[#E2E8F0]"
-    }
-  },
-  "icons": {
-    "library": "lucide-react",
-    "style": "Clean, clinical line icons. Stroke width 1.5 or 2."
+    "instructions_to_main_agent": "Inject these into tailwind.config.js using RGB values for opacity support (e.g., bg-vm-green/90). Limit primary green to CTAs/Headers. Use vm-accent strictly for 'YOUR PRICE' and B2B quantity offers to highlight savings."
   },
   "visual_enhancers": {
-    "textures": "Subtle noise overlay (opacity-5) on hero backgrounds for depth.",
-    "motion": "Minimalistic. Use micro-interactions for button hovers (bg color shift) and standard dialog entrances (fade/scale). NO excessive animations.",
-    "borders": "1px crisp borders for a structured, medical look. No heavy shadows."
+    "surfaces": "Flat, solid surfaces. Avoid glassmorphism over clinical data. Cards must use bg-vm-surface with 1px border-vm-border and shadow-sm.",
+    "header": "Sticky header with backdrop-blur-xl, bg-white/95, and a strict 1px bottom border-vm-border. Ensure z-50. NEVER fully transparent.",
+    "motion": "Hover states must lift cards slightly (-translate-y-1) and increase shadow to shadow-md. Buttons must scale-95 on active. Use framer-motion for smooth staggered entrances."
+  },
+  "layouts": {
+    "global": "Generous spacing. Section padding must be py-20 or py-24. Max-width containers mx-auto px-6 md:px-12.",
+    "home_page": "Hero: Split layout - value prop text on left, strong brand image on right. Categories: Bento Grid Mode A. Brands: Infinite Marquee using react-fast-marquee (grayscale logos).",
+    "shop_page": "B2B Layout. Left sidebar for accordion filters. Right grid: dense grid-cols-1 md:grid-cols-3 gap-6. Product cards must heavily emphasize SKU, stock status, and B2B pricing structure.",
+    "product_detail": "Left: Large gallery (react-zoom-pan-pinch). Right: Content block with title, SKU, variant table, bulk/quantity pricing tier selector, and large 'Add to Cart'. Bottom: Tabs (Shadcn) for Description/Composition/Downloads.",
+    "about_page": "Corporate identity. Large typography. Use Bento grid for history/mission. High-contrast sections alternating between vm-bg and vm-ink (dark mode section) for impact.",
+    "auth_pages": "Split screen. Beautiful corporate/veterinary image on one side, clean Shadcn form on the other. OTP input must use customized large inputs."
+  },
+  "components": {
+    "buttons": "rounded-xl font-bold transition-all duration-200. Primary: bg-vm-green text-white hover:bg-vm-green/90. Secondary: bg-white border-2 border-vm-border text-vm-ink hover:border-vm-green.",
+    "inputs": "Shadcn standard but override to h-14 (larger) and text-lg for B2B accessibility. Focus ring: ring-2 ring-vm-green.",
+    "cards": "bg-vm-surface border border-vm-border rounded-2xl overflow-hidden.",
+    "tables": "Use Shadcn Table for B2B bulk variants. Dense, left-aligned, clear hover states."
   },
   "accessibility": {
-    "contrast": "Ensure minimum 4.5:1 ratio. Dark pine text on white meets this easily.",
-    "focus": "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0FA45F]",
-    "testing": "All interactive elements MUST have data-testid attributes (e.g., data-testid='add-to-cart-button', data-testid='whatsapp-login-btn')."
+    "data_testid": "ALL interactive elements MUST include data-testid (e.g., data-testid='shop-add-to-cart-btn', data-testid='login-otp-input').",
+    "contrast": "Maintain strictly minimum 4.5:1 text contrast. Secondary text must be text-vm-ink/70 minimum."
   },
   "media": {
-    "images": [
+    "image_urls": [
       {
-        "url": "https://images.pexels.com/photos/6235114/pexels-photo-6235114.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "category": "Corporate Home / Veterinary Care Hero",
-        "description": "Veterinarian checking a German Shepherd in a sterile clinic environment"
+        "url": "https://images.unsplash.com/photo-1732690233982-1d4567384ea1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA4Mzl8MHwxfHNlYXJjaHw0fHxwaGFybWFjZXV0aWNhbCUyMGxhYm9yYXRvcnl8ZW58MHx8fHwxNzg3ODAxODYyfDA&ixlib=rb-4.1.0&q=85",
+        "category": "Home Hero / About Page",
+        "description": "Person in lab coat working on a machine - highly corporate/pharma"
       },
       {
-        "url": "https://images.unsplash.com/photo-1633023103172-f26a882a2881?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHw0fHx2ZXRlcmluYXJ5JTIwY2xpbmljJTIwY2F0dGxlJTIwZG9nfGVufDB8fHx8MTc4Njk3ODk1OXww&ixlib=rb-4.1.0&q=85",
-        "category": "Products / Large Animal Category",
-        "description": "Herd of cattle walking across field"
+        "url": "https://images.unsplash.com/photo-1579165466949-3180a3d056d5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA4Mzl8MHwxfHNlYXJjaHwxfHxwaGFybWFjZXV0aWNhbCUyMGxhYm9yYXRvcnl8ZW58MHx8fHwxNzg3ODAxODYyfDA&ixlib=rb-4.1.0&q=85",
+        "category": "About Page / Quality Control",
+        "description": "Scientist using a pipette in a laboratory"
       },
       {
-        "url": "https://images.unsplash.com/photo-1589922583749-6b8473a85048?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwzfHxwb3VsdHJ5JTIwZmFybSUyMGNoaWNrZW5zfGVufDB8fHx8MTc4Njk3ODk1OXww&ixlib=rb-4.1.0&q=85",
-        "category": "Products / Poultry Category",
-        "description": "White chicken on green grass"
+        "url": "https://images.unsplash.com/photo-1779832244123-500fcd174082?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwzfHxmYXJtJTIwYW5pbWFscyUyMGNvdyUyMGhvcnNlfGVufDB8fHx8MTc4NzgwMTg2Mnww&ixlib=rb-4.1.0&q=85",
+        "category": "Home Categories / Large Animal Category",
+        "description": "Cows and a horse graze on a misty green hillside"
       },
       {
-        "url": "https://images.unsplash.com/photo-1614935151651-0bea6508db6b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwxfHxwaGFybWFjZXV0aWNhbCUyMGxhYm9yYXRvcnklMjB0ZXN0aW5nfGVufDB8fHx8MTc4Njk3ODk1OXww&ixlib=rb-4.1.0&q=85",
-        "category": "Corporate / R&D and Quality Control",
-        "description": "Scientist using pipette with test tubes in lab"
+        "url": "https://images.pexels.com/photos/14527417/pexels-photo-14527417.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "Corporate About Page Header",
+        "description": "Modern skyscrapers reflecting the sky, showcasing corporate architecture"
       },
       {
-        "url": "https://images.unsplash.com/photo-1639772823849-6efbd173043c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxNzV8MHwxfHNlYXJjaHwzfHxwaGFybWFjZXV0aWNhbCUyMGxhYm9yYXRvcnklMjB0ZXN0aW5nfGVufDB8fHx8MTc4Njk3ODk1OXww&ixlib=rb-4.1.0&q=85",
-        "category": "Corporate / Manufacturing",
-        "description": "Gloved hand holding a test tube filled with liquid"
+        "url": "https://images.unsplash.com/photo-1770836037793-95bdbf190f71?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwyfHx2ZXRlcmluYXJ5JTIwY2xpbmljJTIwZG9nfGVufDB8fHx8MTc4NzgwMTg2Mnww&ixlib=rb-4.1.0&q=85",
+        "category": "Home Categories / Pet Category",
+        "description": "A veterinarian examines a black and tan dachshund"
       }
-    ],
-    "treatment": "High quality photography. Use bg-black/40 overlay for text contrast on hero banners. No generic 3D cartoons. Clear, white-background product shots for catalog items."
+    ]
   },
-  "instructions_to_main_agent": [
-    "Use Shadcn UI components (.jsx) but customize them to match the B2B medical aesthetic (flat, crisp 1px borders, minimal shadow, Vetmech Green focus rings).",
-    "For the B2B Cart Table, implement dense grids with explicit columns for Scheme, Free Qty, and Dispatch Qty as requested.",
-    "Implement a Mobile Bottom Nav bar (fixed bottom, z-50) with Home, Products, Search, Cart, Account, WhatsApp Order. Hide it on desktop screens (md:hidden).",
-    "WhatsApp OTP Modal must use Shadcn Dialog for a clean, distraction-free centralized login.",
-    "Do NOT use HTML native datepickers or selects. Use Shadcn Dropdown, Select, and Calendar.",
-    "Ensure the Admin panel is completely isolated with its own layout (Sidebar + Header + Content Area) using the high-density grid approach.",
-    "Avoid the generic 'Vercel SaaS' look. This is a B2B veterinary pharma site. Use the designated 'Vetmech Forest Green' (#045D3A) as the primary brand color.",
-    "DO NOT apply global transitions like 'transition: all' in CSS.",
-    "Use 'sonner' for toast notifications (e.g., Add to cart success, WhatsApp OTP sent). Ensure sonner is installed.",
-    "All interactive elements MUST include data-testid attribute for automated testing."
-  ],
   "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
-    "Create depth through layered design elements with z-index hierarchy, but avoid excessive soft shadows. Rely on crisp borders instead.",
-    "You MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific interactive elements like button, input excluding transforms.",
-    "You MUST NOT center align the app container. No '.App { text-align: center; }'.",
-    "Never use AI assistant Emoji characters (e.g., 🤖🧠💭💡🔮🎯) for icons. Use lucide-react.",
-    "Prioritize using pre-existing components from src/components/ui.",
-    "Use sonner for toasts, located in /app/src/components/ui/sonner.jsx or .js"
+    "NOTE: Codebase uses .js files, NOT .tsx. Provide all React code in standard JS.",
+    "No generic centered layouts, simplistic gradients, or uniform styling.",
+    "Do not use dark colors as gradients.",
+    "Never use transparent backgrounds over content (e.g., sticky headers must have bg-color + blur).",
+    "MUST not apply universal transitions (`transition: all`); target specific properties.",
+    "Never center align the app container (.App { text-align: center; } is banned).",
+    "Use pill-shaped or slightly rounded elements with interaction animations.",
+    "Ensure robust testability: ALWAYS include `data-testid` on interactive elements.",
+    "Prioritize pre-existing Shadcn components from `/app/src/components/ui`.",
+    "Implement toasts using `sonner`.",
+    "Never use placeholder image text; use the provided image URLs."
   ]
 }
