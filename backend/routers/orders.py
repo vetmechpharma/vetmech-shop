@@ -457,6 +457,94 @@ async def delete_transport(tid: str, admin=Depends(require_module("orders"))):
     return {"deleted": True}
 
 
+# =============== MESSAGE TEMPLATES ===============
+DEFAULT_TEMPLATES = {
+    "order_received": {"label": "Order Received", "body": "Dear {name}, your VETMECH order {order} has been RECEIVED. Our team will confirm shortly. Thank you!"},
+    "order_confirmed": {"label": "Order Confirmed", "body": "Dear {name}, your VETMECH order {order} is CONFIRMED and being processed."},
+    "order_dispatched": {"label": "Order Dispatched", "body": "Dear {name}, your VETMECH order {order} has been DISPATCHED via {transport} ({cases} case(s), LR {lr}, freight {freight}). Thank you!"},
+    "order_delivered": {"label": "Order Delivered", "body": "Dear {name}, your VETMECH order {order} has been DELIVERED. Thank you for choosing VETMECH!"},
+}
+TEMPLATE_PLACEHOLDERS = ["{name}", "{order}", "{transport}", "{cases}", "{lr}", "{freight}"]
+
+
+async def get_templates():
+    doc = await db.settings.find_one({"id": "message_templates"}, {"_id": 0}) or {}
+    tmpls = doc.get("templates", {})
+    merged = {k: {**v, **tmpls.get(k, {})} for k, v in DEFAULT_TEMPLATES.items()}
+    return merged
+
+
+def render_template(body: str, order: dict) -> str:
+    d = order.get("dispatch", {}) or {}
+    ctx = {
+        "name": order.get("customer_name", ""),
+        "order": order.get("order_number", ""),
+        "transport": d.get("transport", ""),
+        "cases": d.get("cases", ""),
+        "lr": d.get("lr_number", ""),
+        "freight": ("Paid" if d.get("freight") == "paid" else "To Pay"),
+    }
+    out = body
+    for k, v in ctx.items():
+        out = out.replace("{" + k + "}", str(v))
+    return out
+
+
+@router.get("/admin/message-templates")
+async def list_templates(admin=Depends(require_module("orders"))):
+    return {"templates": await get_templates(), "placeholders": TEMPLATE_PLACEHOLDERS}
+
+
+@router.put("/admin/message-templates")
+async def save_templates(body: dict = Body(...), admin=Depends(require_module("orders"))):
+    incoming = body.get("templates", {})
+    clean = {}
+    for k in DEFAULT_TEMPLATES:
+        if k in incoming and isinstance(incoming[k], dict):
+            clean[k] = {"label": DEFAULT_TEMPLATES[k]["label"], "body": incoming[k].get("body", DEFAULT_TEMPLATES[k]["body"])}
+    await db.settings.update_one({"id": "message_templates"}, {"$set": {"id": "message_templates", "templates": clean, "updated_at": now_iso()}}, upsert=True)
+    await log_audit(db, admin, "update", "message_templates", "message_templates")
+    return {"templates": await get_templates(), "placeholders": TEMPLATE_PLACEHOLDERS}
+
+
+# =============== DISPATCH REGISTER ===============
+@router.get("/admin/dispatches")
+async def dispatch_register(transport: Optional[str] = None, freight: Optional[str] = None,
+                            date_from: Optional[str] = None, date_to: Optional[str] = None,
+                            q: Optional[str] = None, admin=Depends(require_module("orders"))):
+    query = {"dispatch": {"$exists": True, "$ne": None}}
+    if transport:
+        query["dispatch.transport"] = transport
+    if freight:
+        query["dispatch.freight"] = freight
+    if date_from or date_to:
+        rng = {}
+        if date_from:
+            rng["$gte"] = date_from
+        if date_to:
+            rng["$lte"] = date_to
+        query["dispatch.dispatch_date"] = rng
+    if q:
+        import re as _re
+        rx = {"$regex": _re.escape(q), "$options": "i"}
+        query["$or"] = [{"order_number": rx}, {"customer_name": rx}, {"dispatch.lr_number": rx}]
+    orders = await db.orders.find(query, {"_id": 0}).sort("dispatch.dispatched_at", -1).to_list(2000)
+    rows = []
+    for o in orders:
+        d = o.get("dispatch", {})
+        rows.append({
+            "id": o["id"], "order_number": o.get("order_number"), "customer_name": o.get("customer_name"),
+            "company_name": o.get("company_name", ""), "customer_mobile": o.get("customer_mobile"),
+            "city": (o.get("address") or {}).get("district", ""), "state": (o.get("address") or {}).get("state", ""),
+            "cases": d.get("cases"), "transport": d.get("transport"), "freight": d.get("freight"),
+            "lr_number": d.get("lr_number"), "dispatch_date": d.get("dispatch_date"),
+            "dispatched_by": d.get("dispatched_by"), "total_dispatch": o.get("total_dispatch"),
+            "status": o.get("status"),
+        })
+    transports = [t["name"] for t in await db.transports.find({}, {"_id": 0, "name": 1}).to_list(500)]
+    return {"items": rows, "count": len(rows), "transports": transports}
+
+
 # =============== DISPATCH ===============
 @router.post("/admin/orders/{oid}/dispatch")
 async def dispatch_order(oid: str, body: dict = Body(...), admin=Depends(require_module("orders"))):
@@ -485,7 +573,9 @@ async def dispatch_order(oid: str, body: dict = Body(...), admin=Depends(require
     await log_audit(db, admin, "dispatch", "order", oid, {"transport": transport, "lr": lr})
     if body.get("notify"):
         cust = await db.customers.find_one({"id": order.get("customer_id")}, {"_id": 0})
-        msg = body.get("message") or f"Your order {order.get('order_number')} has been dispatched."
+        order["dispatch"] = dispatch
+        tmpls = await get_templates()
+        msg = body.get("message") or render_template(tmpls["order_dispatched"]["body"], order)
         if cust:
             await send_whatsapp(db, cust.get("whatsapp") or cust.get("mobile"), msg, kind="order_dispatched")
     return await db.orders.find_one({"id": oid}, {"_id": 0})

@@ -40,8 +40,9 @@ function Row({ p, v, addItem, loggedIn }) {
 }
 
 export default function QuickOrder() {
-  const { addItem, count, setOpen } = useCart();
+  const { addItem, count, setOpen, calc } = useCart();
   const { customer } = useAuth();
+  const estValue = (calc?.items || []).reduce((a, l) => a + (l.unit_price || 0) * (l.qty || 0), 0);
   const [q, setQ] = useState("");
   const { data, isLoading } = useQuery({ queryKey: ["quick-order"], queryFn: async () => (await api.get("/products", { params: { limit: 200 } })).data });
 
@@ -55,7 +56,7 @@ export default function QuickOrder() {
   }, [data, q]);
 
   return (
-    <div className="vm-container py-8 max-w-5xl">
+    <div className="vm-container py-8 max-w-5xl pb-28">
       <SEO title="Quick Order" description="Fast bulk ordering — add every product in one scroll." />
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-2">
@@ -86,6 +87,23 @@ export default function QuickOrder() {
           : rows.length === 0 ? <div className="py-16 text-center text-slate-400">No products found.</div>
             : <div className="max-h-[65vh] overflow-y-auto">{rows.map(({ p, v }) => <Row key={v.id} p={p} v={v} addItem={addItem} loggedIn={!!customer} />)}</div>}
       </div>
+
+      {count > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-vm-ink text-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)]" data-testid="qo-sticky-bar">
+          <div className="vm-container max-w-5xl flex items-center justify-between gap-4 py-3">
+            <div className="flex items-center gap-5">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-vm-green" />
+                <span className="font-semibold" data-testid="qo-sticky-count">{count} item{count > 1 ? "s" : ""}</span>
+              </div>
+              {customer && estValue > 0 && (
+                <div className="text-sm text-slate-300">Estimated value <span className="font-heading font-bold text-white" data-testid="qo-sticky-value">₹{estValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span></div>
+              )}
+            </div>
+            <Button className="bg-vm-green hover:bg-vm-greenhover shrink-0" onClick={() => setOpen(true)} data-testid="qo-sticky-cart"><ShoppingCart className="w-4 h-4 mr-2" /> Review Cart</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

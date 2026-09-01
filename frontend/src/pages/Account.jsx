@@ -22,13 +22,26 @@ export default function Account() {
 
   if (!customer) {
     return (
-      <div className="vm-container py-20 max-w-md text-center">
+      <div className="min-h-[70vh] grid lg:grid-cols-2">
         <SEO title="My Account" />
-        <User className="w-14 h-14 mx-auto text-slate-300 mb-4" />
-        <h1 className="font-heading text-2xl font-bold text-vm-ink">Login to your account</h1>
-        <p className="text-slate-500 mt-2">Login with WhatsApp OTP or your password to view your special pricing, orders and reorder quickly.</p>
-        <Button className="mt-6 bg-vm-green hover:bg-vm-greenhover" onClick={() => setAuthOpen(true)} data-testid="account-login-btn">Login</Button>
-        <p className="text-sm text-slate-500 mt-3">New customer? <Link to="/register" className="text-vm-green font-semibold hover:underline">Create an account</Link></p>
+        <div className="relative hidden lg:block bg-vm-ink overflow-hidden">
+          <img src="https://images.unsplash.com/photo-1732690233982-1d4567384ea1?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200" alt="Laboratory" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-vm-ink via-vm-ink/70 to-vm-ink/30" />
+          <div className="relative h-full flex flex-col justify-end p-12 text-white">
+            <div className="w-12 h-12 rounded-xl bg-vm-green grid place-items-center font-heading font-extrabold text-xl mb-5">V</div>
+            <h2 className="font-heading text-4xl font-bold leading-tight">Your B2B pricing,<br />in one login.</h2>
+            <p className="mt-4 text-slate-200 text-lg max-w-md">Access your special rates, quantity offers, order history and one-tap reorder — trusted by 12,000+ veterinary partners.</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center p-8 md:p-14">
+          <div className="w-full max-w-sm text-center">
+            <User className="w-12 h-12 mx-auto text-vm-green mb-4" />
+            <h1 className="font-heading text-3xl font-bold text-vm-ink">Welcome back</h1>
+            <p className="text-slate-500 mt-2 text-lg">Login with WhatsApp OTP or password to view your special pricing and orders.</p>
+            <Button size="lg" className="mt-6 w-full bg-vm-green hover:bg-vm-greenhover" onClick={() => setAuthOpen(true)} data-testid="account-login-btn">Login</Button>
+            <p className="text-sm text-slate-500 mt-4">New customer? <Link to="/register" className="text-vm-green font-semibold hover:underline">Create an account</Link></p>
+          </div>
+        </div>
         <AuthDialog open={authOpen} onOpenChange={setAuthOpen} onLoggedIn={() => {}} />
       </div>
     );

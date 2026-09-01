@@ -85,10 +85,11 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
 1. **(DONE 2026-06) Order & Dispatch + Envelope + Transport Master**: dispatch endpoint POST /api/admin/orders/{id}/dispatch (cases/transport/freight/LR/date/remarks, validation, records dispatched_by, WhatsApp notify), Transport Master CRUD (/api/admin/transports), on_hold status. Frontend: DispatchSection in order detail (Prepare-for-Dispatch form + checklist gate + Print Envelope + Confirm Dispatch + dispatched summary + reprint), AdminTransports page, envelope util (/lib/envelope.js, 10x4.5in auto-filled from order + auto-print). Order history timeline via activity log. Verified curl + screenshots.
    - Remaining sub-items (P1): dedicated Dispatch List page w/ export, editable message-template settings, dispatch-status filters on orders dashboard.
 2. **(DONE 2026-06) Quick Order page** — /quick-order: single scrollable list of all product variants with image, MRP/your-price, offer, inline qty stepper + Add; guest sees MRP-only + login banner; nav links added (desktop + mobile). Verified via screenshot (add → cart updates).
-3. **Shop filter sidebar** — accordion category/brand/availability. (PENDING)
-4. **Split-screen Auth** — image side. (PENDING)
-5. **Merge Price Manager into Product/variant editor**. (PENDING)
-6. **Dispatch List page** + editable message templates. (PENDING)
+3. **(DONE 2026-06) Shop filter sidebar** — accordion Category/Brand/Availability rail on /products (sticky desktop + mobile Sheet), category filter added (slug). Verified via screenshot.
+4. **(DONE 2026-06) Split-screen Auth** — Account login AND Register now use a premium image-left / form-right layout with benefits list. Verified via screenshot.
+5. **(DONE 2026-06) Merge Price Manager into Product/variant editor** — new "Pricing & Offers" tab in the product dialog: per-variant category rates (6 categories) + offers (Buy X Get Y Free / Special Price / Case Price), saved together with the product (PUT /api/admin/pricing/product/{id} + POST/DELETE /api/admin/pricing/offers). Loads existing pricing on edit; blank rate removes override. Verified (iteration_10: create/persist/blank-remove).
+6. **(DONE 2026-06) Dispatch Register page** (/admin/dispatch-list, nav "Dispatch Register") — lists all dispatched orders with transport/freight/date/LR, filters (transport, freight, date range, search) via GET /api/admin/dispatches, client-side CSV export. **Editable Message Templates** (/admin/message-templates, nav "Message Templates") — 4 templates (order_received/confirmed/dispatched/delivered) with placeholder chips ({name}/{order}/{transport}/{cases}/{lr}/{freight}); GET/PUT /api/admin/message-templates; dispatch WhatsApp now uses order_dispatched template. Verified (iteration_10).
+7. **(DONE 2026-06) Quick Order sticky total bar** — fixed bottom bar shows running item count + estimated value (logged-in only); Review Cart button. Verified via screenshot.
 - (Done) Pre-login MRP-only pricing.
 
 ## Backlog (P1/P2)

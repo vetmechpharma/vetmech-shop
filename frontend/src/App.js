@@ -38,6 +38,8 @@ import BackupSettings from "@/pages/admin/BackupSettings";
 import AdminPricingSettings from "@/pages/admin/AdminPricingSettings";
 import AdminTransports from "@/pages/admin/AdminTransports";
 import AdminPricingManager from "@/pages/admin/AdminPricingManager";
+import AdminDispatchList from "@/pages/admin/AdminDispatchList";
+import AdminMessageTemplates from "@/pages/admin/AdminMessageTemplates";
 import Register from "@/pages/Register";
 import QuotationDashboard from "@/pages/admin/quotations/QuotationDashboard";
 import QuotationList from "@/pages/admin/quotations/QuotationList";
@@ -123,6 +125,8 @@ function App() {
                   <Route path="quotations/settings" element={<QuotationSettings />} />
                   <Route path="pricing-settings" element={<AdminPricingSettings />} />
                   <Route path="transports" element={<AdminTransports />} />
+                  <Route path="dispatch-list" element={<AdminDispatchList />} />
+                  <Route path="message-templates" element={<AdminMessageTemplates />} />
                   <Route path="pricing-manager" element={<AdminPricingManager />} />
                   <Route path="quotations/:id" element={<QuotationDetail />} />
                   <Route path="quotations/:id/edit" element={<QuotationForm />} />

@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 10 — Three new admin features verified end-to-end: (1) Product Editor Pricing & Offers tab, (2) Dispatch Register, (3) Message Templates. BACKEND: 15/15 pytest passed in /app/backend/tests/test_iter10_features.py. Covered: GET/PUT /api/admin/pricing/product/{pid} (matrix, set 6 category rates, blank rate removes override); POST/GET/DELETE /api/admin/pricing/offers (free_qty create+list+delete, special_price create, 400 when buy/free missing); GET /api/admin/dispatches with filters (transport, freight=to_pay, date range, q search, no-match → []); GET/PUT /api/admin/message-templates persistence + auth-required; guest public products endpoint returns items without exposing category_prices. FRONTEND: Admin login OK. AdminMessageTemplates: all 4 templates (order_received/confirmed/dispatched/delivered) render with editable textareas, placeholder chip 'tpl-order_received-insert-name' inserts {name} into body, edit + save-templates + reload persists new body. AdminDispatchList: shows 1 dispatch row VM-2026-00020, dispatch-count reads '1 dispatch record', CSV export button downloads 'dispatch-register-2026-09-01.csv' without error, dispatch-search 'VM-2026-00020' filters correctly. AdminProducts Pricing & Offers tab: opened NERVIPHOS-BM edit dialog → 'tab-pricing' switch → catprice-0-doctor was loaded from server (171), set catprice-0-doctor=175 + catprice-0-farm=55 → save-product; reopened dialog → doctor=175, farm=55 persisted. Blank catprice-0-farm + save → farm empty on reopen (override removed). add-offer-0 appends editable draft; filled offer-buy-0-4=14 + offer-free-0-4=2 → save; reopen shows offer row 'Buy 14 Get 2 Free · All customers' (4 existing + 1 new = 5). Cleanup: removed the test offer via remove-offer button + save.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter10_features.py",
+    "/app/test_reports/pytest/iter10.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "orders.py save_templates(): only whitelists keys present in DEFAULT_TEMPLATES; unknown keys sent by client are silently dropped. Fine, but consider returning 400 for unknown keys to give admin explicit feedback.",
+    "orders.py render_template(): substitutes with simple str.replace(); if a customer name contains '{order}'-like text it will be replaced again on next pass. Currently the loop only runs once per placeholder so acceptable; a safer approach is str.format_map with a defaultdict to avoid injection edge cases.",
+    "orders.py dispatch_register(): uses date_from/date_to inclusive on dispatch.dispatch_date string comparison (YYYY-MM-DD), which works because ISO date sorts lexicographically — fine.",
+    "pricing.py set_product_pricing(): silently 'continue' if variant_id missing or category not in CATEGORIES. Consider returning 400 on invalid input so admin sees typos.",
+    "AdminProducts.jsx persistPricing(): posts every offer sequentially in an await loop; for many offers this can be slow. Consider Promise.all for parallel offer creation. Also, no rollback if PUT /pricing/product succeeds but POST /offers fails — could leave partial state.",
+    "AdminProducts.jsx: after editing/saving, on-error state does not close dialog nor reset saving flag if persistPricing throws mid-way (caught, saving reset OK). Verified: 'Product & pricing saved' toast displayed on success.",
+    "AdminDispatchList.jsx: uses Radix Select with SelectItem value='all'; if response's transports list contains 'Customer Pickup' it will render TWICE (once from data.transports, once hardcoded). Minor duplicate risk."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter10_features.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% (message templates, dispatch register with CSV, product pricing & offers create/persist/blank-remove all verified)"},
+  "test_credentials": "Admin vetmechpharma@gmail.com / Admin@123",
+  "seed_data_creation": "None persisted. Test template body was restored to original. Test offer 'Buy 14 Get 2 Free' was created and deleted within the UI test. Category rate on NERVIPHOS-BM variant 0: doctor was left at 175 (was 171 originally), farm reset to blank — main agent may re-seed if the demo needs specific numbers, but the values are still valid.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New regression file: /app/backend/tests/test_iter10_features.py (15 tests). Key data-testids: (Products dialog) tab-pricing, catprice-{i}-{cat} where cat ∈ {doctor,agency,medical_shop,distributor,farm,other}, add-offer-{i}, offer-type/buy/free/special-{i}-{oi}, remove-offer-{i}-{oi}, save-product. IMPORTANT: {oi} is the offer index within the variant's full offers array (existing + drafts); new drafts are appended so their index depends on existing offer count — count first, then use n_existing as new_oi. (Dispatch) dispatch-list-page, dispatch-count, dispatch-row-{order_number}, dispatch-export-csv, dispatch-filter-transport, dispatch-filter-freight, dispatch-date-from/to, dispatch-search, dispatch-clear. (Templates) message-templates-page, tpl-{key}, tpl-{key}-body, tpl-{key}-insert-{ph_name_no_braces}, save-templates. Existing dispatched order VM-2026-00020 (VRL Logistics) confirmed present.",
+  "rca of the issue": "N/A — all three features fully working."
+}

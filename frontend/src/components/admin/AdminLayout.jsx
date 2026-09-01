@@ -27,6 +27,7 @@ const GROUPS = [
   {
     label: "Sales & Pricing", icon: IndianRupee, children: [
       { to: "/admin/orders", label: "Orders", module: "orders" },
+      { to: "/admin/dispatch-list", label: "Dispatch Register", module: "orders" },
       { to: "/admin/transports", label: "Transport Master", module: "orders" },
       { to: "/admin/customers", label: "Customers", module: "customers" },
       { to: "/admin/pricing-manager", label: "Pricing Manager", module: "customers" },
@@ -69,6 +70,7 @@ const GROUPS = [
   {
     label: "Communications", icon: MessageCircle, children: [
       { to: "/admin/notifications", label: "WhatsApp Log", module: null },
+      { to: "/admin/message-templates", label: "Message Templates", module: "orders" },
       { to: "/admin/whatsapp", label: "WhatsApp Settings", module: "cms" },
       { to: "/admin/smtp", label: "Email / SMTP", module: "cms" },
     ],
