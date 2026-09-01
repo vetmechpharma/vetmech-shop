@@ -26,6 +26,7 @@ export const ORDER_STATUSES = [
   { value: "dispatched", label: "Dispatched", color: "bg-cyan-100 text-cyan-700" },
   { value: "delivered", label: "Delivered", color: "bg-green-100 text-green-700" },
   { value: "cancelled", label: "Cancelled", color: "bg-red-100 text-red-700" },
+  { value: "on_hold", label: "On Hold", color: "bg-slate-200 text-slate-600" },
 ];
 
 export const statusMeta = (v) => ORDER_STATUSES.find((s) => s.value === v) || ORDER_STATUSES[0];

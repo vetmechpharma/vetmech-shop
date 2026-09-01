@@ -81,13 +81,13 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
 ## Pre-login pricing lock (2026-06)
 - Non-logged-in ("universal") customers now see MRP only — `enrich_products` nulls selling_price, clears offers, sets `login_required` for guest requests. After login, applicable price + offers show. Verified via curl (guest MRP-only vs doctor price+offers).
 
-## Requested backlog — sequenced (from user, pending build)
-1. **Order & Dispatch Management module** (largest — full PRD): status flow New→Confirmed→Processing→Prepare-for-Dispatch→Dispatched→Delivered (+On Hold/Cancelled); dispatch dashboard w/ status counts + search/filters; Prepare-for-Dispatch (no. of cases, transport, freight To Pay/Paid, LR/tracking, dispatch date); dispatch checklist gate; Confirm Dispatch; editable WhatsApp dispatch message + status message templates; order history timeline; Dispatch List page w/ export; Transport Master (Settings). Build modular for future partial/return shipments.
-2. **Envelope printing** (10×4.5in) — integrate the provided HTML layout, auto-populate recipient from order (name/address/city/district/state/pin/mobile/order no); "PRINT ENVELOPE" button inside Prepare-for-Dispatch.
-3. **Single-window Quick Order page** — all products + their offers in one scrollable list, add qty inline without opening each product.
-4. **Shop filter sidebar** — accordion category/brand/availability rail.
-5. **Split-screen Auth** — image on one side for login/register.
-6. **Merge Price Manager into the Product/variant editor** — set category rates + offers while adding a product.
+## Requested backlog — sequenced (from user)
+1. **(DONE 2026-06) Order & Dispatch + Envelope + Transport Master**: dispatch endpoint POST /api/admin/orders/{id}/dispatch (cases/transport/freight/LR/date/remarks, validation, records dispatched_by, WhatsApp notify), Transport Master CRUD (/api/admin/transports), on_hold status. Frontend: DispatchSection in order detail (Prepare-for-Dispatch form + checklist gate + Print Envelope + Confirm Dispatch + dispatched summary + reprint), AdminTransports page, envelope util (/lib/envelope.js, 10x4.5in auto-filled from order + auto-print). Order history timeline via activity log. Verified curl + screenshots.
+   - Remaining sub-items (P1): dedicated Dispatch List page w/ export, editable message-template settings, dispatch-status filters on orders dashboard.
+2. **Quick Order page** — single scrollable list, add qty inline. (PENDING)
+3. **Shop filter sidebar** — accordion category/brand/availability. (PENDING)
+4. **Split-screen Auth** — image side. (PENDING)
+5. **Merge Price Manager into Product/variant editor**. (PENDING)
 - (Done) Pre-login MRP-only pricing.
 
 ## Backlog (P1/P2)

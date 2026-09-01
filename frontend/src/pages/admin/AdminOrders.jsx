@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Loader2, Eye, Download, FileText, Plus, Trash2, X } from "lucide-react";
 import { ORDER_STATUSES, statusMeta, CUSTOMER_CATEGORIES, INDIAN_STATES } from "@/lib/constants";
 import { exportRows } from "@/lib/exportUtils";
+import DispatchSection from "@/components/admin/DispatchSection";
 
 export default function AdminOrders() {
   const qc = useQueryClient();
@@ -253,6 +254,8 @@ function OrderDetail({ id, onClose, onChange }) {
                   </div>
                 )}
               </div>
+
+              <DispatchSection order={order} onDone={() => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); }} />
 
               <div>
                 <Label>Internal Notes</Label>

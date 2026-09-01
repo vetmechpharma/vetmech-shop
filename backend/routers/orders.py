@@ -14,7 +14,7 @@ STATUS_FLOW = ["new", "confirmed", "processing", "ready_to_dispatch", "dispatche
 STATUS_LABELS = {
     "new": "New", "confirmed": "Confirmed", "processing": "Processing",
     "ready_to_dispatch": "Ready to Dispatch", "dispatched": "Dispatched",
-    "delivered": "Delivered", "cancelled": "Cancelled",
+    "delivered": "Delivered", "cancelled": "Cancelled", "on_hold": "On Hold",
 }
 
 
@@ -424,4 +424,68 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
     updates["activity"] = order["activity"]
     await db.orders.update_one({"id": oid}, {"$set": updates})
     await log_audit(db, admin, "edit", "order", oid)
+    return await db.orders.find_one({"id": oid}, {"_id": 0})
+
+
+# =============== TRANSPORT MASTER ===============
+@router.get("/admin/transports")
+async def list_transports(admin=Depends(require_module("orders"))):
+    return {"items": await db.transports.find({}, {"_id": 0}).sort("name", 1).to_list(500)}
+
+
+@router.post("/admin/transports")
+async def create_transport(body: dict = Body(...), admin=Depends(require_module("orders"))):
+    doc = {"id": new_id(), "name": body.get("name", "").strip(), "contact": body.get("contact", ""),
+           "address": body.get("address", ""), "active": body.get("active", True), "created_at": now_iso()}
+    if not doc["name"]:
+        raise HTTPException(400, "Transport name required")
+    await db.transports.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/admin/transports/{tid}")
+async def update_transport(tid: str, body: dict = Body(...), admin=Depends(require_module("orders"))):
+    body.pop("id", None); body.pop("_id", None)
+    await db.transports.update_one({"id": tid}, {"$set": body})
+    return await db.transports.find_one({"id": tid}, {"_id": 0})
+
+
+@router.delete("/admin/transports/{tid}")
+async def delete_transport(tid: str, admin=Depends(require_module("orders"))):
+    await db.transports.delete_one({"id": tid})
+    return {"deleted": True}
+
+
+# =============== DISPATCH ===============
+@router.post("/admin/orders/{oid}/dispatch")
+async def dispatch_order(oid: str, body: dict = Body(...), admin=Depends(require_module("orders"))):
+    order = await db.orders.find_one({"id": oid})
+    if not order:
+        raise HTTPException(404, "Not found")
+    cases = body.get("cases")
+    transport = (body.get("transport") or "").strip()
+    lr = (body.get("lr_number") or "").strip()
+    if not cases or int(cases) <= 0:
+        raise HTTPException(400, "Number of cases is required")
+    if not transport:
+        raise HTTPException(400, "Transport is required")
+    if not lr and transport.lower() != "customer pickup":
+        raise HTTPException(400, "LR / Tracking number is required")
+    dispatch = {
+        "cases": int(cases), "transport": transport,
+        "freight": body.get("freight", "to_pay"), "lr_number": lr,
+        "dispatch_date": body.get("dispatch_date") or now_iso()[:10],
+        "remarks": body.get("remarks", ""), "dispatched_by": admin.get("name", "Admin"),
+        "dispatched_at": now_iso(),
+    }
+    add_order_activity(order, f"Dispatched via {transport} · {dispatch['cases']} case(s) · LR {lr or '—'} · Freight {dispatch['freight']}", admin["name"])
+    await db.orders.update_one({"id": oid}, {"$set": {
+        "status": "dispatched", "dispatch": dispatch, "updated_at": now_iso(), "activity": order["activity"]}})
+    await log_audit(db, admin, "dispatch", "order", oid, {"transport": transport, "lr": lr})
+    if body.get("notify"):
+        cust = await db.customers.find_one({"id": order.get("customer_id")}, {"_id": 0})
+        msg = body.get("message") or f"Your order {order.get('order_number')} has been dispatched."
+        if cust:
+            await send_whatsapp(db, cust.get("whatsapp") or cust.get("mobile"), msg, kind="order_dispatched")
     return await db.orders.find_one({"id": oid}, {"_id": 0})

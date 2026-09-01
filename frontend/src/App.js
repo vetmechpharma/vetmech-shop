@@ -35,6 +35,7 @@ import { CompanySettings, WhatsAppSettings, SmtpSettings, SeoSettings, HomepageS
 import { AdminEnquiries, AdminApplications, AdminNotifications, AdminAuditLogs, AdminReports, AdminPages } from "@/pages/admin/AdminMisc";
 import BackupSettings from "@/pages/admin/BackupSettings";
 import AdminPricingSettings from "@/pages/admin/AdminPricingSettings";
+import AdminTransports from "@/pages/admin/AdminTransports";
 import AdminPricingManager from "@/pages/admin/AdminPricingManager";
 import Register from "@/pages/Register";
 import QuotationDashboard from "@/pages/admin/quotations/QuotationDashboard";
@@ -119,6 +120,7 @@ function App() {
                   <Route path="quotations/new" element={<QuotationForm />} />
                   <Route path="quotations/settings" element={<QuotationSettings />} />
                   <Route path="pricing-settings" element={<AdminPricingSettings />} />
+                  <Route path="transports" element={<AdminTransports />} />
                   <Route path="pricing-manager" element={<AdminPricingManager />} />
                   <Route path="quotations/:id" element={<QuotationDetail />} />
                   <Route path="quotations/:id/edit" element={<QuotationForm />} />
