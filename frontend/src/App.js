@@ -16,6 +16,7 @@ import Checkout from "@/pages/Checkout";
 import OrderConfirmation from "@/pages/OrderConfirmation";
 import Account from "@/pages/Account";
 import CmsPage from "@/pages/CmsPage";
+import QuickOrder from "@/pages/QuickOrder";
 import About from "@/pages/About";
 import { NewsList, NewsArticle } from "@/pages/News";
 import Gallery from "@/pages/Gallery";
@@ -65,6 +66,7 @@ function App() {
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<Home />} />
                   <Route path="/products" element={<Products />} />
+                  <Route path="/quick-order" element={<QuickOrder />} />
                   <Route path="/products/:slug" element={<ProductDetail />} />
                   <Route path="/categories/:slug" element={<CategoryPage />} />
                   <Route path="/cart" element={<Cart />} />

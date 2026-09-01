@@ -84,10 +84,11 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
 ## Requested backlog — sequenced (from user)
 1. **(DONE 2026-06) Order & Dispatch + Envelope + Transport Master**: dispatch endpoint POST /api/admin/orders/{id}/dispatch (cases/transport/freight/LR/date/remarks, validation, records dispatched_by, WhatsApp notify), Transport Master CRUD (/api/admin/transports), on_hold status. Frontend: DispatchSection in order detail (Prepare-for-Dispatch form + checklist gate + Print Envelope + Confirm Dispatch + dispatched summary + reprint), AdminTransports page, envelope util (/lib/envelope.js, 10x4.5in auto-filled from order + auto-print). Order history timeline via activity log. Verified curl + screenshots.
    - Remaining sub-items (P1): dedicated Dispatch List page w/ export, editable message-template settings, dispatch-status filters on orders dashboard.
-2. **Quick Order page** — single scrollable list, add qty inline. (PENDING)
+2. **(DONE 2026-06) Quick Order page** — /quick-order: single scrollable list of all product variants with image, MRP/your-price, offer, inline qty stepper + Add; guest sees MRP-only + login banner; nav links added (desktop + mobile). Verified via screenshot (add → cart updates).
 3. **Shop filter sidebar** — accordion category/brand/availability. (PENDING)
 4. **Split-screen Auth** — image side. (PENDING)
 5. **Merge Price Manager into Product/variant editor**. (PENDING)
+6. **Dispatch List page** + editable message templates. (PENDING)
 - (Done) Pre-login MRP-only pricing.
 
 ## Backlog (P1/P2)

@@ -70,6 +70,7 @@ export default function Header() {
                 </NavigationMenuItem>
                 <NavigationMenuItem>
                   <NavLink to="/about" className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-vm-green">About Us</NavLink>
+                  <NavLink to="/quick-order" className="px-3 py-2 text-sm font-semibold text-vm-accent hover:text-vm-green" data-testid="nav-quick-order">Quick Order</NavLink>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm font-medium text-slate-600">Products</NavigationMenuTrigger>
@@ -118,6 +119,7 @@ export default function Header() {
               <SheetContent side="right" className="w-72">
                 <div className="mt-6 flex flex-col gap-1">
                   <Link to="/products" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-md hover:bg-vm-bg font-semibold text-vm-green">All Products</Link>
+                  <Link to="/quick-order" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-md hover:bg-vm-bg font-semibold text-vm-accent" data-testid="mnav-quick-order">Quick Order</Link>
                   {[["Large Animal", "large-animal"], ["Small Animal", "small-animal"], ["Poultry", "poultry"]].map(([n, s]) => (
                     <Link key={s} to={`/categories/${s}`} onClick={() => setMobileOpen(false)} className="px-6 py-2 rounded-md hover:bg-vm-bg text-sm text-slate-600">{n}</Link>
                   ))}
