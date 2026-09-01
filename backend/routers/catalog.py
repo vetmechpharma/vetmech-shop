@@ -202,6 +202,12 @@ async def enrich_products(products, customer=None):
                 v["your_price"] = pr["rate"]
                 v["price_source"] = pr["source"]
                 v["is_special"] = True
+        # Non-logged-in ("universal") customers: show MRP only — no price, no offers
+        if customer is None:
+            for v in p.get("variants", []):
+                v["active_schemes"] = []
+                v["login_required"] = True
+                v["selling_price"] = None
     return products
 
 

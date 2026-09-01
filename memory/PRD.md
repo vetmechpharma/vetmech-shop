@@ -78,6 +78,18 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
 - Offers CRUD: GET/POST/DELETE `/api/admin/pricing/offers` (validates customer_type, 404 on unknown delete).
 - Verified: 14/14 backend pytest (/app/backend/tests/test_offers_upsell.py) + frontend flows (iteration_9.json).
 
+## Pre-login pricing lock (2026-06)
+- Non-logged-in ("universal") customers now see MRP only — `enrich_products` nulls selling_price, clears offers, sets `login_required` for guest requests. After login, applicable price + offers show. Verified via curl (guest MRP-only vs doctor price+offers).
+
+## Requested backlog — sequenced (from user, pending build)
+1. **Order & Dispatch Management module** (largest — full PRD): status flow New→Confirmed→Processing→Prepare-for-Dispatch→Dispatched→Delivered (+On Hold/Cancelled); dispatch dashboard w/ status counts + search/filters; Prepare-for-Dispatch (no. of cases, transport, freight To Pay/Paid, LR/tracking, dispatch date); dispatch checklist gate; Confirm Dispatch; editable WhatsApp dispatch message + status message templates; order history timeline; Dispatch List page w/ export; Transport Master (Settings). Build modular for future partial/return shipments.
+2. **Envelope printing** (10×4.5in) — integrate the provided HTML layout, auto-populate recipient from order (name/address/city/district/state/pin/mobile/order no); "PRINT ENVELOPE" button inside Prepare-for-Dispatch.
+3. **Single-window Quick Order page** — all products + their offers in one scrollable list, add qty inline without opening each product.
+4. **Shop filter sidebar** — accordion category/brand/availability rail.
+5. **Split-screen Auth** — image on one side for login/register.
+6. **Merge Price Manager into the Product/variant editor** — set category rates + offers while adding a product.
+- (Done) Pre-login MRP-only pricing.
+
 ## Backlog (P1/P2)
 - P1: Real WhatsApp API + SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.

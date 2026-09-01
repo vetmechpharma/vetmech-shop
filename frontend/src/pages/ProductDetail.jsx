@@ -87,9 +87,7 @@ export default function ProductDetail() {
           <h1 className="font-heading text-3xl font-bold text-vm-ink mt-1 tracking-tight" data-testid="product-title">{p.name}</h1>
           <p className="text-slate-600 mt-3">{p.short_description}</p>
 
-          {variant.selling_price != null && (
-            <div className="mt-4">
-              {variant.your_price != null ? (
+          {variant.your_price != null ? (
                 <div className="rounded-lg border border-vm-green/30 bg-vm-bg p-3 inline-block" data-testid="your-price-block">
                   <p className="text-[11px] uppercase tracking-widest text-vm-green font-bold flex items-center gap-1"><Tag className="w-3 h-3" /> Your Special Price</p>
                   <div className="flex items-baseline gap-2 mt-0.5">
@@ -98,20 +96,24 @@ export default function ProductDetail() {
                     <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
                   </div>
                 </div>
-              ) : (
-                <div className="flex items-baseline gap-2">
+              ) : variant.login_required ? (
+                <div className="mt-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs uppercase tracking-widest text-slate-400 font-semibold">MRP</span>
+                    <span className="font-heading text-2xl font-bold text-vm-ink">₹{variant.mrp}</span>
+                    <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
+                  </div>
+                  <button onClick={() => setAuthOpen(true)} className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-vm-accent hover:underline" data-testid="login-for-price-btn">
+                    <Lock className="w-3.5 h-3.5" /> Login to view your price &amp; offers
+                  </button>
+                </div>
+              ) : variant.selling_price != null ? (
+                <div className="mt-4 flex items-baseline gap-2">
                   <span className="font-heading text-2xl font-bold text-vm-green">₹{variant.selling_price}</span>
                   {variant.mrp > variant.selling_price && <span className="text-slate-400 line-through text-sm">₹{variant.mrp}</span>}
                   <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
                 </div>
-              )}
-              {!customer && (
-                <button onClick={() => setAuthOpen(true)} className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-vm-accent hover:underline" data-testid="login-for-price-btn">
-                  <Lock className="w-3.5 h-3.5" /> Login to view your special price
-                </button>
-              )}
-            </div>
-          )}
+              ) : null}
 
           {/* Variant selector */}
           <div className="mt-5">
