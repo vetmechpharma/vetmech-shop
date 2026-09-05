@@ -1,0 +1,27 @@
+{
+  "summary": "Validated the two new admin Orders features on the live frontend against order VM-2026-00021 (3 items). Both features work end-to-end. Status changes (Confirmed/Processing/Delivered) via the change-status dropdown succeed; backend records status change in activity log. Edit Pricing flow: OOS per-item checkboxes (order-oos-{i}), consolidated red notice (order-notify-oos) with dynamic count, and Save & Confirm all work. After save, oos-badge-{variant_id} appears in read view on exactly the items checked; count updates correctly when unchecking (verified toggling 3→2). Rate/Qty edits (order-rate-2=99, order-qty-2=4) persist alongside OOS (shown as manual_admin pricing). Persistence verified by closing & reopening the Sheet. Activity log correctly records 'Admin edited order items & pricing', 'Marked N item(s) out of stock: <names>' and 'Sent out-of-stock notification to customer (N item(s) in one message)'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Order detail Sheet", "issues": ["Radix warning in console: DialogContent missing DialogTitle / aria-describedby on some dialogs (accessibility)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminOrders.jsx savePricing sends offer only when both buy and free are truthy — clearing a scheme by blanking one field silently drops it; consider explicit null when user intent is remove.",
+    "startEdit reads r.oos from l.out_of_stock || l.stock_status==='out_of_stock' — good; but the OOS checkbox pre-fill can surprise users if server-side stock_status was inferred. Consider a distinct visual for pre-existing OOS vs newly flagged.",
+    "Sonner toast success message on status change ('WhatsApp notification sent') is displayed regardless of backend success; consider using server response to conditionally show the WhatsApp part.",
+    "Radix a11y warnings on Dialogs should be resolved with DialogTitle + DialogDescription."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "Admin: vetmechpharma@gmail.com / Admin@123",
+  "seed_data_creation": "Used existing order VM-2026-00021 (3 items). Order status ended in 'Processing' with 2 items flagged OOS after tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "VM-2026-00021 currently has 2 items marked OUT OF STOCK (NERVIPHOS-BM 100ml & 500ml). Rate on ZEBUPLEX EC Syrup was set to ₹99, qty=4 via test. Reset via Edit Pricing if needed.",
+  "rca of the issue": "n/a — all flows passed"
+}

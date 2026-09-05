@@ -16,6 +16,10 @@ STATUS_LABELS = {
     "ready_to_dispatch": "Ready to Dispatch", "dispatched": "Dispatched",
     "delivered": "Delivered", "cancelled": "Cancelled", "on_hold": "On Hold",
 }
+STATUS_TEMPLATE_KEY = {
+    "confirmed": "order_confirmed", "processing": "order_processing",
+    "dispatched": "order_dispatched", "delivered": "order_delivered",
+}
 
 
 async def resolve_cart(items, customer=None):
@@ -315,10 +319,14 @@ async def update_status(oid: str, body: dict = Body(...), admin=Depends(require_
         raise HTTPException(status_code=400, detail="Invalid status")
     add_order_activity(order, f"Status changed {STATUS_LABELS.get(order['status'])} → {STATUS_LABELS[new_status]}", admin["name"])
     await db.orders.update_one({"id": oid}, {"$set": {"status": new_status, "updated_at": now_iso(), "activity": order["activity"]}})
-    # WhatsApp status notification
-    tmpls = (await db.settings.find_one({"id": "whatsapp"}, {"_id": 0}) or {}).get("status_templates", {})
-    default = f"Update: Your VETMECH order {order['order_number']} is now {STATUS_LABELS[new_status].upper()}."
-    msg = tmpls.get(new_status, default).replace("{order}", order["order_number"]).replace("{name}", order["customer_name"])
+    # WhatsApp status notification — uses editable Message Templates
+    order["status"] = new_status
+    tmpls = await get_templates()
+    key = STATUS_TEMPLATE_KEY.get(new_status)
+    if key and key in tmpls:
+        msg = render_template(tmpls[key]["body"], order)
+    else:
+        msg = f"Update: Your VETMECH order {order['order_number']} is now {STATUS_LABELS[new_status].upper()}."
     await send_whatsapp(db, order.get("customer_whatsapp", order["customer_mobile"]), msg, kind=f"status_{new_status}")
     await log_audit(db, admin, "status_change", "order", oid, {"status": new_status})
     return await db.orders.find_one({"id": oid}, {"_id": 0})
@@ -371,7 +379,8 @@ async def build_priced_lines(items, customer):
             "mrp": variant.get("mrp"), "selling_price": variant.get("selling_price"),
             "unit_price": unit_price, "price_source": price_source, "offer_source": offer_source,
             "gst_percent": variant.get("gst_percent", 0), "gst_inclusive": variant.get("gst_inclusive", True),
-            "stock_status": variant.get("stock_status", "in_stock"), "qty": qty,
+            "stock_status": "out_of_stock" if bool(it.get("out_of_stock")) else variant.get("stock_status", "in_stock"),
+            "out_of_stock": bool(it.get("out_of_stock")), "qty": qty,
             "scheme_id": None, "scheme_label": scheme_label, "free_qty": free_qty, "dispatch_qty": qty + free_qty,
             "_customer_offer": customer_offer,
         })
@@ -416,6 +425,19 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
         updates["total_free"] = sum(l["free_qty"] for l in lines)
         updates["total_dispatch"] = updates["total_qty"] + updates["total_free"]
         add_order_activity(order, "Admin edited order items & pricing", admin["name"])
+        # Out-of-stock: single consolidated notification for ALL flagged items
+        oos_lines = [l for l in lines if l.get("out_of_stock")]
+        if oos_lines:
+            add_order_activity(order, f"Marked {len(oos_lines)} item(s) out of stock: " + ", ".join(l["product_name"] for l in oos_lines), admin["name"])
+            if body.get("notify_out_of_stock"):
+                tmpls = await get_templates()
+                items_text = ", ".join(f"{l['product_name']} ({l['pack_size']} {l['unit']})".strip() for l in oos_lines)
+                msg = (tmpls["order_items_out_of_stock"]["body"]
+                       .replace("{name}", order.get("customer_name", ""))
+                       .replace("{order}", order.get("order_number", ""))
+                       .replace("{items}", items_text))
+                await send_whatsapp(db, order.get("customer_whatsapp") or order.get("customer_mobile"), msg, kind="items_out_of_stock")
+                add_order_activity(order, f"Sent out-of-stock notification to customer ({len(oos_lines)} item(s) in one message)", admin["name"])
     if "address" in body:
         updates["address"] = body["address"]
         add_order_activity(order, "Admin changed delivery address", admin["name"])
@@ -461,10 +483,12 @@ async def delete_transport(tid: str, admin=Depends(require_module("orders"))):
 DEFAULT_TEMPLATES = {
     "order_received": {"label": "Order Received", "body": "Dear {name}, your VETMECH order {order} has been RECEIVED. Our team will confirm shortly. Thank you!"},
     "order_confirmed": {"label": "Order Confirmed", "body": "Dear {name}, your VETMECH order {order} is CONFIRMED and being processed."},
+    "order_processing": {"label": "Order Processing", "body": "Dear {name}, your VETMECH order {order} is now being PROCESSED and will be dispatched soon."},
     "order_dispatched": {"label": "Order Dispatched", "body": "Dear {name}, your VETMECH order {order} has been DISPATCHED via {transport} ({cases} case(s), LR {lr}, freight {freight}). Thank you!"},
     "order_delivered": {"label": "Order Delivered", "body": "Dear {name}, your VETMECH order {order} has been DELIVERED. Thank you for choosing VETMECH!"},
+    "order_items_out_of_stock": {"label": "Items Out of Stock", "body": "Dear {name}, regarding your VETMECH order {order}, the following item(s) are currently OUT OF STOCK: {items}. We will update you once they are available. The rest of your order will be processed."},
 }
-TEMPLATE_PLACEHOLDERS = ["{name}", "{order}", "{transport}", "{cases}", "{lr}", "{freight}"]
+TEMPLATE_PLACEHOLDERS = ["{name}", "{order}", "{transport}", "{cases}", "{lr}", "{freight}", "{items}"]
 
 
 async def get_templates():

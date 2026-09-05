@@ -157,6 +157,7 @@ function OrderDetail({ id, onClose, onChange }) {
   const [editMode, setEditMode] = useState(false);
   const [rows, setRows] = useState([]);
   const [updatePricing, setUpdatePricing] = useState(false);
+  const [notifyOos, setNotifyOos] = useState(true);
 
   const setStatus = useMutation({
     mutationFn: async (status) => (await api.patch(`/admin/orders/${id}/status`, { status })).data,
@@ -173,8 +174,10 @@ function OrderDetail({ id, onClose, onChange }) {
         variant_id: r.variant_id, qty: Number(r.qty),
         rate: r.rate === "" ? null : Number(r.rate),
         offer: (r.buy && r.free) ? { buy_quantity: Number(r.buy), free_quantity: Number(r.free) } : null,
+        out_of_stock: !!r.oos,
       }));
-      return (await api.put(`/admin/orders/${id}`, { items, update_customer_pricing: updatePricing })).data;
+      const anyOos = rows.some((r) => r.oos);
+      return (await api.put(`/admin/orders/${id}`, { items, update_customer_pricing: updatePricing, notify_out_of_stock: anyOos && notifyOos })).data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); setEditMode(false); toast.success(updatePricing ? "Order & customer pricing updated" : "Order updated"); },
     onError: (e) => toast.error(apiError(e)),
@@ -183,9 +186,10 @@ function OrderDetail({ id, onClose, onChange }) {
   const startEdit = () => {
     setRows((order.items || []).map((l) => {
       const m = /^(\d+)\+(\d+)$/.exec(l.scheme_label || "");
-      return { variant_id: l.variant_id, name: l.product_name, pack: `${l.pack_size} ${l.unit}`, qty: l.qty, rate: l.unit_price ?? "", buy: m ? m[1] : "", free: m ? m[2] : "" };
+      return { variant_id: l.variant_id, name: l.product_name, pack: `${l.pack_size} ${l.unit}`, qty: l.qty, rate: l.unit_price ?? "", buy: m ? m[1] : "", free: m ? m[2] : "", oos: l.out_of_stock || l.stock_status === "out_of_stock" };
     }));
     setUpdatePricing(false);
+    setNotifyOos(true);
     setEditMode(true);
   };
   const setRow = (i, k, v) => setRows((rs) => rs.map((r, ri) => ri === i ? { ...r, [k]: v } : r));
@@ -221,7 +225,7 @@ function OrderDetail({ id, onClose, onChange }) {
                     <div className="border rounded-lg mt-1 divide-y">
                       {order.items.map((l) => (
                         <div key={l.variant_id} className="p-3 flex justify-between">
-                          <div><p className="font-medium text-vm-ink">{l.product_name}</p><p className="text-xs text-slate-400">{l.pack_size} {l.unit} · ₹{l.unit_price} {l.price_source && <span className="text-vm-accent">({l.price_source})</span>}</p></div>
+                          <div><p className="font-medium text-vm-ink">{l.product_name} {(l.out_of_stock || l.stock_status === "out_of_stock") && <span className="ml-1 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5" data-testid={`oos-badge-${l.variant_id}`}>OUT OF STOCK</span>}</p><p className="text-xs text-slate-400">{l.pack_size} {l.unit} · ₹{l.unit_price} {l.price_source && <span className="text-vm-accent">({l.price_source})</span>}</p></div>
                           <div className="text-right"><p className="text-vm-ink">Qty {l.qty}</p>{l.free_qty > 0 && <p className="text-xs text-vm-accent">+{l.free_qty} free ({l.scheme_label})</p>}<p className="text-xs text-slate-400">Dispatch {l.dispatch_qty}</p></div>
                         </div>
                       ))}
@@ -231,8 +235,14 @@ function OrderDetail({ id, onClose, onChange }) {
                 ) : (
                   <div className="border rounded-lg mt-1 divide-y">
                     {rows.map((r, i) => (
-                      <div key={r.variant_id} className="p-3 space-y-2" data-testid={`order-edit-row-${i}`}>
-                        <p className="font-medium text-vm-ink">{r.name} <span className="text-xs text-slate-400">{r.pack}</span></p>
+                      <div key={r.variant_id} className={`p-3 space-y-2 ${r.oos ? "bg-red-50" : ""}`} data-testid={`order-edit-row-${i}`}>
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-vm-ink">{r.name} <span className="text-xs text-slate-400">{r.pack}</span></p>
+                          <label className="flex items-center gap-1.5 text-xs cursor-pointer shrink-0" data-testid={`order-oos-label-${i}`}>
+                            <input type="checkbox" checked={!!r.oos} onChange={(e) => setRow(i, "oos", e.target.checked)} data-testid={`order-oos-${i}`} />
+                            <span className={r.oos ? "text-red-600 font-medium" : "text-slate-500"}>Out of stock</span>
+                          </label>
+                        </div>
                         <div className="grid grid-cols-4 gap-2">
                           <div><Label className="text-[10px]">Qty</Label><Input type="number" value={r.qty} onChange={(e) => setRow(i, "qty", e.target.value)} className="h-8" data-testid={`order-qty-${i}`} /></div>
                           <div><Label className="text-[10px]">Rate ₹</Label><Input type="number" value={r.rate} onChange={(e) => setRow(i, "rate", e.target.value)} className="h-8" data-testid={`order-rate-${i}`} /></div>
@@ -242,6 +252,12 @@ function OrderDetail({ id, onClose, onChange }) {
                       </div>
                     ))}
                     <div className="p-3 space-y-3">
+                      {rows.some((r) => r.oos) && (
+                        <label className="flex items-center gap-2 text-sm cursor-pointer text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2" data-testid="order-notify-oos-wrap">
+                          <input type="checkbox" checked={notifyOos} onChange={(e) => setNotifyOos(e.target.checked)} data-testid="order-notify-oos" />
+                          Send ONE WhatsApp message listing all {rows.filter((r) => r.oos).length} out-of-stock item(s) to the customer
+                        </label>
+                      )}
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
                         <input type="checkbox" checked={updatePricing} onChange={(e) => setUpdatePricing(e.target.checked)} data-testid="order-update-pricing" />
                         Update this customer's negotiated pricing from these values
