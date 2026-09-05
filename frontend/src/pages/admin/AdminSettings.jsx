@@ -74,6 +74,7 @@ export function WhatsAppSettings() {
   });
 
   const live = !!(form.api_key && form.session_id);
+  const webhookUrl = `${process.env.REACT_APP_BACKEND_URL}/api/whatsapp/webhook${form.webhook_token ? `?token=${form.webhook_token}` : ""}`;
   const connected = status?.connected;
   const sendOnly = status?.status === "send_only";
   const dot = status?.status === "error" ? "bg-red-500" : sendOnly ? "bg-sky-500" : connected ? "bg-green-500" : "bg-amber-500";
@@ -98,11 +99,19 @@ export function WhatsAppSettings() {
           <span className={`w-3 h-3 rounded-full ${dot} ${connected ? "" : "animate-pulse"}`} />
           <div>
             <p className="font-heading font-semibold text-vm-ink">Session: <span className="capitalize" data-testid="wa-status-label">{statusLabel}</span></p>
-            <p className="text-xs text-slate-500">{status?.phone ? `Number: +${status.phone}` : status?.note ? status.note : status?.error ? status.error : live ? "Waiting for session…" : "Add API Key + Session ID below to go live"}</p>
+            <p className="text-xs text-slate-500">{status?.phone ? `Number: +${status.phone}${status.name ? " · " + status.name : ""}` : status?.note ? status.note : status?.error ? status.error : live ? "Waiting for session…" : "Add API Key + Session ID below to go live"}</p>
           </div>
         </div>
         <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${live ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{live ? "LIVE MODE" : "SIMULATED"}</span>
       </div>
+
+      {status?.has_qr && status?.qr && (
+        <div className="rounded-lg border border-vm-green/30 bg-vm-green/5 p-4 text-center" data-testid="wa-qr-card">
+          <p className="text-sm font-medium text-vm-ink mb-2">Session needs linking — open WhatsApp → Linked Devices → Link a device, and scan:</p>
+          <img src={status.qr} alt="WhatsApp QR" className="w-48 h-48 mx-auto rounded bg-white p-2 border" />
+          {status.pairing_code && <p className="text-xs mt-2 text-slate-600">Or enter pairing code: <b className="font-mono">{status.pairing_code}</b></p>}
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-2 gap-4">
         <F label="API Base URL" value={form.api_url} onChange={(v) => set("api_url", v)} placeholder="https://wa.animitra.in" data-testid="wa-api-url" />
@@ -121,6 +130,16 @@ export function WhatsAppSettings() {
       <div><Label>OTP Template</Label><Input value={form.otp_template || ""} onChange={(e) => set("otp_template", e.target.value)} /></div>
 
       <p className="text-xs bg-slate-50 border border-slate-200 text-slate-600 rounded p-2.5">Order / status / dispatch / out-of-stock messages are edited under <b>Communications → Message Templates</b>. Save your API Key &amp; Session here first, then send a test below.</p>
+
+      <div className="rounded-lg border border-[#E2E8F0] p-4 space-y-2">
+        <Label>Incoming Message Webhook</Label>
+        <p className="text-xs text-slate-500">Paste this URL into your wa.animitra.in <b>Webhooks</b> page. Incoming customer replies auto-create/append CRM tickets (type "WhatsApp").</p>
+        <div className="flex gap-2">
+          <Input readOnly value={webhookUrl} className="font-mono text-xs bg-slate-50" data-testid="wa-webhook-url" onFocus={(e) => e.target.select()} />
+          <Button variant="outline" onClick={() => { navigator.clipboard.writeText(webhookUrl); toast.success("Webhook URL copied"); }} data-testid="wa-webhook-copy">Copy</Button>
+        </div>
+        <F label="Webhook Secret (optional — appended as ?token=)" value={form.webhook_token} onChange={(v) => set("webhook_token", v)} data-testid="wa-webhook-token" placeholder="Leave blank for no token check" />
+      </div>
 
       <div>
         <Label>Send Test Message</Label>

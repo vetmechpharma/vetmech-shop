@@ -158,6 +158,7 @@ function OrderDetail({ id, onClose, onChange }) {
   const [rows, setRows] = useState([]);
   const [updatePricing, setUpdatePricing] = useState(false);
   const [notifyOos, setNotifyOos] = useState(true);
+  const [notifyRestock, setNotifyRestock] = useState(true);
 
   const setStatus = useMutation({
     mutationFn: async (status) => (await api.patch(`/admin/orders/${id}/status`, { status })).data,
@@ -177,7 +178,8 @@ function OrderDetail({ id, onClose, onChange }) {
         out_of_stock: !!r.oos,
       }));
       const anyOos = rows.some((r) => r.oos);
-      return (await api.put(`/admin/orders/${id}`, { items, update_customer_pricing: updatePricing, notify_out_of_stock: anyOos && notifyOos })).data;
+      const anyRestock = rows.some((r) => r.origOos && !r.oos);
+      return (await api.put(`/admin/orders/${id}`, { items, update_customer_pricing: updatePricing, notify_out_of_stock: anyOos && notifyOos, notify_restock: anyRestock && notifyRestock })).data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); setEditMode(false); toast.success(updatePricing ? "Order & customer pricing updated" : "Order updated"); },
     onError: (e) => toast.error(apiError(e)),
@@ -186,7 +188,7 @@ function OrderDetail({ id, onClose, onChange }) {
   const startEdit = () => {
     setRows((order.items || []).map((l) => {
       const m = /^(\d+)\+(\d+)$/.exec(l.scheme_label || "");
-      return { variant_id: l.variant_id, name: l.product_name, pack: `${l.pack_size} ${l.unit}`, qty: l.qty, rate: l.unit_price ?? "", buy: m ? m[1] : "", free: m ? m[2] : "", oos: l.out_of_stock || l.stock_status === "out_of_stock" };
+      return { variant_id: l.variant_id, name: l.product_name, pack: `${l.pack_size} ${l.unit}`, qty: l.qty, rate: l.unit_price ?? "", buy: m ? m[1] : "", free: m ? m[2] : "", oos: l.out_of_stock || l.stock_status === "out_of_stock", origOos: l.out_of_stock || l.stock_status === "out_of_stock" };
     }));
     setUpdatePricing(false);
     setNotifyOos(true);
@@ -256,6 +258,12 @@ function OrderDetail({ id, onClose, onChange }) {
                         <label className="flex items-center gap-2 text-sm cursor-pointer text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2" data-testid="order-notify-oos-wrap">
                           <input type="checkbox" checked={notifyOos} onChange={(e) => setNotifyOos(e.target.checked)} data-testid="order-notify-oos" />
                           Send ONE WhatsApp message listing all {rows.filter((r) => r.oos).length} out-of-stock item(s) to the customer
+                        </label>
+                      )}
+                      {rows.some((r) => r.origOos && !r.oos) && (
+                        <label className="flex items-center gap-2 text-sm cursor-pointer text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2" data-testid="order-notify-restock-wrap">
+                          <input type="checkbox" checked={notifyRestock} onChange={(e) => setNotifyRestock(e.target.checked)} data-testid="order-notify-restock" />
+                          Send a "back in stock" WhatsApp for {rows.filter((r) => r.origOos && !r.oos).length} item(s) now available
                         </label>
                       )}
                       <label className="flex items-center gap-2 text-sm cursor-pointer">

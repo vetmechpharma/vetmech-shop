@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timezone
 from collections import Counter, defaultdict
-from fastapi import APIRouter, HTTPException, Depends, Body, Query
+from fastapi import APIRouter, HTTPException, Depends, Body, Query, Request
 from typing import Optional
 
 from db import db, paginate
@@ -64,6 +64,7 @@ DEFAULT_TYPES = [
     {"name": "Replacement", "icon": "RefreshCw"}, {"name": "Complaint", "icon": "AlertTriangle"},
     {"name": "Payment Follow-up", "icon": "IndianRupee"}, {"name": "Delivery Issue", "icon": "Truck"},
     {"name": "Product Enquiry", "icon": "HelpCircle"}, {"name": "Sample Request", "icon": "Package"},
+    {"name": "WhatsApp", "icon": "MessageCircle"},
     {"name": "Other", "icon": "Circle"},
 ]
 CUSTOMER_TYPES = ["Veterinary Clinic", "Dairy Farm", "Distributor", "Dealer", "Retailer", "Hospital", "Individual", "Other"]
@@ -87,6 +88,73 @@ async def update_config(body: dict = Body(...), admin=Depends(require_tickets)):
     body.pop("_id", None); body["id"] = "ticket_config"
     await db.settings.update_one({"id": "ticket_config"}, {"$set": body}, upsert=True)
     return await db.settings.find_one({"id": "ticket_config"}, {"_id": 0})
+
+
+# =============== INCOMING WHATSAPP WEBHOOK (wa.animitra.in) ===============
+@router.post("/whatsapp/webhook")
+async def whatsapp_webhook(request: Request, token: Optional[str] = None):
+    """Public webhook for wa.animitra.in incoming messages -> CRM/ticket inbox."""
+    settings = await db.settings.find_one({"id": "whatsapp"}, {"_id": 0}) or {}
+    secret = (settings.get("webhook_token") or "").strip()
+    if secret and token != secret:
+        raise HTTPException(status_code=401, detail="Invalid webhook token")
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if (payload.get("direction") or "incoming") != "incoming":
+        return {"ok": True, "skipped": "non-incoming"}
+    jid = payload.get("remote_jid") or ""
+    if jid.endswith("@g.us"):
+        return {"ok": True, "skipped": "group"}
+    phone = re.sub(r"\D", "", jid.split("@")[0])
+    last10 = phone[-10:] if len(phone) >= 10 else phone
+    text = (payload.get("text") or "").strip()
+    push_name = payload.get("push_name") or "WhatsApp User"
+    msg_id = payload.get("message_id")
+    await db.notification_logs.insert_one({
+        "id": new_id(), "channel": "whatsapp", "direction": "incoming",
+        "to": phone, "from": phone, "kind": "inbound_message", "message": text or "(media)",
+        "message_id": msg_id, "push_name": push_name, "simulated": False,
+        "status": "received", "created_at": now_iso(),
+    })
+    cust = None
+    if last10:
+        cust = await db.crm_customers.find_one(
+            {"$or": [{"phone": {"$regex": last10}}, {"alt_phone": {"$regex": last10}}]}, {"_id": 0})
+    if not cust:
+        cust = {"id": new_id(), "contact_name": push_name, "company_name": "", "address": "",
+                "email": "", "phone": phone, "alt_phone": "", "customer_type": "Other",
+                "notes": "Auto-created from incoming WhatsApp", "created_at": now_iso()}
+        await db.crm_customers.insert_one(dict(cust))
+        cust.pop("_id", None)
+    system = {"id": None, "name": "WhatsApp Bot"}
+    snippet = (text[:60] + "…") if len(text) > 60 else (text or "(media message)")
+    ticket = await db.tickets.find_one(
+        {"customer_id": cust["id"], "type": "WhatsApp", "status": {"$ne": "closed"}},
+        {"_id": 0}, sort=[("created_at", -1)])
+    if ticket:
+        await add_activity(ticket, "customer_reply", system, text or "(media message)")
+        await db.tickets.update_one({"id": ticket["id"]}, {"$set": {
+            "activity": ticket["activity"], "updated_at": now_iso(), "status": "open"}})
+        await notify(ticket["id"], f"New WhatsApp reply on {ticket['ticket_number']}", "customer_reply", ticket.get("assignee_id"))
+        return {"ok": True, "ticket": ticket["ticket_number"], "threaded": True}
+    num = await next_ticket_number()
+    doc = {
+        "id": new_id(), "ticket_number": num, "customer_id": cust["id"],
+        "customer_name": cust.get("contact_name", push_name), "company_name": cust.get("company_name", ""),
+        "customer_phone": cust.get("phone", phone), "customer_email": cust.get("email", ""),
+        "title": f"WhatsApp: {snippet}", "type": "WhatsApp", "description": text or "(media message)",
+        "priority": "Normal", "status": "open", "assignee_id": None, "assignee_name": "Unassigned",
+        "created_by": None, "created_by_name": "WhatsApp Bot", "due_date": None, "reminder": None,
+        "attachments": [], "activity": [], "channel": "whatsapp",
+        "created_at": now_iso(), "updated_at": now_iso(), "closed_date": None,
+    }
+    await add_activity(doc, "created", system, "Ticket auto-created from incoming WhatsApp")
+    await db.tickets.insert_one(dict(doc))
+    await notify(doc["id"], f"New WhatsApp message ticket {num} from {push_name}", "new_whatsapp")
+    return {"ok": True, "ticket": num, "threaded": False}
+
 
 
 @router.get("/tickets/staff")

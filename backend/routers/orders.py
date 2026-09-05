@@ -414,7 +414,13 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
     updates = {"updated_at": now_iso()}
     if "items" in body:
         cust = await db.customers.find_one({"id": order.get("customer_id")}, {"_id": 0})
+        prev_oos = {l["variant_id"]: bool(l.get("out_of_stock") or l.get("stock_status") == "out_of_stock") for l in order.get("items", [])}
+        requested_vids = [it.get("variant_id") for it in body["items"] if int(it.get("qty", 0)) > 0]
         lines = await build_priced_lines(body["items"], cust)
+        resolved_vids = {l["variant_id"] for l in lines}
+        missing = [v for v in requested_vids if v not in resolved_vids]
+        if requested_vids and missing:
+            raise HTTPException(status_code=400, detail=f"{len(missing)} item(s) could not be found in the catalog (they may have been changed or removed). Order was not modified.")
         if body.get("update_customer_pricing") and order.get("customer_id"):
             await apply_last_confirmed(order["customer_id"], lines, admin)
             add_order_activity(order, "Updated customer's negotiated pricing from this order", admin["name"])
@@ -438,6 +444,19 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
                        .replace("{items}", items_text))
                 await send_whatsapp(db, order.get("customer_whatsapp") or order.get("customer_mobile"), msg, kind="items_out_of_stock")
                 add_order_activity(order, f"Sent out-of-stock notification to customer ({len(oos_lines)} item(s) in one message)", admin["name"])
+        # Back-in-stock: items previously OOS that are now available again
+        restock_lines = [l for l in lines if prev_oos.get(l["variant_id"]) and not l.get("out_of_stock")]
+        if restock_lines:
+            add_order_activity(order, f"{len(restock_lines)} item(s) marked back in stock: " + ", ".join(l["product_name"] for l in restock_lines), admin["name"])
+            if body.get("notify_restock"):
+                tmpls = await get_templates()
+                items_text = ", ".join(f"{l['product_name']} ({l['pack_size']} {l['unit']})".strip() for l in restock_lines)
+                msg = (tmpls["order_items_back_in_stock"]["body"]
+                       .replace("{name}", order.get("customer_name", ""))
+                       .replace("{order}", order.get("order_number", ""))
+                       .replace("{items}", items_text))
+                await send_whatsapp(db, order.get("customer_whatsapp") or order.get("customer_mobile"), msg, kind="items_back_in_stock")
+                add_order_activity(order, f"Sent back-in-stock notification to customer ({len(restock_lines)} item(s) in one message)", admin["name"])
     if "address" in body:
         updates["address"] = body["address"]
         add_order_activity(order, "Admin changed delivery address", admin["name"])
@@ -487,6 +506,7 @@ DEFAULT_TEMPLATES = {
     "order_dispatched": {"label": "Order Dispatched", "body": "Dear {name}, your VETMECH order {order} has been DISPATCHED via {transport} ({cases} case(s), LR {lr}, freight {freight}). Thank you!"},
     "order_delivered": {"label": "Order Delivered", "body": "Dear {name}, your VETMECH order {order} has been DELIVERED. Thank you for choosing VETMECH!"},
     "order_items_out_of_stock": {"label": "Items Out of Stock", "body": "Dear {name}, regarding your VETMECH order {order}, the following item(s) are currently OUT OF STOCK: {items}. We will update you once they are available. The rest of your order will be processed."},
+    "order_items_back_in_stock": {"label": "Items Back in Stock", "body": "Good news {name}! The following item(s) from your VETMECH order {order} are now BACK IN STOCK: {items}. We are processing them for dispatch. Thank you for your patience!"},
 }
 TEMPLATE_PLACEHOLDERS = ["{name}", "{order}", "{transport}", "{cases}", "{lr}", "{freight}", "{items}"]
 

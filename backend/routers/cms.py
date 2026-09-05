@@ -74,12 +74,15 @@ async def whatsapp_status(admin=Depends(get_current_admin)):
         return {"configured": False, "connected": False, "status": "not_configured"}
     try:
         async with httpx.AsyncClient(timeout=15) as http:
-            resp = await http.get(f"{base_url}/api/v1/sessions/{session_id}/status",
+            resp = await http.get(f"{base_url}/api/v1/sessions/{session_id}",
                                   headers={"Authorization": f"Bearer {api_key}"})
         if resp.status_code == 200:
             d = resp.json()
             return {"configured": True, "connected": bool(d.get("connected")),
                     "status": d.get("status"), "phone": d.get("phone"),
+                    "name": (d.get("me") or {}).get("name"),
+                    "has_qr": bool(d.get("hasQr")), "qr": d.get("qrDataUrl") or d.get("qr"),
+                    "pairing_code": d.get("pairingCode"),
                     "sidecar_reachable": d.get("sidecar_reachable"), "checked_at": d.get("checked_at")}
         if resp.status_code == 403 and "scope" in resp.text.lower():
             return {"configured": True, "connected": True, "status": "send_only",
