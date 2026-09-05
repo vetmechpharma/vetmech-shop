@@ -507,8 +507,10 @@ DEFAULT_TEMPLATES = {
     "order_delivered": {"label": "Order Delivered", "body": "Dear {name}, your VETMECH order {order} has been DELIVERED. Thank you for choosing VETMECH!"},
     "order_items_out_of_stock": {"label": "Items Out of Stock", "body": "Dear {name}, regarding your VETMECH order {order}, the following item(s) are currently OUT OF STOCK: {items}. We will update you once they are available. The rest of your order will be processed."},
     "order_items_back_in_stock": {"label": "Items Back in Stock", "body": "Good news {name}! The following item(s) from your VETMECH order {order} are now BACK IN STOCK: {items}. We are processing them for dispatch. Thank you for your patience!"},
+    "ticket_created": {"label": "Support Ticket Created", "body": "Dear {name}, your VETMECH support request {ticket} ({title}) has been registered. Our team will get back to you shortly."},
+    "ticket_status": {"label": "Support Ticket Status", "body": "Update on your VETMECH support request {ticket}: status is now {status}."},
 }
-TEMPLATE_PLACEHOLDERS = ["{name}", "{order}", "{transport}", "{cases}", "{lr}", "{freight}", "{items}"]
+TEMPLATE_PLACEHOLDERS = ["{name}", "{order}", "{transport}", "{cases}", "{lr}", "{freight}", "{items}", "{ticket}", "{status}", "{title}"]
 
 
 async def get_templates():

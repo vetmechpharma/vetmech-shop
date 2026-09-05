@@ -1,12 +1,12 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from collections import Counter, defaultdict
 from fastapi import APIRouter, HTTPException, Depends, Body, Query, Request
 from typing import Optional
 
 from db import db, paginate
 from security import require_module, get_current_admin
-from helpers import new_id, now_iso, log_audit
+from helpers import new_id, now_iso, log_audit, send_whatsapp
 
 router = APIRouter(prefix="/api", tags=["tickets"])
 require_tickets = require_module("tickets")
@@ -57,6 +57,26 @@ async def notify(ticket_id, message, ntype, target_user_id=None):
     })
 
 
+async def send_ticket_whatsapp(ticket, template_key, status_label=""):
+    """Send an editable WhatsApp message to the ticket's customer (respects channel toggle)."""
+    phone = ticket.get("customer_phone")
+    if not phone:
+        return
+    cfg = await db.settings.find_one({"id": "ticket_config"}, {"_id": 0}) or {}
+    if cfg.get("channels") and cfg["channels"].get("whatsapp") is False:
+        return
+    from routers.orders import get_templates
+    tmpls = await get_templates()
+    body = (tmpls.get(template_key) or {}).get("body", "")
+    if not body:
+        return
+    msg = (body.replace("{name}", ticket.get("customer_name", ""))
+              .replace("{ticket}", ticket.get("ticket_number", ""))
+              .replace("{title}", ticket.get("title", ""))
+              .replace("{status}", status_label))
+    await send_whatsapp(db, phone, msg, kind=template_key)
+
+
 # =============== CONFIG ===============
 DEFAULT_TYPES = [
     {"name": "Product Discussion", "icon": "MessageSquare"}, {"name": "Meeting", "icon": "Users"},
@@ -91,6 +111,12 @@ async def update_config(body: dict = Body(...), admin=Depends(require_tickets)):
 
 
 # =============== INCOMING WHATSAPP WEBHOOK (wa.animitra.in) ===============
+@router.get("/whatsapp/webhook")
+async def whatsapp_webhook_verify(token: Optional[str] = None):
+    """GET verification ping (some providers check reachability before enabling)."""
+    return {"ok": True, "service": "vetmech-whatsapp-webhook"}
+
+
 @router.post("/whatsapp/webhook")
 async def whatsapp_webhook(request: Request, token: Optional[str] = None):
     """Public webhook for wa.animitra.in incoming messages -> CRM/ticket inbox."""
@@ -98,20 +124,27 @@ async def whatsapp_webhook(request: Request, token: Optional[str] = None):
     secret = (settings.get("webhook_token") or "").strip()
     if secret and token != secret:
         raise HTTPException(status_code=401, detail="Invalid webhook token")
+    payload = {}
     try:
         payload = await request.json()
     except Exception:
+        try:
+            payload = dict(await request.form())
+        except Exception:
+            payload = {}
+    if not isinstance(payload, dict):
         payload = {}
-    if (payload.get("direction") or "incoming") != "incoming":
+    direction = payload.get("direction") or "incoming"
+    if direction != "incoming":
         return {"ok": True, "skipped": "non-incoming"}
-    jid = payload.get("remote_jid") or ""
-    if jid.endswith("@g.us"):
+    jid = payload.get("remote_jid") or payload.get("from") or payload.get("sender") or ""
+    if str(jid).endswith("@g.us"):
         return {"ok": True, "skipped": "group"}
-    phone = re.sub(r"\D", "", jid.split("@")[0])
+    phone = re.sub(r"\D", "", str(jid).split("@")[0])
     last10 = phone[-10:] if len(phone) >= 10 else phone
-    text = (payload.get("text") or "").strip()
-    push_name = payload.get("push_name") or "WhatsApp User"
-    msg_id = payload.get("message_id")
+    text = (payload.get("text") or payload.get("body") or payload.get("message") or "").strip()
+    push_name = payload.get("push_name") or payload.get("pushName") or payload.get("name") or "WhatsApp User"
+    msg_id = payload.get("message_id") or payload.get("id")
     await db.notification_logs.insert_one({
         "id": new_id(), "channel": "whatsapp", "direction": "incoming",
         "to": phone, "from": phone, "kind": "inbound_message", "message": text or "(media)",
@@ -130,15 +163,26 @@ async def whatsapp_webhook(request: Request, token: Optional[str] = None):
         cust.pop("_id", None)
     system = {"id": None, "name": "WhatsApp Bot"}
     snippet = (text[:60] + "…") if len(text) > 60 else (text or "(media message)")
-    ticket = await db.tickets.find_one(
-        {"customer_id": cust["id"], "type": "WhatsApp", "status": {"$ne": "closed"}},
-        {"_id": 0}, sort=[("created_at", -1)])
-    if ticket:
-        await add_activity(ticket, "customer_reply", system, text or "(media message)")
-        await db.tickets.update_one({"id": ticket["id"]}, {"$set": {
-            "activity": ticket["activity"], "updated_at": now_iso(), "status": "open"}})
-        await notify(ticket["id"], f"New WhatsApp reply on {ticket['ticket_number']}", "customer_reply", ticket.get("assignee_id"))
-        return {"ok": True, "ticket": ticket["ticket_number"], "threaded": True}
+    # Dedup: thread into the customer's most recent WhatsApp ticket updated within 7 days (reopen if closed)
+    recent = await db.tickets.find_one(
+        {"customer_id": cust["id"], "type": "WhatsApp"}, {"_id": 0}, sort=[("updated_at", -1)])
+    within_window = False
+    if recent:
+        try:
+            last = datetime.fromisoformat((recent.get("updated_at") or "").replace("Z", "+00:00"))
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            within_window = (datetime.now(timezone.utc) - last) <= timedelta(days=7)
+        except Exception:
+            within_window = False
+    if recent and within_window:
+        reopened = recent.get("status") == "closed"
+        await add_activity(recent, "customer_reply", system, text or "(media message)")
+        await db.tickets.update_one({"id": recent["id"]}, {"$set": {
+            "activity": recent["activity"], "updated_at": now_iso(),
+            "status": "open" if reopened else recent.get("status", "open")}})
+        await notify(recent["id"], f"New WhatsApp reply on {recent['ticket_number']} from {push_name}", "customer_reply", recent.get("assignee_id"))
+        return {"ok": True, "ticket": recent["ticket_number"], "threaded": True, "reopened": reopened}
     num = await next_ticket_number()
     doc = {
         "id": new_id(), "ticket_number": num, "customer_id": cust["id"],
@@ -153,6 +197,7 @@ async def whatsapp_webhook(request: Request, token: Optional[str] = None):
     await add_activity(doc, "created", system, "Ticket auto-created from incoming WhatsApp")
     await db.tickets.insert_one(dict(doc))
     await notify(doc["id"], f"New WhatsApp message ticket {num} from {push_name}", "new_whatsapp")
+    await send_ticket_whatsapp(doc, "ticket_created")
     return {"ok": True, "ticket": num, "threaded": False}
 
 
@@ -389,6 +434,7 @@ async def create_ticket(body: dict = Body(...), admin=Depends(require_tickets)):
         await add_activity(doc, "assigned", admin, f"Assigned to {assignee['name']}")
     await db.tickets.insert_one(dict(doc))
     await notify(doc["id"], f"New ticket {num} assigned to you", "assigned", assignee["id"] if assignee else None)
+    await send_ticket_whatsapp(doc, "ticket_created")
     await log_audit(db, admin, "create", "ticket", doc["id"], {"number": num})
     return decorate(doc)
 
@@ -431,6 +477,7 @@ async def change_status(tid: str, body: dict = Body(...), admin=Depends(require_
     upd["activity"] = t["activity"]
     await db.tickets.update_one({"id": tid}, {"$set": upd})
     await notify(tid, f"Ticket {t['ticket_number']} is now {STATUS_LABELS[st]}", "status", t.get("assignee_id"))
+    await send_ticket_whatsapp(t, "ticket_status", STATUS_LABELS[st])
     await log_audit(db, admin, "status_change", "ticket", tid, {"status": st})
     return decorate(await db.tickets.find_one({"id": tid}, {"_id": 0}))
 
