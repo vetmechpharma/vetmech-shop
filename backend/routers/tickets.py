@@ -1,4 +1,5 @@
 import re
+import logging
 from datetime import datetime, timezone, timedelta
 from collections import Counter, defaultdict
 from fastapi import APIRouter, HTTPException, Depends, Body, Query, Request
@@ -10,6 +11,7 @@ from helpers import new_id, now_iso, log_audit, send_whatsapp
 
 router = APIRouter(prefix="/api", tags=["tickets"])
 require_tickets = require_module("tickets")
+logger_wh = logging.getLogger("vetmech.webhook")
 
 STATUSES = ["open", "in_progress", "pending", "closed"]
 STATUS_LABELS = {"open": "Open", "in_progress": "In Progress", "pending": "Pending", "closed": "Closed", "overdue": "Overdue"}
@@ -117,6 +119,13 @@ async def whatsapp_webhook_verify(token: Optional[str] = None):
     return {"ok": True, "service": "vetmech-whatsapp-webhook"}
 
 
+@router.get("/admin/whatsapp/webhook-debug")
+async def webhook_debug(admin=Depends(require_tickets)):
+    """Shows the last raw payloads received from wa.animitra.in (for diagnosing format)."""
+    items = await db.webhook_debug.find({}, {"_id": 0}).sort("at", -1).limit(20).to_list(20)
+    return {"items": items, "count": len(items)}
+
+
 @router.post("/whatsapp/webhook")
 async def whatsapp_webhook(request: Request, token: Optional[str] = None):
     """Public webhook for wa.animitra.in incoming messages -> CRM/ticket inbox."""
@@ -124,27 +133,56 @@ async def whatsapp_webhook(request: Request, token: Optional[str] = None):
     secret = (settings.get("webhook_token") or "").strip()
     if secret and token != secret:
         raise HTTPException(status_code=401, detail="Invalid webhook token")
-    payload = {}
+    raw = {}
     try:
-        payload = await request.json()
+        raw = await request.json()
     except Exception:
         try:
-            payload = dict(await request.form())
+            raw = dict(await request.form())
         except Exception:
-            payload = {}
-    if not isinstance(payload, dict):
-        payload = {}
-    direction = payload.get("direction") or "incoming"
-    if direction != "incoming":
-        return {"ok": True, "skipped": "non-incoming"}
-    jid = payload.get("remote_jid") or payload.get("from") or payload.get("sender") or ""
+            raw = {}
+    if not isinstance(raw, dict):
+        raw = {}
+    try:
+        await db.webhook_debug.insert_one({"id": new_id(), "at": now_iso(), "payload": raw})
+    except Exception:
+        pass
+    logger_wh.info(f"[WA WEBHOOK] {raw}")
+    layers = [raw]
+    for key in ("data", "message", "payload", "messages"):
+        v = raw.get(key)
+        if isinstance(v, dict):
+            layers.append(v)
+        elif isinstance(v, list) and v and isinstance(v[0], dict):
+            layers.append(v[0])
+
+    def pick(*keys):
+        for lay in layers:
+            for k in keys:
+                val = lay.get(k)
+                if val not in (None, ""):
+                    return val
+        return None
+
+    if pick("fromMe", "from_me") in (True, "true", 1, "1"):
+        return {"ok": True, "skipped": "outgoing"}
+    direction = pick("direction")
+    if direction and direction not in ("incoming", "inbound", "received"):
+        return {"ok": True, "skipped": f"direction:{direction}"}
+    jid = pick("remote_jid", "remoteJid", "from", "sender", "chatId", "chat_id", "jid", "author") or ""
     if str(jid).endswith("@g.us"):
         return {"ok": True, "skipped": "group"}
-    phone = re.sub(r"\D", "", str(jid).split("@")[0])
+    phone = re.sub(r"\D", "", str(jid).split("@")[0].split(":")[0])
     last10 = phone[-10:] if len(phone) >= 10 else phone
-    text = (payload.get("text") or payload.get("body") or payload.get("message") or "").strip()
-    push_name = payload.get("push_name") or payload.get("pushName") or payload.get("name") or "WhatsApp User"
-    msg_id = payload.get("message_id") or payload.get("id")
+    if not last10:
+        return {"ok": True, "skipped": "no-phone", "raw_keys": list(raw.keys())}
+    text_val = pick("text", "body", "caption", "conversation", "content")
+    if isinstance(text_val, dict):
+        text_val = text_val.get("text") or text_val.get("conversation") or ""
+    text = str(text_val or "").strip()
+    push_name = pick("push_name", "pushName", "notifyName", "senderName", "name") or "WhatsApp User"
+    mid = pick("message_id", "messageId", "id")
+    msg_id = mid if isinstance(mid, str) else None
     await db.notification_logs.insert_one({
         "id": new_id(), "channel": "whatsapp", "direction": "incoming",
         "to": phone, "from": phone, "kind": "inbound_message", "message": text or "(media)",
