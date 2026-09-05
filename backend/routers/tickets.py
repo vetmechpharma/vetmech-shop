@@ -493,6 +493,26 @@ async def add_update(tid: str, body: dict = Body(...), admin=Depends(require_tic
     return decorate(await db.tickets.find_one({"id": tid}, {"_id": 0}))
 
 
+@router.post("/tickets/{tid}/reply")
+async def reply_whatsapp(tid: str, body: dict = Body(...), admin=Depends(require_tickets)):
+    """Send an agent reply to the customer via the WhatsApp API and log it to the timeline."""
+    t = await db.tickets.find_one({"id": tid})
+    if not t:
+        raise HTTPException(status_code=404, detail="Not found")
+    phone = t.get("customer_phone")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Customer has no phone number")
+    msg = (body.get("message") or "").strip()
+    if not msg:
+        raise HTTPException(status_code=400, detail="Message is required")
+    res = await send_whatsapp(db, phone, msg, kind="ticket_reply")
+    ok = res.get("status") == "sent"
+    note = f"↩ WhatsApp to customer: {msg}" + ("" if ok else f"  (delivery: {res.get('status')})")
+    await add_activity(t, "whatsapp_reply", admin, note)
+    await db.tickets.update_one({"id": tid}, {"$set": {"activity": t["activity"], "updated_at": now_iso()}})
+    return {"ok": ok, "delivery": res.get("status"), "ticket": decorate(await db.tickets.find_one({"id": tid}, {"_id": 0}))}
+
+
 @router.post("/tickets/{tid}/attachments")
 async def add_attachment(tid: str, body: dict = Body(...), admin=Depends(require_tickets)):
     t = await db.tickets.find_one({"id": tid})

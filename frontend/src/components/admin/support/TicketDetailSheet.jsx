@@ -16,6 +16,7 @@ import { Phone, MessageCircle, Mail, MapPin, Clock, Paperclip, Send, Loader2, Do
 export default function TicketDetailSheet({ id, onClose, onChanged }) {
   const qc = useQueryClient();
   const [message, setMessage] = useState("");
+  const [reply, setReply] = useState("");
   const { data: t } = useQuery({ queryKey: ["ticket", id], queryFn: async () => (await api.get(`/tickets/${id}`)).data, enabled: !!id });
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["ticket", id] }); onChanged?.(); };
@@ -27,6 +28,11 @@ export default function TicketDetailSheet({ id, onClose, onChanged }) {
   const addUpdate = useMutation({
     mutationFn: async () => (await api.post(`/tickets/${id}/updates`, { message })).data,
     onSuccess: () => { invalidate(); setMessage(""); toast.success("Update added"); },
+  });
+  const replyWa = useMutation({
+    mutationFn: async () => (await api.post(`/tickets/${id}/reply`, { message: reply })).data,
+    onSuccess: (d) => { invalidate(); setReply(""); d.ok ? toast.success("WhatsApp reply sent to customer") : toast.error(`Not delivered (${d.delivery || "failed"})`); },
+    onError: (e) => toast.error(apiError(e)),
   });
   const addAttachment = useMutation({
     mutationFn: async (att) => (await api.post(`/tickets/${id}/attachments`, att)).data,
@@ -83,9 +89,19 @@ export default function TicketDetailSheet({ id, onClose, onChanged }) {
               </div>
             </div>
 
+            {/* Reply via WhatsApp */}
+            <div className="mt-5 border border-vm-green/30 bg-vm-green/5 rounded-lg p-3" data-testid="ticket-reply-box">
+              <Label className="flex items-center gap-1 text-vm-green"><MessageCircle className="w-4 h-4" /> Reply via WhatsApp</Label>
+              <p className="text-xs text-slate-500 mt-0.5">Sends directly to {t.customer_phone || "—"} through the WhatsApp API and logs it below.</p>
+              <div className="flex gap-2 mt-2">
+                <Textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="Type your reply to the customer…" data-testid="ticket-reply-message" />
+                <Button className="bg-vm-green hover:bg-vm-greenhover self-end" onClick={() => replyWa.mutate()} disabled={!reply || !t.customer_phone || replyWa.isPending} data-testid="ticket-reply-send">{replyWa.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</Button>
+              </div>
+            </div>
+
             {/* Add update */}
             <div className="mt-5">
-              <Label>Add Update</Label>
+              <Label>Add Update (internal note)</Label>
               <div className="flex flex-wrap gap-1.5 my-2">
                 {QUICK.map((qtxt) => <button key={qtxt} onClick={() => setMessage(qtxt)} className="text-[11px] bg-slate-100 hover:bg-slate-200 rounded px-2 py-1 text-slate-600">{qtxt}</button>)}
               </div>
