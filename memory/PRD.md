@@ -95,7 +95,8 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
 - (Done) Pre-login MRP-only pricing.
 
 ## Backlog (P1/P2)
-- P1: Real WhatsApp API + SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
+- P1 (DONE 2026-06): **Real WhatsApp API live** — wa.animitra.in integration replaces the mock. helpers.send_whatsapp posts to POST /api/v1/send/text with Bearer key; admin-editable API Base URL / API Key / Session in WhatsApp Settings; live session-status card (GET /api/admin/whatsapp/status) + Send-Test (POST /api/admin/whatsapp/test). Numbers auto-prefixed to 91 for 10-digit. Provided key is send-only (no sessions:read scope) so status shows "Active (send-only key)"; real sends verified (messageId returned). Key stored in DB (db.settings/whatsapp), NOT in source. Email/SMTP still MOCKED.
+- P1: SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.
 
 ## Credentials

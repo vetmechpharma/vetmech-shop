@@ -64,28 +64,70 @@ export function CompanySettings() {
 export function WhatsAppSettings() {
   const { form, set, save, saving } = useSettingForm("whatsapp");
   const nums = form.admin_numbers || [];
-  const tmpl = form.status_templates || {};
+  const [testNum, setTestNum] = useState("");
+  const [testing, setTesting] = useState(false);
+
+  const { data: status } = useQuery({
+    queryKey: ["wa-status"],
+    queryFn: async () => (await api.get("/admin/whatsapp/status")).data,
+    refetchInterval: 15000,
+  });
+
+  const live = !!(form.api_key && form.session_id);
+  const connected = status?.connected;
+  const sendOnly = status?.status === "send_only";
+  const dot = status?.status === "error" ? "bg-red-500" : sendOnly ? "bg-sky-500" : connected ? "bg-green-500" : "bg-amber-500";
+  const statusLabel = !status ? "Checking…" : !status.configured ? "Not configured" : sendOnly ? "Active (send-only key)" : status.status || (connected ? "connected" : "disconnected");
+
+  const sendTest = async () => {
+    if (!testNum.trim()) return toast.error("Enter a number to test");
+    setTesting(true);
+    try {
+      const { data } = await api.post("/admin/whatsapp/test", { to: testNum });
+      if (data.status === "sent") toast.success(`Test sent (id ${data.message_id || "ok"})`);
+      else if (data.status === "simulated") toast.info("Simulated — add API Key + Session and Save first");
+      else toast.error(`Failed: ${data.error || "unknown"}`);
+    } catch (e) { toast.error(apiError(e)); }
+    setTesting(false);
+  };
+
   return (
-    <Wrap title="WhatsApp Settings" subtitle="API config & message templates (simulated until API keys added)" onSave={save} saving={saving}>
-      <p className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded p-2">SIMULATED MODE: OTP & notifications are logged. Add API URL + Key to go live.</p>
-      <div className="grid sm:grid-cols-2 gap-4">
-        <F label="API URL" value={form.api_url} onChange={(v) => set("api_url", v)} />
-        <F label="API Key" value={form.api_key} onChange={(v) => set("api_key", v)} type="password" />
-        <F label="Sender Number" value={form.sender_number} onChange={(v) => set("sender_number", v)} />
+    <Wrap title="WhatsApp Settings" subtitle="wa.animitra.in API configuration & live session status" onSave={save} saving={saving}>
+      <div className="rounded-lg border p-4 flex items-center justify-between flex-wrap gap-3" data-testid="wa-status-card">
+        <div className="flex items-center gap-3">
+          <span className={`w-3 h-3 rounded-full ${dot} ${connected ? "" : "animate-pulse"}`} />
+          <div>
+            <p className="font-heading font-semibold text-vm-ink">Session: <span className="capitalize" data-testid="wa-status-label">{statusLabel}</span></p>
+            <p className="text-xs text-slate-500">{status?.phone ? `Number: +${status.phone}` : status?.note ? status.note : status?.error ? status.error : live ? "Waiting for session…" : "Add API Key + Session ID below to go live"}</p>
+          </div>
+        </div>
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${live ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{live ? "LIVE MODE" : "SIMULATED"}</span>
       </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <F label="API Base URL" value={form.api_url} onChange={(v) => set("api_url", v)} placeholder="https://wa.animitra.in" data-testid="wa-api-url" />
+        <F label="API Key" value={form.api_key} onChange={(v) => set("api_key", v)} type="password" data-testid="wa-api-key" />
+        <F label="Session" value={form.session_id} onChange={(v) => set("session_id", v)} placeholder="primary" data-testid="wa-session" />
+      </div>
+
       <div>
         <Label>Admin Notification Numbers</Label>
         {nums.map((n, i) => (
-          <div key={i} className="flex gap-2 mt-2"><Input value={n} onChange={(e) => set("admin_numbers", nums.map((x, xi) => xi === i ? e.target.value : x))} /><Button variant="ghost" size="icon" onClick={() => set("admin_numbers", nums.filter((_, xi) => xi !== i))}><X className="w-4 h-4" /></Button></div>
+          <div key={i} className="flex gap-2 mt-2"><Input value={n} onChange={(e) => set("admin_numbers", nums.map((x, xi) => xi === i ? e.target.value : x))} data-testid={`wa-admin-num-${i}`} /><Button variant="ghost" size="icon" onClick={() => set("admin_numbers", nums.filter((_, xi) => xi !== i))}><X className="w-4 h-4" /></Button></div>
         ))}
-        <Button variant="outline" size="sm" className="mt-2" onClick={() => set("admin_numbers", [...nums, ""])}><Plus className="w-4 h-4 mr-1" /> Add Number</Button>
+        <Button variant="outline" size="sm" className="mt-2" onClick={() => set("admin_numbers", [...nums, ""])} data-testid="wa-add-num"><Plus className="w-4 h-4 mr-1" /> Add Number</Button>
       </div>
+
       <div><Label>OTP Template</Label><Input value={form.otp_template || ""} onChange={(e) => set("otp_template", e.target.value)} /></div>
-      <div className="space-y-2">
-        <Label>Order Status Templates ({"{order}"}, {"{name}"} supported)</Label>
-        {["confirmed", "processing", "ready_to_dispatch", "dispatched", "delivered", "cancelled"].map((k) => (
-          <div key={k}><span className="text-xs text-slate-500 capitalize">{k.replace(/_/g, " ")}</span><Textarea rows={2} value={tmpl[k] || ""} onChange={(e) => set("status_templates", { ...tmpl, [k]: e.target.value })} /></div>
-        ))}
+
+      <p className="text-xs bg-slate-50 border border-slate-200 text-slate-600 rounded p-2.5">Order / status / dispatch / out-of-stock messages are edited under <b>Communications → Message Templates</b>. Save your API Key &amp; Session here first, then send a test below.</p>
+
+      <div>
+        <Label>Send Test Message</Label>
+        <div className="flex gap-2 mt-1">
+          <Input placeholder="9198xxxxxxxx" value={testNum} onChange={(e) => setTestNum(e.target.value)} data-testid="wa-test-num" />
+          <Button variant="outline" onClick={sendTest} disabled={testing} data-testid="wa-test-send">{testing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Send Test</Button>
+        </div>
       </div>
     </Wrap>
   );

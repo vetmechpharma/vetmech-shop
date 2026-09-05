@@ -3,8 +3,9 @@ from typing import Optional
 
 from db import db, paginate
 from security import require_module, get_current_admin
-from helpers import new_id, now_iso, log_audit, send_email
+from helpers import new_id, now_iso, log_audit, send_email, send_whatsapp
 from routers.catalog import slugify, unique_slug
+import httpx
 
 router = APIRouter(prefix="/api", tags=["cms"])
 
@@ -60,6 +61,42 @@ async def update_setting(sid: str, body: dict = Body(...), admin=Depends(require
     await db.settings.update_one({"id": sid}, {"$set": body}, upsert=True)
     await log_audit(db, admin, "update", "settings", sid)
     return await db.settings.find_one({"id": sid}, {"_id": 0})
+
+
+# =============== WHATSAPP LIVE STATUS + TEST (wa.animitra.in) ===============
+@router.get("/admin/whatsapp/status")
+async def whatsapp_status(admin=Depends(get_current_admin)):
+    s = await db.settings.find_one({"id": "whatsapp"}, {"_id": 0}) or {}
+    api_key = (s.get("api_key") or "").strip()
+    session_id = (s.get("session_id") or "").strip()
+    base_url = (s.get("api_url") or "https://wa.animitra.in").strip().rstrip("/")
+    if not (api_key and session_id):
+        return {"configured": False, "connected": False, "status": "not_configured"}
+    try:
+        async with httpx.AsyncClient(timeout=15) as http:
+            resp = await http.get(f"{base_url}/api/v1/sessions/{session_id}/status",
+                                  headers={"Authorization": f"Bearer {api_key}"})
+        if resp.status_code == 200:
+            d = resp.json()
+            return {"configured": True, "connected": bool(d.get("connected")),
+                    "status": d.get("status"), "phone": d.get("phone"),
+                    "sidecar_reachable": d.get("sidecar_reachable"), "checked_at": d.get("checked_at")}
+        if resp.status_code == 403 and "scope" in resp.text.lower():
+            return {"configured": True, "connected": True, "status": "send_only",
+                    "note": "This API key is send-only (no sessions:read scope). Messages send fine; live connection status is unavailable."}
+        return {"configured": True, "connected": False, "status": "error",
+                "error": f"{resp.status_code}: {resp.text[:200]}"}
+    except Exception as e:
+        return {"configured": True, "connected": False, "status": "error", "error": str(e)[:200]}
+
+
+@router.post("/admin/whatsapp/test")
+async def whatsapp_test(body: dict = Body(...), admin=Depends(require_module("cms"))):
+    to = (body.get("to") or "").strip()
+    if not to:
+        raise HTTPException(status_code=400, detail="Recipient number required")
+    res = await send_whatsapp(db, to, body.get("message") or "VETMECH test message ✅", kind="test")
+    return res
 
 
 # =============== NEWS ===============

@@ -1,5 +1,6 @@
 import re
 import uuid
+import httpx
 from datetime import datetime, timezone
 
 
@@ -118,24 +119,62 @@ async def applicable_schemes(db, variant_id, product_id, customer_type=None):
     return out
 
 
-# --- Mock notification layer (WhatsApp + Email) ---
+# --- Notification layer: WhatsApp (wa.animitra.in) + Email ---
 import logging
 logger = logging.getLogger("vetmech.notify")
+
+WA_DEFAULT_BASE = "https://wa.animitra.in"
+
+
+def format_wa_number(m):
+    """Return WhatsApp-ready digits with country code (Indian default)."""
+    d = re.sub(r"\D", "", m or "")
+    if len(d) == 10:
+        d = "91" + d
+    elif len(d) == 11 and d.startswith("0"):
+        d = "91" + d[1:]
+    return d
 
 
 async def send_whatsapp(db, to_number, message, kind="generic"):
     settings = await db.settings.find_one({"id": "whatsapp"}, {"_id": 0}) or {}
+    api_key = (settings.get("api_key") or "").strip()
+    session_id = (settings.get("session_id") or "").strip()
+    base_url = (settings.get("api_url") or WA_DEFAULT_BASE).strip().rstrip("/")
+    live = bool(api_key and session_id)
     logged = {
         "id": new_id(),
         "channel": "whatsapp",
         "to": to_number,
         "kind": kind,
         "message": message,
-        "simulated": not bool(settings.get("api_url") and settings.get("api_key")),
+        "simulated": not live,
+        "status": "simulated",
         "created_at": now_iso(),
     }
+    if live:
+        try:
+            async with httpx.AsyncClient(timeout=20) as http:
+                resp = await http.post(
+                    f"{base_url}/api/v1/send/text",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"session_id": session_id, "to": format_wa_number(to_number), "text": message},
+                )
+            if resp.status_code == 200:
+                data = resp.json()
+                logged["status"] = "sent"
+                logged["message_id"] = data.get("messageId")
+            else:
+                logged["status"] = "failed"
+                logged["error"] = f"{resp.status_code}: {resp.text[:300]}"
+                logger.warning(f"[WHATSAPP FAIL {resp.status_code} -> {to_number}] {resp.text[:200]}")
+        except Exception as e:
+            logged["status"] = "failed"
+            logged["error"] = str(e)[:300]
+            logger.warning(f"[WHATSAPP ERROR -> {to_number}] {e}")
+    else:
+        logger.info(f"[WHATSAPP(sim) -> {to_number}] ({kind}) {message}")
     await db.notification_logs.insert_one(dict(logged))
-    logger.info(f"[WHATSAPP -> {to_number}] ({kind}) {message}")
     logged.pop("_id", None)
     return logged
 
