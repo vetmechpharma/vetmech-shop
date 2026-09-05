@@ -158,7 +158,8 @@ async def whatsapp_webhook(request: Request, token: Optional[str] = None):
     if not cust:
         cust = {"id": new_id(), "contact_name": push_name, "company_name": "", "address": "",
                 "email": "", "phone": phone, "alt_phone": "", "customer_type": "Other",
-                "notes": "Auto-created from incoming WhatsApp", "created_at": now_iso()}
+                "notes": "Auto-created from incoming WhatsApp", "source": "whatsapp", "auto_created": True,
+                "created_at": now_iso()}
         await db.crm_customers.insert_one(dict(cust))
         cust.pop("_id", None)
     system = {"id": None, "name": "WhatsApp Bot"}

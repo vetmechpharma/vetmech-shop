@@ -68,8 +68,8 @@ export default function CrmCustomers() {
             {isLoading ? <TableRow><TableCell colSpan={6} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
               : (data?.items || []).map((c) => (
                 <TableRow key={c.id} className="cursor-pointer" onClick={() => setDetailId(c.id)} data-testid={`crm-row-${c.id}`}>
-                  <TableCell className="font-medium text-vm-ink">{c.company_name}</TableCell>
-                  <TableCell className="text-sm">{c.contact_name}</TableCell>
+                  <TableCell className="font-medium text-vm-ink">{c.company_name || <span className="text-slate-400 italic">— no company —</span>}</TableCell>
+                  <TableCell className="text-sm">{c.contact_name}{c.source === "whatsapp" && <span className="ml-2 text-[10px] font-semibold text-vm-green bg-vm-green/10 rounded px-1.5 py-0.5" data-testid={`crm-wa-badge-${c.id}`}>NEW · WHATSAPP</span>}</TableCell>
                   <TableCell className="text-sm">{c.customer_type}</TableCell>
                   <TableCell className="text-sm">{c.phone}</TableCell>
                   <TableCell className="text-center">{c.ticket_count}</TableCell>
