@@ -87,7 +87,7 @@ export default function AdminOrders() {
         </Table>
       </div>
 
-      <OrderDetail id={detailId} onClose={() => setDetailId(null)} onChange={() => qc.invalidateQueries({ queryKey: ["admin-orders"] })} />
+      {detailId && <OrderDetail key={detailId} id={detailId} onClose={() => setDetailId(null)} onChange={() => qc.invalidateQueries({ queryKey: ["admin-orders"] })} />}
       <CreateOrderDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={() => qc.invalidateQueries({ queryKey: ["admin-orders"] })} />
     </div>
   );
@@ -283,7 +283,7 @@ function OrderDetail({ id, onClose, onChange }) {
                 )}
               </div>
 
-              <DispatchSection order={order} onDone={() => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); }} />
+              <DispatchSection key={order.id + (order.dispatch?.cases ? "-d" : "-p")} order={order} onDone={() => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); }} />
 
               <div>
                 <Label>Internal Notes</Label>

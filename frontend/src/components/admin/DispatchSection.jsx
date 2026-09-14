@@ -11,7 +11,9 @@ import { Truck, Printer, Loader2, CheckCircle2, FileText, Save } from "lucide-re
 import { printEnvelope } from "@/lib/envelope";
 
 export default function DispatchSection({ order, onDone }) {
-  const dispatched = order.status === "dispatched" || !!order.dispatch;
+  // Show the "Dispatched" summary only when a real dispatch record exists (cases + transport captured).
+  // Setting status to "dispatched" via the dropdown alone must NOT lock editing.
+  const hasDispatch = !!(order.dispatch && order.dispatch.cases && order.dispatch.transport);
   const [form, setForm] = useState(order.dispatch || { cases: "", transport: "", freight: "to_pay", dispatch_date: new Date().toISOString().slice(0, 10), invoice_number: "", invoice_value: "", invoice_date: new Date().toISOString().slice(0, 10), remarks: "" });
   const [envPrinted, setEnvPrinted] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -32,7 +34,7 @@ export default function DispatchSection({ order, onDone }) {
     onError: (e) => toast.error(apiError(e)),
   });
 
-  if (dispatched) {
+  if (hasDispatch) {
     return <DispatchedSummary order={order} onDone={onDone} transports={transports} />;
   }
 
@@ -88,39 +90,60 @@ export default function DispatchSection({ order, onDone }) {
 
 function DispatchedSummary({ order, onDone, transports }) {
   const d = order.dispatch || {};
-  const [edit, setEdit] = useState({ lr_number: d.lr_number || "", invoice_number: d.invoice_number || "", invoice_value: d.invoice_value || "", invoice_date: d.invoice_date || "" });
-  const set = (k, v) => setEdit((f) => ({ ...f, [k]: v }));
+  const [edit, setEdit] = useState(false);
+  const [form, setForm] = useState({
+    cases: d.cases ?? "", transport: d.transport ?? "", freight: d.freight ?? "to_pay",
+    dispatch_date: d.dispatch_date ?? "", lr_number: d.lr_number ?? "",
+    invoice_number: d.invoice_number ?? "", invoice_value: d.invoice_value ?? "", invoice_date: d.invoice_date ?? "",
+  });
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const update = useMutation({
-    mutationFn: async () => (await api.post(`/admin/orders/${order.id}/dispatch`, {
-      cases: d.cases, transport: d.transport, freight: d.freight, dispatch_date: d.dispatch_date,
-      ...edit, notify: false,
-    })).data,
-    onSuccess: () => { onDone(); toast.success("LR / invoice details updated"); },
+    mutationFn: async () => (await api.post(`/admin/orders/${order.id}/dispatch`, { ...form, cases: Number(form.cases), notify: false })).data,
+    onSuccess: () => { onDone(); setEdit(false); toast.success("Dispatch details updated"); },
     onError: (e) => toast.error(apiError(e)),
   });
 
   return (
     <div className="border border-vm-green/30 bg-vm-green/5 rounded-xl p-4" data-testid="dispatch-summary">
-      <p className="font-heading font-bold text-vm-green flex items-center gap-2"><Truck className="w-5 h-5" /> Dispatched</p>
-      <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
-        <span>Cases: <b>{d.cases}</b></span><span>Transport: <b>{d.transport}</b></span>
-        <span>Freight: <b>{d.freight === "paid" ? "Paid" : "To Pay"}</b></span><span>Date: <b>{d.dispatch_date}</b></span>
-        <span>By: <b>{d.dispatched_by}</b></span>
+      <div className="flex items-center justify-between">
+        <p className="font-heading font-bold text-vm-green flex items-center gap-2"><Truck className="w-5 h-5" /> Dispatched</p>
+        {!edit && <Button size="sm" variant="outline" onClick={() => setEdit(true)} data-testid="edit-dispatch">Edit</Button>}
       </div>
 
-      <div className="mt-4 border-t border-vm-green/20 pt-3">
-        <p className="text-xs font-semibold text-vm-ink flex items-center gap-1.5 mb-2"><FileText className="w-3.5 h-3.5 text-vm-green" /> LR & Invoice (update after transporter confirms)</p>
-        <div className="grid grid-cols-2 gap-2">
-          <div><Label className="text-xs">LR / Tracking No.</Label><Input value={edit.lr_number} onChange={(e) => set("lr_number", e.target.value)} data-testid="post-lr" /></div>
-          <div><Label className="text-xs">Invoice No.</Label><Input value={edit.invoice_number} onChange={(e) => set("invoice_number", e.target.value)} data-testid="post-invoice-no" /></div>
-          <div><Label className="text-xs">Invoice Value ₹</Label><Input type="number" value={edit.invoice_value} onChange={(e) => set("invoice_value", e.target.value)} data-testid="post-invoice-value" /></div>
-          <div><Label className="text-xs">Invoice Date</Label><Input type="date" value={edit.invoice_date} onChange={(e) => set("invoice_date", e.target.value)} data-testid="post-invoice-date" /></div>
+      {!edit ? (
+        <>
+          <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+            <span>Cases: <b>{d.cases}</b></span><span>Transport: <b>{d.transport}</b></span>
+            <span>Freight: <b>{d.freight === "paid" ? "Paid" : "To Pay"}</b></span><span>Date: <b>{d.dispatch_date}</b></span>
+            <span>LR: <b>{d.lr_number || "—"}</b></span><span>Invoice: <b>{d.invoice_number || "—"}</b></span>
+            <span>Inv. Value: <b>{d.invoice_value ? `₹${d.invoice_value}` : "—"}</b></span><span>By: <b>{d.dispatched_by}</b></span>
+          </div>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => printEnvelope(order)} data-testid="reprint-envelope"><Printer className="w-4 h-4 mr-1" /> Reprint Envelope</Button>
+        </>
+      ) : (
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-vm-ink flex items-center gap-1.5 mb-2"><FileText className="w-3.5 h-3.5 text-vm-green" /> Edit dispatch details</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label className="text-xs">No. of Cases</Label><Input type="number" value={form.cases} onChange={(e) => set("cases", e.target.value)} data-testid="edit-cases" /></div>
+            <div><Label className="text-xs">Transport</Label>
+              <Select value={form.transport} onValueChange={(v) => set("transport", v)}><SelectTrigger data-testid="edit-transport"><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>{(transports?.items || []).filter((t) => t.active).map((t) => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}<SelectItem value="Customer Pickup">Customer Pickup</SelectItem></SelectContent></Select></div>
+            <div><Label className="text-xs">Freight</Label>
+              <Select value={form.freight} onValueChange={(v) => set("freight", v)}><SelectTrigger data-testid="edit-freight"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="to_pay">To Pay</SelectItem><SelectItem value="paid">Paid</SelectItem></SelectContent></Select></div>
+            <div><Label className="text-xs">Dispatch Date</Label><Input type="date" value={form.dispatch_date} onChange={(e) => set("dispatch_date", e.target.value)} /></div>
+            <div><Label className="text-xs">LR / Tracking No.</Label><Input value={form.lr_number} onChange={(e) => set("lr_number", e.target.value)} data-testid="post-lr" /></div>
+            <div><Label className="text-xs">Invoice No.</Label><Input value={form.invoice_number} onChange={(e) => set("invoice_number", e.target.value)} data-testid="post-invoice-no" /></div>
+            <div><Label className="text-xs">Invoice Value ₹</Label><Input type="number" value={form.invoice_value} onChange={(e) => set("invoice_value", e.target.value)} data-testid="post-invoice-value" /></div>
+            <div><Label className="text-xs">Invoice Date</Label><Input type="date" value={form.invoice_date} onChange={(e) => set("invoice_date", e.target.value)} data-testid="post-invoice-date" /></div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <Button size="sm" className="bg-vm-green hover:bg-vm-greenhover" onClick={() => update.mutate()} disabled={update.isPending || !form.cases || !form.transport} data-testid="save-lr-invoice">{update.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Save Changes</Button>
+            <Button size="sm" variant="outline" onClick={() => setEdit(false)} data-testid="cancel-dispatch-edit">Cancel</Button>
+          </div>
         </div>
-        <Button size="sm" className="mt-2 bg-vm-green hover:bg-vm-greenhover" onClick={() => update.mutate()} disabled={update.isPending} data-testid="save-lr-invoice">{update.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Save LR / Invoice</Button>
-      </div>
-
-      <Button variant="outline" size="sm" className="mt-3" onClick={() => printEnvelope(order)} data-testid="reprint-envelope"><Printer className="w-4 h-4 mr-1" /> Reprint Envelope</Button>
+      )}
     </div>
   );
 }

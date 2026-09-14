@@ -1,0 +1,27 @@
+{
+  "summary": "Verified admin dispatch bug fix end-to-end via Playwright on live admin panel. All 5 scenarios from the review pass: (1) setting status to 'Dispatched' via dropdown alone keeps editable Prepare-for-Dispatch form (no locked summary), (2) same for 'Ready to Dispatch', (3) full Prepare -> Confirm Dispatch flow transitions to Dispatched summary, (4) post-dispatch LR/Invoice save works without any 'Number of cases is required' error and LR persists across refetch, (5) opening a dispatched order then a non-dispatched order correctly shows the Prepare form for the second order (no stale state, per-order key working).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Order Detail Sheet (Radix)", "issues": ["Console warning: 'DialogContent requires a DialogTitle for accessibility'. Non-blocking a11y warning, likely from Sheet/Dialog usage without VisuallyHidden title."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["(Optional/minor) Add a VisuallyHidden DialogTitle to any Sheet/Dialog missing it to remove Radix a11y console warning."],
+  "critical_code_review_comments": [
+    "DispatchSection now correctly bases 'hasDispatch' on a real dispatch record (cases+transport) rather than order.status - fixes the reported bug.",
+    "DispatchedSummary.update mutation always sends existing cases/transport/freight/dispatch_date + edited LR/invoice - eliminates the 'Number of cases is required' 400.",
+    "OrderDetail is keyed by detailId and DispatchSection is keyed by order.id + dispatched-flag, preventing stale state across orders.",
+    "Note: DispatchedSummary carries dispatch_date as a Date object from Mongo which may serialize inconsistently; consider normalizing on the backend to ISO string. Not blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (5/5 scenarios pass)"},
+  "test_credentials": "Admin: vetmechpharma@gmail.com / Admin@123",
+  "seed_data_creation": "Used existing orders VM-2026-00022 (was ready-to-dispatch, now dispatched by test), VM-2026-00023 (already dispatched), VM-2026-00021 (still not dispatched - used for stale-state check). Test values LR-TEST-9999, INV-TEST-001, invoice_value 5500 saved on VM-2026-00022.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fix for admin dispatch editing verified working. VM-2026-00022 now carries LR-TEST-9999 / INV-TEST-001 as of this run - clean up or reuse. Sales & Pricing nav group must be expanded first (click data-testid=adminnav-group-sales-pricing) before adminnav-orders in Playwright since it's collapsible.",
+  "rca of the issue": "Root cause was DispatchSection deciding the dispatched view from order.status. Setting status='dispatched' via the dropdown created no dispatch record, so the summary rendered with empty fields; its Save posted cases=undefined -> backend 400 'Number of cases is required'. Fix: hasDispatch is derived from an actual dispatch record (cases && transport). Additionally, DispatchedSummary's update now always sends the existing cases/transport/freight so LR/Invoice edits never fail validation. Verified: dropdown->Dispatched now keeps editable Prepare form; LR save persists without error."
+}

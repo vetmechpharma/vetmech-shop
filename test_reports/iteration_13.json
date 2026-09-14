@@ -1,0 +1,26 @@
+{
+  "summary": "Verified iteration_13 dispatch full-edit feature end-to-end via Playwright on the live admin panel. All 4 scenarios pass: (1) FULL EDIT on VM-2026-00022: opened dispatch-summary, clicked edit-dispatch, all edit fields (edit-cases, edit-transport, edit-freight, dispatch date, post-lr, post-invoice-no/value/date) rendered; changed cases 5->7, transport->Customer Pickup, LR->LR-EDIT-8888; save-lr-invoice succeeded, success toast 'Dispatch details updated' shown, no 'Number of cases is required' error, panel returned to summary showing new values, and values persisted after closing/reopening the sheet. (2) CANCEL: clicking cancel-dispatch-edit returned to read-only summary with no changes. (3) PREPARE->DISPATCH on VM-2026-00017 (a New order): dispatch-cases, dispatch-transport, dispatch-freight all editable; print-envelope + confirm-dispatch + confirm-dispatch-yes transitioned to dispatch-summary with WhatsApp sent toast. (4) REGRESSION: after opening dispatched VM-2026-00022 then closing and opening non-dispatched VM-2026-00017, the second order correctly showed the Prepare form (no stale state). Note: VM-2026-00021 also shows dispatch-summary because it already has a real dispatch record (cases 32, VRL Logistics) from prior tests — this is correct behaviour, not a stale-state bug.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Order Detail Sheet (Radix Dialog)", "issues": ["Console error/warning still present: 'DialogContent requires a DialogTitle for accessibility' and 'Missing Description or aria-describedby'. Non-blocking a11y issue, carried over from prior iterations."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["(Optional/minor) Wrap Sheet/DialogContent with a VisuallyHidden DialogTitle + Description to remove Radix a11y console warnings."],
+  "critical_code_review_comments": [
+    "DispatchedSummary now exposes ALL dispatch fields for edit (cases, transport, freight, dispatch_date, lr_number, invoice_number, invoice_value, invoice_date). Save Changes is correctly disabled until cases & transport are present, preventing empty submissions.",
+    "update mutation sends cases: Number(form.cases) with notify:false, matching backend contract; no WhatsApp is sent on edits as intended.",
+    "hasDispatch derivation from real record (cases && transport) remains solid; regression test on VM-2026-00017 confirms per-order state isolation."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (4/4 scenarios pass)"},
+  "test_credentials": "Admin: vetmechpharma@gmail.com / Admin@123",
+  "seed_data_creation": "Modified VM-2026-00022 dispatch to cases=7, transport=Customer Pickup, lr=LR-EDIT-8888 (was LR-TEST-9999). Newly dispatched VM-2026-00017 with cases=3, transport=Customer Pickup, freight=to_pay (this triggered a real WhatsApp notification via the confirm-dispatch flow).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "VM-2026-00022 now carries LR-EDIT-8888/INV-TEST-001/₹5500/cases=7/Customer Pickup. VM-2026-00017 was moved from New to Dispatched with cases=3 + Customer Pickup during test — a live WhatsApp went out. VM-2026-00021 is 'Ready to Dispatch' status but has a real dispatch record from prior tests (cases=32, VRL Logistics) so it correctly shows dispatch-summary — do NOT treat as stale-state. For future regression tests of the Prepare form, pick a truly New order (e.g. VM-2026-00016, VM-2026-00013-15).",
+  "rca of the issue": "N/A — this iteration verifies the follow-up enhancement (making the entire dispatch record editable post-dispatch). Feature works correctly; no bug found."
+}
