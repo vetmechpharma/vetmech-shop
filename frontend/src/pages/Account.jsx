@@ -119,9 +119,14 @@ function Dashboard({ customer, logout }) {
               </div>
               <div className="mt-3 space-y-1">
                 {o.items.map((l) => (
-                  <div key={l.variant_id} className="flex justify-between text-sm text-slate-600">
-                    <span>{l.product_name} — {l.pack_size} {l.unit}</span>
-                    <span>{l.qty}{l.free_qty ? ` +${l.free_qty} free` : ""}</span>
+                  <div key={l.variant_id} className="flex justify-between text-sm text-slate-600 gap-3">
+                    <span className="flex-1">{l.product_name} — {l.pack_size} {l.unit}
+                      {l.scheme_label && <span className="ml-1.5 text-[11px] font-semibold text-vm-accent bg-vm-accent/10 px-1.5 py-0.5 rounded">{l.scheme_label}</span>}
+                    </span>
+                    <span className="text-right whitespace-nowrap">
+                      {l.unit_price != null && <span className="text-vm-ink font-medium mr-2">₹{l.unit_price}</span>}
+                      {l.qty}{l.free_qty ? <span className="text-vm-accent"> +{l.free_qty} free</span> : ""}
+                    </span>
                   </div>
                 ))}
               </div>

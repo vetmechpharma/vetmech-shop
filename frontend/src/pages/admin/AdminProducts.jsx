@@ -44,9 +44,10 @@ export default function AdminProducts() {
   const { data: brands } = useQuery({ queryKey: ["admin-brands"], queryFn: async () => (await api.get("/admin/brands")).data });
   const { data: units } = useQuery({ queryKey: ["units"], queryFn: async () => (await api.get("/units")).data });
 
-  const del = useMutation({
-    mutationFn: async (id) => (await api.delete(`/admin/products/${id}`)).data,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-products"] }); toast.success("Deleted"); },
+  const toggleActive = useMutation({
+    mutationFn: async (p) => (await api.put(`/admin/products/${p.id}`, { ...p, active: !p.active })).data,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-products"] }); toast.success("Status updated"); },
+    onError: (e) => toast.error(apiError(e)),
   });
 
   const openNew = () => { setEditing(null); setDeletedOffers([]); setForm({ active: true, badges: {}, variants: [emptyVariant()], images: [], related_product_ids: [], seo: {} }); setOpen(true); };
@@ -148,16 +149,9 @@ export default function AdminProducts() {
                   <TableCell><span className="font-medium text-vm-ink">{p.name}</span><br /><span className="text-xs text-slate-400">{p.product_code}</span></TableCell>
                   <TableCell className="text-sm">{catName(p.category_id)}</TableCell>
                   <TableCell className="text-sm">{p.variants?.length || 0}</TableCell>
-                  <TableCell>{p.active ? <span className="text-green-600 text-xs">Yes</span> : <span className="text-slate-400 text-xs">No</span>}</TableCell>
+                  <TableCell><Switch checked={!!p.active} onCheckedChange={() => toggleActive.mutate(p)} data-testid={`toggle-active-${p.id}`} /></TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(p)} data-testid={`edit-product-${p.id}`}><Pencil className="w-4 h-4" /></Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>Delete {p.name}?</AlertDialogTitle></AlertDialogHeader>
-                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-600" onClick={() => del.mutate(p.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}
@@ -332,17 +326,7 @@ export default function AdminProducts() {
               </div>
               <ImageUpload label="Brochure (PDF)" value={form.brochure_url} onChange={(v) => set("brochure_url", v)} isPdf accept="application/pdf" />
               <ImageUpload label="Visual Aid (PDF)" value={form.visual_aid_url} onChange={(v) => set("visual_aid_url", v)} isPdf accept="application/pdf" />
-              <div>
-                <Label className="mb-2 block">Related Products</Label>
-                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-2">
-                  {(list?.items || []).filter((p) => p.id !== editing?.id).map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={(form.related_product_ids || []).includes(p.id)} onChange={(e) => set("related_product_ids", e.target.checked ? [...(form.related_product_ids || []), p.id] : form.related_product_ids.filter((x) => x !== p.id))} />
-                      {p.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <p className="text-xs text-slate-400 border-t pt-3">Related products are shown automatically based on the product's category — no manual selection needed.</p>
             </TabsContent>
 
             <TabsContent value="seo" className="space-y-3 mt-4">

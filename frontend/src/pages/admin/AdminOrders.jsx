@@ -34,6 +34,8 @@ export default function AdminOrders() {
       OrderNumber: o.order_number, Date: new Date(o.created_at).toLocaleString(), Customer: o.customer_name,
       Company: o.company_name, Mobile: o.customer_mobile, Category: o.customer_category,
       Products: o.items.length, OrderedQty: o.total_qty, FreeQty: o.total_free, Status: statusMeta(o.status).label,
+      Transport: o.dispatch?.transport || "", Freight: o.dispatch ? (o.dispatch.freight === "paid" ? "Paid" : "To Pay") : "",
+      InvoiceNo: o.dispatch?.invoice_number || "", InvoiceValue: o.dispatch?.invoice_value || "",
     }));
     exportRows(rows, `vetmech-orders`, type);
   };
@@ -60,18 +62,20 @@ export default function AdminOrders() {
 
       <div className="border border-[#E2E8F0] rounded-lg overflow-x-auto bg-white">
         <Table>
-          <TableHeader><TableRow className="bg-vm-bg"><TableHead>Order #</TableHead><TableHead>Customer</TableHead><TableHead>Date</TableHead><TableHead className="text-center">Qty</TableHead><TableHead className="text-center">Free</TableHead><TableHead>Status</TableHead><TableHead className="text-right">View</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow className="bg-vm-bg"><TableHead>Order #</TableHead><TableHead>Customer</TableHead><TableHead>Date</TableHead><TableHead className="text-center">Qty</TableHead><TableHead>Status</TableHead><TableHead>Transport</TableHead><TableHead>Freight</TableHead><TableHead>Invoice #</TableHead><TableHead className="text-right">View</TableHead></TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={7} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
-              : (data?.items || []).length === 0 ? <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-400">No orders found.</TableCell></TableRow>
+            {isLoading ? <TableRow><TableCell colSpan={9} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
+              : (data?.items || []).length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-10 text-slate-400">No orders found.</TableCell></TableRow>
               : data.items.map((o) => (
                 <TableRow key={o.id} data-testid={`order-row-${o.order_number}`}>
                   <TableCell className="font-medium text-vm-green">{o.order_number}</TableCell>
                   <TableCell><span className="text-vm-ink">{o.customer_name}</span><br /><span className="text-xs text-slate-400">{o.customer_mobile}</span></TableCell>
                   <TableCell className="text-sm text-slate-500">{new Date(o.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-center">{o.total_qty}</TableCell>
-                  <TableCell className="text-center text-vm-accent">{o.total_free}</TableCell>
+                  <TableCell className="text-center">{o.total_qty}{o.total_free ? <span className="text-vm-accent text-xs"> +{o.total_free}</span> : ""}</TableCell>
                   <TableCell><span className={`text-xs font-semibold px-2.5 py-1 rounded ${statusMeta(o.status).color}`}>{statusMeta(o.status).label}</span></TableCell>
+                  <TableCell className="text-sm text-slate-600">{o.dispatch?.transport || <span className="text-slate-300">—</span>}</TableCell>
+                  <TableCell className="text-sm">{o.dispatch ? <span className={`text-xs font-semibold px-2 py-0.5 rounded ${o.dispatch.freight === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{o.dispatch.freight === "paid" ? "Paid" : "To Pay"}</span> : <span className="text-slate-300">—</span>}</TableCell>
+                  <TableCell className="text-sm text-slate-600">{o.dispatch?.invoice_number || <span className="text-slate-300">—</span>}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     <Button variant="ghost" size="icon" onClick={() => setDetailId(o.id)} data-testid={`view-order-${o.order_number}`}><Eye className="w-4 h-4" /></Button>
                     <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500" data-testid={`delete-order-${o.order_number}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>

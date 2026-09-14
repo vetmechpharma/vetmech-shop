@@ -38,10 +38,8 @@ export default function ProductCard({ product }) {
           <div>
             {v0.your_price != null ? (
               <span className="font-semibold text-vm-green" data-testid={`card-your-price-${product.slug}`}>₹{v0.your_price} <span className="text-[10px] text-vm-accent font-bold uppercase">Your Price</span></span>
-            ) : v0.login_required ? (
-              <span className="text-sm"><span className="text-slate-400 text-xs uppercase mr-1">MRP</span><span className="font-semibold text-vm-ink">₹{v0.mrp}</span></span>
             ) : (
-              v0.selling_price != null && <span className="font-semibold text-vm-ink">₹{v0.selling_price}</span>
+              <span className="text-sm"><span className="text-slate-400 text-xs uppercase mr-1">MRP</span><span className="font-semibold text-vm-ink">₹{v0.mrp}</span></span>
             )}
             {v0.pack_size && <span className="text-slate-400 ml-1 text-xs">/ {v0.pack_size}</span>}
           </div>

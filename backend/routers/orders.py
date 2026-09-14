@@ -583,7 +583,9 @@ async def dispatch_register(transport: Optional[str] = None, freight: Optional[s
             "company_name": o.get("company_name", ""), "customer_mobile": o.get("customer_mobile"),
             "city": (o.get("address") or {}).get("district", ""), "state": (o.get("address") or {}).get("state", ""),
             "cases": d.get("cases"), "transport": d.get("transport"), "freight": d.get("freight"),
-            "lr_number": d.get("lr_number"), "dispatch_date": d.get("dispatch_date"),
+            "lr_number": d.get("lr_number"), "invoice_number": d.get("invoice_number", ""),
+            "invoice_value": d.get("invoice_value"), "invoice_date": d.get("invoice_date", ""),
+            "dispatch_date": d.get("dispatch_date"),
             "dispatched_by": d.get("dispatched_by"), "total_dispatch": o.get("total_dispatch"),
             "status": o.get("status"),
         })
@@ -600,20 +602,27 @@ async def dispatch_order(oid: str, body: dict = Body(...), admin=Depends(require
     cases = body.get("cases")
     transport = (body.get("transport") or "").strip()
     lr = (body.get("lr_number") or "").strip()
+    already = order.get("status") == "dispatched" or bool(order.get("dispatch"))
     if not cases or int(cases) <= 0:
         raise HTTPException(400, "Number of cases is required")
     if not transport:
         raise HTTPException(400, "Transport is required")
-    if not lr and transport.lower() != "customer pickup":
-        raise HTTPException(400, "LR / Tracking number is required")
+    prev = order.get("dispatch") or {}
     dispatch = {
         "cases": int(cases), "transport": transport,
         "freight": body.get("freight", "to_pay"), "lr_number": lr,
-        "dispatch_date": body.get("dispatch_date") or now_iso()[:10],
-        "remarks": body.get("remarks", ""), "dispatched_by": admin.get("name", "Admin"),
-        "dispatched_at": now_iso(),
+        "invoice_number": (body.get("invoice_number") or prev.get("invoice_number") or "").strip(),
+        "invoice_value": body.get("invoice_value") if body.get("invoice_value") not in (None, "") else prev.get("invoice_value"),
+        "invoice_date": body.get("invoice_date") or prev.get("invoice_date") or "",
+        "dispatch_date": body.get("dispatch_date") or prev.get("dispatch_date") or now_iso()[:10],
+        "remarks": body.get("remarks", prev.get("remarks", "")),
+        "dispatched_by": prev.get("dispatched_by") or admin.get("name", "Admin"),
+        "dispatched_at": prev.get("dispatched_at") or now_iso(),
     }
-    add_order_activity(order, f"Dispatched via {transport} · {dispatch['cases']} case(s) · LR {lr or '—'} · Freight {dispatch['freight']}", admin["name"])
+    if already:
+        add_order_activity(order, f"Updated dispatch details · LR {lr or '—'} · Invoice {dispatch['invoice_number'] or '—'}", admin["name"])
+    else:
+        add_order_activity(order, f"Dispatched via {transport} · {dispatch['cases']} case(s) · LR {lr or '—'} · Freight {dispatch['freight']}", admin["name"])
     await db.orders.update_one({"id": oid}, {"$set": {
         "status": "dispatched", "dispatch": dispatch, "updated_at": now_iso(), "activity": order["activity"]}})
     await log_audit(db, admin, "dispatch", "order", oid, {"transport": transport, "lr": lr})

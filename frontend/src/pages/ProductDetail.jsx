@@ -96,24 +96,20 @@ export default function ProductDetail() {
                     <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
                   </div>
                 </div>
-              ) : variant.login_required ? (
+              ) : (
                 <div className="mt-4">
                   <div className="flex items-baseline gap-2">
                     <span className="text-xs uppercase tracking-widest text-slate-400 font-semibold">MRP</span>
                     <span className="font-heading text-2xl font-bold text-vm-ink">₹{variant.mrp}</span>
                     <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
                   </div>
-                  <button onClick={() => setAuthOpen(true)} className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-vm-accent hover:underline" data-testid="login-for-price-btn">
-                    <Lock className="w-3.5 h-3.5" /> Login to view your price &amp; offers
-                  </button>
+                  {variant.login_required && (
+                    <button onClick={() => setAuthOpen(true)} className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-vm-accent hover:underline" data-testid="login-for-price-btn">
+                      <Lock className="w-3.5 h-3.5" /> Login to view your price &amp; offers
+                    </button>
+                  )}
                 </div>
-              ) : variant.selling_price != null ? (
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className="font-heading text-2xl font-bold text-vm-green">₹{variant.selling_price}</span>
-                  {variant.mrp > variant.selling_price && <span className="text-slate-400 line-through text-sm">₹{variant.mrp}</span>}
-                  <span className="text-xs text-slate-400">/ {variant.pack_size}</span>
-                </div>
-              ) : null}
+              )}
 
           {/* Variant selector */}
           <div className="mt-5">

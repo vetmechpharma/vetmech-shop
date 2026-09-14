@@ -273,11 +273,14 @@ async def public_product(slug: str, customer=Depends(optional_customer)):
     if not p:
         raise HTTPException(status_code=404, detail="Product not found")
     await enrich_products([p], customer)
+    # Related products: automatic — other active products in the same category
     related = []
-    for rid in p.get("related_product_ids", []):
-        rp = await db.products.find_one({"id": rid, "active": True}, {"_id": 0})
-        if rp:
-            related.append(rp)
+    if p.get("category_id"):
+        rel_docs = await db.products.find(
+            {"category_id": p["category_id"], "active": True, "id": {"$ne": p["id"]}},
+            {"_id": 0}).limit(8).to_list(8)
+        await enrich_products(rel_docs, customer)
+        related = rel_docs
     p["related"] = related
     return p
 
