@@ -263,6 +263,22 @@ async def admin_order(oid: str, admin=Depends(require_module("orders"))):
     return order
 
 
+@router.get("/admin/orders/{oid}/prev-pricing")
+async def order_prev_pricing(oid: str, admin=Depends(require_module("orders"))):
+    """Customer's previously-confirmed rate/offer per variant in this order (avoids pricing mismatch)."""
+    order = await db.orders.find_one({"id": oid}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Not found")
+    cid = order.get("customer_id")
+    prices = {}
+    if cid:
+        vids = [l.get("variant_id") for l in order.get("items", [])]
+        docs = await db.customer_prices.find({"customer_id": cid, "variant_id": {"$in": vids}, "active": True}, {"_id": 0}).to_list(500)
+        for d in docs:
+            prices[d["variant_id"]] = {"rate": d.get("rate"), "offer": d.get("offer"), "source": d.get("source")}
+    return {"customer_id": cid, "prices": prices}
+
+
 @router.post("/admin/orders")
 async def admin_create_order(body: dict = Body(...), admin=Depends(require_module("orders"))):
     cust = None

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { mediaUrl } from "@/lib/api";
@@ -6,6 +6,23 @@ import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Minus, Plus, Trash2, ShoppingCart, ArrowRight } from "lucide-react";
+
+function QtyCell({ line, setQty }) {
+  const [val, setVal] = useState(String(line.qty));
+  useEffect(() => { setVal(String(line.qty)); }, [line.qty]);
+  const commit = () => { const n = Math.max(1, parseInt(val, 10) || 1); setQty(line.variant_id, n); setVal(String(n)); };
+  return (
+    <div className="flex items-center border border-[#E2E8F0] rounded-md w-fit mx-auto">
+      <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(line.variant_id, Math.max(1, line.qty - 1))} data-testid={`cart-minus-${line.sku}`}><Minus className="w-3.5 h-3.5" /></button>
+      <input inputMode="numeric" value={val}
+        onChange={(e) => setVal(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        className="w-12 text-center text-sm outline-none bg-transparent" data-testid={`cart-qty-${line.sku}`} />
+      <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(line.variant_id, line.qty + 1)} data-testid={`cart-plus-${line.sku}`}><Plus className="w-3.5 h-3.5" /></button>
+    </div>
+  );
+}
 
 export default function Cart() {
   const { calc, setQty, removeItem, clear } = useCart();
@@ -61,11 +78,7 @@ export default function Cart() {
                 </TableCell>
                 <TableCell className="text-sm text-slate-600">{l.pack_size} {l.unit}{l.units_per_case > 0 && <span className="block text-[11px] text-slate-400">Case of {l.units_per_case}</span>}</TableCell>
                 <TableCell>
-                  <div className="flex items-center border border-[#E2E8F0] rounded-md w-fit mx-auto">
-                    <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(l.variant_id, l.qty - 1)} data-testid={`cart-minus-${l.sku}`}><Minus className="w-3.5 h-3.5" /></button>
-                    <span className="w-10 text-center text-sm" data-testid={`cart-qty-${l.sku}`}>{l.qty}</span>
-                    <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(l.variant_id, l.qty + 1)} data-testid={`cart-plus-${l.sku}`}><Plus className="w-3.5 h-3.5" /></button>
-                  </div>
+                  <QtyCell line={l} setQty={setQty} />
                 </TableCell>
                 <TableCell className="text-center text-sm">
                   {l.scheme_label ? <span className="text-vm-accent font-medium">{l.scheme_label}</span> : <span className="text-slate-300">—</span>}

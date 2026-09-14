@@ -1,0 +1,30 @@
+{
+  "summary": "Verified iteration_14 follow-up bug batch (cart qty typing, quick-order per-variant offers, admin order prev-pricing note) end-to-end on the live preview. All 3 features PASS.\n\n(1) CART QTY EDITABLE: Logged in as customer via API+localStorage (dev_otp), added MASTOBLISS-TSC 500g via Quick Order, opened /cart. cart-qty-MBT-500 input was cleared and typed '12' + Enter -> committed to 12 and Ordered Qty summary updated to 12. Typing '0' + Tab clamped to 1. Empty + Tab committed to 1. cart-plus-{sku} incremented 1->2. cart-minus-{sku} clamped at 1. All assertions passed.\n\n(2) QUICK ORDER PER-VARIANT OFFERS: On /quick-order (logged-in customer), each product's variants render as separate rows (qo-row-{vid}). VETKCLOR has 3 rows: 100ml (no chip / '—'), 500ml (chip '5+1'), 1L (no chip). MASTOBLISS-TSC has 2 rows: 500g (chip '30@₹270'), 1Kg (no chip). NERVIPHOS-M shows 30ml and 100ml both without chips. Confirmed each variant renders its OWN qo-offers-{vid} cell that iterates v.active_schemes; the code v.active_schemes.map((o, idx) => <span>...</span>) supports N chips per variant (visually verified). No variant currently has 2+ schemes in seed data, so the 'multiple chips per row' rendering could not be visually stress-tested, but the code path unambiguously renders all schemes.\n\n(3) ADMIN ORDER PREV-PRICING: Logged in admin via API+localStorage; opened /admin/orders; clicked view-order-VM-2026-00021 (eye button) -> order-detail sheet opened; clicked order-edit-pricing -> edit rows appeared; prev-pricing-0 = 'Previously bought @ ₹79' (NERVIPHOS-M 30ml, matches customer_prices), prev-pricing-1 = 'Previously bought @ ₹210' (NERVIPHOS-M 100ml). order-update-pricing checkbox and order-save-pricing button both present. Backend GET /api/admin/orders/{oid}/prev-pricing returned correct {customer_id, prices:{variant_id:{rate,offer,source:'last_confirmed'}}} for that order. Orders with no prior customer_prices (VM-2026-00024 and VM-2026-00020) correctly returned prices:{} and would show no note (verified via direct API call).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Order Detail Sheet (Radix Dialog)", "issues": ["Console warning persists: 'DialogContent requires a DialogTitle for accessibility'. Non-blocking, carried over from prior iterations."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional/minor) Wrap SheetContent with VisuallyHidden DialogTitle+Description to silence Radix a11y warning.",
+    "(Nice-to-have) Consider seeding a variant with 2+ active_schemes to visually confirm multi-chip rendering in Quick Order."
+  ],
+  "critical_code_review_comments": [
+    "Cart QtyCell correctly uses controlled local state with useEffect resync on line.qty change, commits on blur/Enter, and clamps min=1 (Math.max(1, parseInt(val,10) || 1)) which correctly handles '', '0', NaN inputs -> 1. Clean implementation.",
+    "QuickOrder Row uses v.active_schemes.map with idx key -> renders ALL schemes as chips. Chip label logic differentiates special_price ('{min}@₹{sp}') from free_qty ('{buy}+{free}'). Correct per-variant offer isolation because Row is instantiated per (p,v) pair via flat.forEach.",
+    "AdminOrders.startEdit is async and awaits /admin/orders/{id}/prev-pricing, safely catches errors -> setPrevPricing({}) fallback. prevPricing lookup keyed by variant_id ensures each edit row shows note only when that customer has prior negotiated pricing for THAT specific variant. Backend endpoint filters customer_prices by active:True and $in variant_ids — efficient single query.",
+    "prev-pricing note text does not include the offer text when offer.free_quantity is 0/null — correct behaviour."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (prev-pricing endpoint verified on 3 orders)", "frontend": "100% (3/3 features pass)"},
+  "test_credentials": "Admin: vetmechpharma@gmail.com / Admin@123; Customer OTP: mobile 9944472488 (LOKESH T, has customer_prices for NERVIPHOS-M 30ml @79 and 100ml @210)",
+  "seed_data_creation": "None. VM-2026-00021's existing customer_prices (from iteration_13-era saves) were reused to validate the prev-pricing note.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Customer LOKESH T (mobile 9944472488, customer_id 7614c189-da24-40ea-85ad-038deced8606) has active customer_prices: variant 523a1330 @₹79 and variant ef8ce276 @₹210, source='last_confirmed'. Any future order for this customer containing these variants will display prev-pricing notes in admin edit. Login via API: POST /api/auth/admin/login and POST /api/auth/otp/{request,verify}; then set localStorage keys vm_admin_token/vm_customer_token (both duplicated to admin_token/customer_token for older bindings) plus vm_admin/vm_customer JSON to bypass the UI login flow. VM-2026-00021 is Delivered but the Edit Pricing button still works (status-independent).",
+  "rca of the issue": "N/A — this iteration verifies new features. All three features function correctly per spec."
+}

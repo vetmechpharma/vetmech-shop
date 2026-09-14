@@ -12,7 +12,7 @@ import { Zap, Search, Plus, Minus, ShoppingCart, Lock, Loader2 } from "lucide-re
 
 function Row({ p, v, addItem, loggedIn }) {
   const [qty, setQty] = useState(v.min_order_qty || 1);
-  const offer = (v.active_schemes || [])[0];
+  const schemes = v.active_schemes || [];
   const add = () => { addItem(v.id, qty, { name: p.name, pack: v.pack_size }); toast.success(`Added ${qty} × ${p.name}`); };
   return (
     <div className="flex items-center gap-3 py-3 px-3 md:px-4 border-b border-vm-border hover:bg-vm-bg/60 transition-colors" data-testid={`qo-row-${v.id}`}>
@@ -26,8 +26,16 @@ function Row({ p, v, addItem, loggedIn }) {
           : v.login_required ? <span className="text-xs text-slate-500">MRP ₹{v.mrp}</span>
             : <span className="font-semibold text-vm-ink">₹{v.selling_price}</span>}
       </div>
-      <div className="w-24 text-center hidden md:block">
-        {offer ? <span className="text-[11px] font-semibold text-vm-accent bg-vm-accent/10 px-2 py-0.5 rounded">{offer.type === "special_price" ? `${offer.min}@₹${offer.special_price}` : `${offer.buy}+${offer.free}`}</span> : <span className="text-slate-300">—</span>}
+      <div className="w-36 text-center hidden md:block">
+        {schemes.length ? (
+          <div className="flex flex-wrap gap-1 justify-center" data-testid={`qo-offers-${v.id}`}>
+            {schemes.map((o, idx) => (
+              <span key={idx} className="text-[11px] font-semibold text-vm-accent bg-vm-accent/10 px-2 py-0.5 rounded">
+                {o.type === "special_price" ? `${o.min}@₹${o.special_price}` : `${o.buy}+${o.free}`}
+              </span>
+            ))}
+          </div>
+        ) : <span className="text-slate-300">—</span>}
       </div>
       <div className="flex items-center border border-vm-border rounded-lg overflow-hidden">
         <button className="px-2 py-1.5 text-slate-500 hover:bg-slate-100" onClick={() => setQty((q) => Math.max(1, q - 1))}><Minus className="w-3.5 h-3.5" /></button>
