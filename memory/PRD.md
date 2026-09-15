@@ -101,6 +101,12 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
   - Quick Order shows ALL active schemes per variant as chips (each pack variant row shows its own offers) — previously only the first scheme.
   - Admin order Edit Pricing now shows "Previously bought @ ₹X · offer" per line via GET /api/admin/orders/{oid}/prev-pricing (reads active customer_prices for the order's customer + variants) so admins avoid rate/offer mismatch.
   - Verified end-to-end (iteration_14, 100%).
+- P1 (DONE 2026-06): **Guest gating + registration-first flow** —
+  - Product cards: guests see ONLY a "View" button; registered logged-in customers see View + Add to Cart (per-card and across all listings).
+  - Product detail: guests see a highlighted "Login to View Your Prices" card (data-testid=login-to-order-card) with Create Account / Login buttons; qty stepper + Add to Cart + Buy Now hidden until logged in.
+  - Redirect-back: login/register carry ?redirect=/products/{slug}; after OTP login the user returns to the exact product they were viewing (Account.jsx useEffect). Register "Go to Login" forwards the redirect too.
+  - New self-registration now sends a WhatsApp alert to every admin number (kind new_registration) for fast approval, in addition to the existing email.
+  - Verified end-to-end (iteration_15: backend 5/5, frontend 6/6).
 - P1: SMTP wiring (plug credentials in Admin), pincode auto state/district lookup.
 - P1 (DONE 2026-06): **Real WhatsApp API live** — wa.animitra.in integration replaces the mock. helpers.send_whatsapp posts to POST /api/v1/send/text with Bearer key; admin-editable API Base URL / API Key / Session in WhatsApp Settings; live session-status card (GET /api/admin/whatsapp/status) + Send-Test (POST /api/admin/whatsapp/test). Numbers auto-prefixed to 91 for 10-digit. Provided key is send-only (no sessions:read scope) so status shows "Active (send-only key)"; real sends verified (messageId returned). Key stored in DB (db.settings/whatsapp), NOT in source. Email/SMTP still MOCKED.
 - P1 (DONE 2026-06): **WhatsApp QR/full status** — status endpoint now hits GET /api/v1/sessions/{slug} (returns connected/phone/name/hasQr/qrDataUrl/pairingCode); admin card renders a scan-QR block when the session needs linking (works once key has sessions:read scope; current key is send-only).
