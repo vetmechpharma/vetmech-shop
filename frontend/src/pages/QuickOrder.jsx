@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Zap, Search, Plus, Minus, ShoppingCart, Lock, Loader2 } from "lucide-react";
 
+function gcdN(a, b) { return b ? gcdN(b, a % b) : a; }
+function simplifyRatio(b, f) { if (b > 0 && f > 0) { const g = gcdN(b, f); if (g > 1) return [b / g, f / g]; } return [b, f]; }
+
 function Row({ p, v, addItem, loggedIn }) {
   const [qty, setQty] = useState(v.min_order_qty || 1);
   const schemes = v.active_schemes || [];
@@ -31,7 +34,7 @@ function Row({ p, v, addItem, loggedIn }) {
           <div className="flex flex-wrap gap-1 justify-center" data-testid={`qo-offers-${v.id}`}>
             {schemes.map((o, idx) => (
               <span key={idx} className="text-[11px] font-semibold text-vm-accent bg-vm-accent/10 px-2 py-0.5 rounded">
-                {o.type === "special_price" ? `${o.min}@₹${o.special_price}` : `${o.buy}+${o.free}`}
+                {o.type === "special_price" || o.type === "case_price" ? `${o.min}@₹${o.special_price}` : simplifyRatio(o.buy, o.free).join("+")}
               </span>
             ))}
           </div>

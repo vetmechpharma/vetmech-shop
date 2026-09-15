@@ -4,7 +4,7 @@ Priority (rate): customer-specific (manual / last_confirmed) -> category -> publ
 Priority (offer): customer-specific offer -> category offer -> public offer (no auto-stacking)
 Security: only the applicable price for the given customer is ever computed here.
 """
-from helpers import applicable_schemes, compute_scheme
+from helpers import applicable_schemes, compute_scheme, _simplify
 
 
 def is_active_customer(c):
@@ -82,7 +82,7 @@ async def resolve_pricing(db, product, variant, customer, settings=None):
 
 
 def compute_upsell(qty, offer_schemes, current_free):
-    """Smallest add that reaches a higher free-qty tier (best-value nudge)."""
+    """Smallest add that reaches a higher free-qty tier (uses simplified ratios)."""
     best = None
     for s in offer_schemes:
         if s.get("scheme_type") not in (None, "free_qty"):
@@ -91,14 +91,15 @@ def compute_upsell(qty, offer_schemes, current_free):
         f = s.get("free_quantity") or 0
         if b <= 0 or f <= 0:
             continue
-        thr = ((qty // b) + 1) * b
+        sb, sf = _simplify(b, f)
+        thr = ((qty // sb) + 1) * sb
         maxq = s.get("max_quantity") or 0
         if maxq and thr > maxq:
             continue
-        free_at = (thr // b) * f
+        free_at = (thr // sb) * sf
         if free_at > current_free:
             add = thr - qty
-            cand = {"add": add, "target_qty": thr, "free_qty": free_at, "label": f"{b}+{f}"}
+            cand = {"add": add, "target_qty": thr, "free_qty": free_at, "label": f"{sb}+{sf}"}
             if best is None or add < best["add"] or (add == best["add"] and free_at > best["free_qty"]):
                 best = cand
     if best:
@@ -120,8 +121,11 @@ async def price_line(db, product, variant, qty, customer, settings=None):
         offer_schemes = pick_offer_schemes(schemes, ct)
         offer_source = "category" if (ct and any(
             s.get("customer_type") == ct for s in offer_schemes)) else "public"
-    sc = compute_scheme(qty, offer_schemes)
+    sc = compute_scheme(qty, offer_schemes, pr["rate"])
     unit_price = sc["special_price"] if sc["special_price"] is not None else pr["rate"]
+    free_qty = sc["free_qty"]
+    denom = qty + free_qty
+    net_rate = round(unit_price * qty / denom, 2) if denom else unit_price
     upsell = compute_upsell(qty, offer_schemes, sc["free_qty"])
 
     # Case offer nudge: a full case may be cheaper per unit than the current effective rate
@@ -137,7 +141,7 @@ async def price_line(db, product, variant, qty, customer, settings=None):
                                "message": f"Order a full case ({upc}) at ₹{cs['special_price']}/unit for the best rate"}
 
     return {
-        "unit_price": unit_price, "free_qty": sc["free_qty"],
+        "unit_price": unit_price, "free_qty": sc["free_qty"], "net_rate": net_rate,
         "scheme_id": sc["scheme_id"], "scheme_label": sc["scheme_label"],
         "mrp": pr["mrp"], "public_price": pr["public_price"],
         "price_source": pr["source"], "offer_source": offer_source,

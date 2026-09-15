@@ -57,6 +57,7 @@ export default function Cart() {
               <TableHead className="text-vm-ink">Pack</TableHead>
               <TableHead className="text-vm-ink text-center">Qty</TableHead>
               <TableHead className="text-vm-ink text-center">Scheme</TableHead>
+              <TableHead className="text-vm-ink text-center">Net Rate</TableHead>
               <TableHead className="text-vm-ink text-center">Free</TableHead>
               <TableHead className="text-vm-ink text-center">Dispatch</TableHead>
               <TableHead></TableHead>
@@ -84,6 +85,9 @@ export default function Cart() {
                   {l.scheme_label ? <span className="text-vm-accent font-medium">{l.scheme_label}</span> : <span className="text-slate-300">—</span>}
                   {l.upsell && <span className="block text-[11px] text-vm-green mt-1" data-testid={`cart-upsell-${l.sku}`}>{l.upsell.message}</span>}
                   {l.case_suggestion && <span className="block text-[11px] text-vm-accent mt-0.5" data-testid={`cart-case-${l.sku}`}>{l.case_suggestion.message}</span>}
+                </TableCell>
+                <TableCell className="text-center text-sm" data-testid={`cart-netrate-${l.sku}`}>
+                  {l.net_rate != null ? <span className="font-semibold text-vm-ink">₹{l.net_rate}{l.gst_percent ? <span className="block text-[10px] font-normal text-slate-400">+{l.gst_percent}% GST</span> : null}</span> : <span className="text-slate-300">—</span>}
                 </TableCell>
                 <TableCell className="text-center font-medium text-vm-accent" data-testid={`cart-free-${l.sku}`}>{l.free_qty || 0}</TableCell>
                 <TableCell className="text-center font-semibold text-vm-ink">{l.dispatch_qty}</TableCell>

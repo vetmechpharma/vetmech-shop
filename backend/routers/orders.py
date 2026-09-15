@@ -52,6 +52,7 @@ async def resolve_cart(items, customer=None):
             "mrp": variant.get("mrp"),
             "selling_price": variant.get("selling_price"),
             "unit_price": pl["unit_price"],
+            "net_rate": pl.get("net_rate"),
             "price_source": pl["price_source"],
             "offer_source": pl["offer_source"],
             "gst_percent": variant.get("gst_percent", 0),

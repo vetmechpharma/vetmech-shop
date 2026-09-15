@@ -57,42 +57,63 @@ def add_order_activity(order, text, actor_name="System"):
     return entry
 
 
-def compute_scheme(qty, schemes):
+def _simplify(buy, free):
+    """Reduce a buy+free ratio to its lowest terms, e.g. 10+2 -> 5+1, 12+4 -> 3+1."""
+    from math import gcd
+    if buy and free:
+        g = gcd(int(buy), int(free))
+        if g > 1:
+            return buy // g, free // g
+    return buy, free
+
+
+def compute_scheme(qty, schemes, base_rate=None):
     """
-    Given an ordered qty and a list of applicable scheme docs for a variant,
-    return dict: {scheme_id, scheme_name, scheme_label, free_qty, special_price}
+    Pick the SINGLE best offer for the ordered qty by LOWEST net effective per-unit rate.
+    - Free-qty offers are simplified to their lowest-terms ratio and applied proportionally.
+    - Price/case offers apply their special price when qty >= min.
+    - Never stacks: exactly one offer wins (the cheapest effective rate).
+    Returns: {scheme_id, scheme_name, scheme_label, free_qty, special_price, net_rate, buy, free_per}
     """
-    best = {"scheme_id": None, "scheme_name": None, "scheme_label": None,
-            "free_qty": 0, "special_price": None}
-    best_free = 0
-    sp_best = {"id": None, "name": None, "label": None, "price": None, "min": None}
+    result = {"scheme_id": None, "scheme_name": None, "scheme_label": None,
+              "free_qty": 0, "special_price": None, "net_rate": base_rate,
+              "buy": None, "free_per": None}
+    best_eff = None
     for s in schemes:
-        buy = s.get("buy_quantity") or 0
-        min_q = s.get("min_quantity") or buy or 0
+        stype = s.get("scheme_type")
         max_q = s.get("max_quantity") or 0
         if max_q and qty > max_q:
             continue
-        if s.get("scheme_type") in ("special_price", "case_price"):
+        if stype in ("special_price", "case_price"):
             sp = s.get("special_price")
-            if qty >= (min_q or 1) and sp is not None:
-                if sp_best["price"] is None or sp < sp_best["price"]:
-                    sp_best = {"id": s["id"], "name": s.get("name"), "label": f"{min_q} @ ₹{sp}", "price": sp, "min": min_q}
-            continue
-        # free_qty type — pick the scheme giving the MOST free units (best value, no stacking)
-        if buy and qty >= buy:
-            free = (qty // buy) * (s.get("free_quantity") or 0)
-            if free > best_free:
-                best_free = free
-                best.update({"scheme_id": s["id"], "scheme_name": s.get("name"),
-                             "scheme_label": f"{buy}+{s.get('free_quantity')}", "free_qty": free})
-    if sp_best["price"] is not None:
-        best["special_price"] = sp_best["price"]
-        if best_free == 0:
-            # no free offer applied — the special/case price IS the offer
-            best["scheme_id"] = sp_best["id"]
-            best["scheme_name"] = sp_best["name"]
-            best["scheme_label"] = sp_best["label"]
-    return best
+            min_q = s.get("min_quantity") or s.get("buy_quantity") or 1
+            if sp is None or qty < min_q:
+                continue
+            eff = float(sp)
+            cand = {"scheme_id": s["id"], "scheme_name": s.get("name"),
+                    "scheme_label": s.get("name") or f"{min_q} @ ₹{sp}",
+                    "free_qty": 0, "special_price": sp, "net_rate": round(eff, 2),
+                    "buy": None, "free_per": None}
+        else:
+            buy = s.get("buy_quantity") or 0
+            free_per = s.get("free_quantity") or 0
+            if buy <= 0 or free_per <= 0:
+                continue
+            sb, sf = _simplify(buy, free_per)
+            if qty < sb:
+                continue
+            free = (qty // sb) * sf
+            if free <= 0:
+                continue
+            eff = (base_rate * qty / (qty + free)) if base_rate is not None else -free
+            net = round(base_rate * qty / (qty + free), 2) if base_rate is not None else None
+            cand = {"scheme_id": s["id"], "scheme_name": s.get("name"),
+                    "scheme_label": f"{sb}+{sf}", "free_qty": free, "special_price": None,
+                    "net_rate": net, "buy": sb, "free_per": sf}
+        if best_eff is None or eff < best_eff:
+            best_eff = eff
+            result = cand
+    return result
 
 
 async def applicable_schemes(db, variant_id, product_id, customer_type=None):

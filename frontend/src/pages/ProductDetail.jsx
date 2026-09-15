@@ -14,6 +14,43 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingCart, Minus, Plus, FileDown, Check, MessageCircle, Lock, Tag } from "lucide-react";
 
+function gcdN(a, b) { return b ? gcdN(b, a % b) : a; }
+function simplifyRatio(b, f) { if (b > 0 && f > 0) { const g = gcdN(b, f); if (g > 1) return [b / g, f / g]; } return [b, f]; }
+function pickBestOffer(schemes, qty, baseRate) {
+  let best = null;
+  for (const s of schemes || []) {
+    if (s.max && qty > s.max) continue;
+    if (s.type === "special_price" || s.type === "case_price") {
+      const minq = s.min || 0;
+      if (s.special_price == null || qty < (minq || 1)) continue;
+      const eff = s.special_price;
+      if (!best || eff < best.eff) best = { id: s.id, kind: "price", label: s.name || `${minq} @ ₹${s.special_price}`, free: 0, unit: s.special_price, eff };
+    } else if (s.buy && s.free) {
+      const [sb, sf] = simplifyRatio(s.buy, s.free);
+      if (qty < sb) continue;
+      const free = Math.floor(qty / sb) * sf;
+      if (free <= 0) continue;
+      const eff = baseRate != null ? (baseRate * qty) / (qty + free) : -free;
+      if (!best || eff < best.eff) best = { id: s.id, kind: "free", label: `${sb}+${sf}`, free, unit: baseRate, eff, buy: sb, freePer: sf };
+    }
+  }
+  return best;
+}
+function computeUpsellFE(schemes, qty, currentFree) {
+  let best = null;
+  for (const s of schemes || []) {
+    if (!(s.type === "free_qty" || !s.type) || !s.buy || !s.free) continue;
+    const [sb, sf] = simplifyRatio(s.buy, s.free);
+    const thr = (Math.floor(qty / sb) + 1) * sb;
+    if (s.max && thr > s.max) continue;
+    const freeAt = (thr / sb) * sf;
+    if (freeAt <= currentFree) continue;
+    const add = thr - qty;
+    if (!best || add < best.add) best = { add, target: thr, free: freeAt, label: `${sb}+${sf}` };
+  }
+  return best;
+}
+
 export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -31,7 +68,6 @@ export default function ProductDetail() {
 
   const variants = p.variants || [];
   const variant = variants.find((v) => v.id === variantId) || variants[0] || {};
-  const scheme = (variant.active_schemes || [])[0];
   const images = (variant.images && variant.images.length) ? variant.images : (p.images?.length ? p.images : [p.image]);
   const schemes = variant.active_schemes || [];
   const outOfStock = p.badges?.out_of_stock || variant.stock_status === "out_of_stock";
@@ -43,21 +79,13 @@ export default function ProductDetail() {
     ["Additional Information", p.additional_info],
   ].filter(([, v]) => v && v.trim());
 
-  const dispatchFree = scheme && scheme.type === "free_qty" && variant.min_order_qty
-    ? Math.floor(qty / scheme.buy) * scheme.free : (scheme?.type === "free_qty" && qty >= scheme.buy ? Math.floor(qty / scheme.buy) * scheme.free : 0);
-
-  // Best-value free-qty across all offer tiers + smallest upsell nudge
-  const freeSchemes = schemes.filter((s) => (s.type === "free_qty" || !s.type) && s.buy && s.free);
-  const bestFree = freeSchemes.reduce((m, s) => Math.max(m, qty >= s.buy ? Math.floor(qty / s.buy) * s.free : 0), 0);
-  const upsell = freeSchemes.reduce((best, s) => {
-    const thr = (Math.floor(qty / s.buy) + 1) * s.buy;
-    if (s.max && thr > s.max) return best;
-    const freeAt = (thr / s.buy) * s.free;
-    if (freeAt <= bestFree) return best;
-    const add = thr - qty;
-    if (!best || add < best.add) return { add, target: thr, free: freeAt, label: `${s.buy}+${s.free}` };
-    return best;
-  }, null);
+  const baseRate = variant.your_price;
+  const bestOffer = pickBestOffer(schemes, qty, baseRate);
+  const dispatchFree = bestOffer?.free || 0;
+  const netRate = bestOffer
+    ? (bestOffer.kind === "price" ? bestOffer.unit : (dispatchFree ? Math.round((baseRate * qty / (qty + dispatchFree)) * 100) / 100 : baseRate))
+    : baseRate;
+  const upsell = computeUpsellFE(schemes, qty, dispatchFree);
 
   const reviewLd = p.review_count ? { "@type": "AggregateRating", ratingValue: p.review_avg, reviewCount: p.review_count } : null;
   const jsonLd = {
@@ -138,14 +166,22 @@ export default function ProductDetail() {
           {schemes.length > 0 && (
             <div className="mt-4 space-y-2" data-testid="product-scheme">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Available Offers</p>
-              {schemes.map((sc) => (
-                <div key={sc.id} className="bg-vm-bg border border-vm-accent/30 rounded-lg p-2.5 text-sm text-vm-green flex items-center gap-2">
-                  <Check className="w-4 h-4 flex-shrink-0" />
-                  {sc.type === "special_price" || sc.type === "case_price"
-                    ? <span>{sc.name || "Offer"}: buy <strong>{sc.min}</strong>+ at <strong>₹{sc.special_price}</strong> each</span>
-                    : <span>{sc.name || "Offer"}: <strong>{sc.buy}+{sc.free}</strong> — buy {sc.buy}, get {sc.free} free</span>}
-                </div>
-              ))}
+              {schemes.map((sc) => {
+                const applied = bestOffer && bestOffer.id === sc.id;
+                const isPrice = sc.type === "special_price" || sc.type === "case_price";
+                const [sb, sf] = isPrice ? [0, 0] : simplifyRatio(sc.buy, sc.free);
+                return (
+                  <div key={sc.id} data-testid={`offer-${sc.id}`} className={`rounded-lg p-2.5 text-sm flex items-center gap-2 border ${applied ? "bg-vm-green/10 border-vm-green text-vm-green" : "bg-vm-bg border-[#E2E8F0] text-slate-600"}`}>
+                    {applied ? <Check className="w-4 h-4 flex-shrink-0 text-vm-green" /> : <span className="w-3.5 h-3.5 flex-shrink-0 rounded-full border border-slate-300 inline-block" />}
+                    <span className="flex-1">
+                      {isPrice
+                        ? <>{sc.name || "Offer"}: buy <strong>{sc.min}</strong>+ at <strong>₹{sc.special_price}</strong> each</>
+                        : <>{sc.name || "Offer"}: <strong>{sb}+{sf}</strong> — buy {sb}, get {sf} free</>}
+                    </span>
+                    {applied && <span className="text-[11px] font-semibold bg-vm-green text-white px-1.5 py-0.5 rounded flex-shrink-0">Applied</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -171,6 +207,12 @@ export default function ProductDetail() {
             </div>
             {dispatchFree > 0 && <span className="text-sm text-vm-accent font-medium">+{dispatchFree} free → {qty + dispatchFree} dispatched</span>}
           </div>
+          {bestOffer && netRate != null && (
+            <p className="mt-2 text-sm text-slate-600" data-testid="net-rate">
+              Net rate: <strong className="text-vm-ink">₹{netRate}</strong>/{variant.unit || "unit"}{variant.gst_percent ? ` + ${variant.gst_percent}% GST` : ""}
+              {bestOffer.kind === "free" && dispatchFree > 0 && <span className="text-slate-400"> (₹{baseRate}×{qty} ÷ {qty + dispatchFree})</span>}
+            </p>
+          )}
           {upsell && (
             <div className="mt-2 flex items-center gap-2 text-sm text-vm-green bg-vm-bg border border-vm-green/20 rounded-md px-3 py-2" data-testid="product-upsell">
               <Plus className="w-3.5 h-3.5" /> Add <b>{upsell.add}</b> more to reach {upsell.target} and get <b>{upsell.free} free</b> ({upsell.label})
@@ -192,11 +234,11 @@ export default function ProductDetail() {
               <Button size="lg" disabled className="bg-red-100 text-red-700">Out of Stock</Button>
             ) : (
               <Button size="lg" className="bg-vm-green hover:bg-vm-greenhover" data-testid="detail-add-to-cart"
-                      onClick={() => addItem(variant.id, qty, { name: p.name, pack: variant.pack_size })}>
+                      onClick={() => addItem(variant.id, qty, { name: p.name, pack: variant.pack_size }, true)}>
                 <ShoppingCart className="w-4 h-4 mr-2" /> Add to Cart
               </Button>
             )}
-            <Button size="lg" variant="outline" className="border-vm-green text-vm-green" onClick={() => { addItem(variant.id, qty, { name: p.name }); navigate("/cart"); }} data-testid="buy-now">
+            <Button size="lg" variant="outline" className="border-vm-green text-vm-green" onClick={() => { addItem(variant.id, qty, { name: p.name }, true); navigate("/cart"); }} data-testid="buy-now">
               Buy Now
             </Button>
           </div>

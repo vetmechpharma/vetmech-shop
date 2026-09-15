@@ -32,19 +32,19 @@ export function CartProvider({ children }) {
 
   useEffect(() => { recalc(items); /* eslint-disable-next-line */ }, [items]);
 
-  const addItem = (variant_id, qty = 1, meta = {}) => {
+  const addItem = (variant_id, qty = 1, meta = {}, replace = false) => {
     setItems((prev) => {
       const idx = prev.findIndex((i) => i.variant_id === variant_id);
       let next;
       if (idx >= 0) {
         next = [...prev];
-        next[idx] = { ...next[idx], qty: next[idx].qty + qty };
+        next[idx] = { ...next[idx], ...meta, qty: replace ? qty : next[idx].qty + qty };
       } else {
         next = [...prev, { variant_id, qty, ...meta }];
       }
       return next;
     });
-    toast.success("Added to cart");
+    toast.success(replace ? "Cart updated" : "Added to cart");
   };
 
   const setQty = (variant_id, qty) => {
