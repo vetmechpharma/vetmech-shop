@@ -117,6 +117,14 @@ async def register(body: Register):
     await send_email(db, "admin", "New Customer Registration",
                      f"New customer {doc['name']} ({mobile}), category {doc['category']}, status {status}.",
                      kind="customer_registration")
+    # Notify admins on WhatsApp for fast approval
+    wa = await db.settings.find_one({"id": "whatsapp"}, {"_id": 0}) or {}
+    admin_msg = (f"🆕 New VETMECH registration\nName: {doc['prefix']} {doc['name']}\nMobile: {mobile}\n"
+                 f"Company: {doc['company_name'] or '—'}\nCategory: {doc['category']}\nStatus: {status.upper()}"
+                 + (" — please review & approve." if status == "pending" else "."))
+    for num in (wa.get("admin_numbers") or []):
+        if num:
+            await send_whatsapp(db, num, admin_msg, kind="new_registration")
     return {"registered": True, "status": status,
             "message": ("Registration received. Your account is pending admin approval — "
                         "you'll be notified once approved." if status == "pending"

@@ -139,7 +139,20 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {/* Qty + Add */}
+          {/* Qty + Add — only for logged-in registered customers */}
+          {!customer ? (
+            <div className="mt-6 rounded-xl border-2 border-vm-accent/40 bg-vm-accent/5 p-5" data-testid="login-to-order-card">
+              <p className="font-heading text-lg font-bold text-vm-ink flex items-center gap-2"><Lock className="w-5 h-5 text-vm-accent" /> Login to View Your Prices</p>
+              <p className="text-sm text-slate-600 mt-1">Your special B2B rates, quantity offers and ordering are available only to registered partners. It's quick — create your account and start ordering.</p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button size="lg" className="bg-vm-green hover:bg-vm-greenhover" data-testid="detail-register-btn"
+                        onClick={() => navigate(`/register?redirect=${encodeURIComponent(`/products/${slug}`)}`)}>Create Account</Button>
+                <Button size="lg" variant="outline" className="border-vm-green text-vm-green" data-testid="detail-login-btn"
+                        onClick={() => navigate(`/account?redirect=${encodeURIComponent(`/products/${slug}`)}`)}>Login</Button>
+              </div>
+            </div>
+          ) : (
+          <>
           <div className="mt-5 flex items-center gap-3">
             <div className="flex items-center border border-[#E2E8F0] rounded-md">
               <button className="px-3 py-2 text-slate-500 hover:text-vm-green" onClick={() => setQty((q) => Math.max(variant.min_order_qty || 1, q - 1))} data-testid="qty-minus"><Minus className="w-4 h-4" /></button>
@@ -177,6 +190,8 @@ export default function ProductDetail() {
               Buy Now
             </Button>
           </div>
+          </>
+          )}
 
           {p.brochure_url && (
             <a href={mediaUrl(p.brochure_url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-4 text-sm text-vm-green font-medium hover:underline" data-testid="download-brochure">

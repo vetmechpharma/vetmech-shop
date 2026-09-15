@@ -3,12 +3,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { mediaUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import ProductBadges from "./ProductBadges";
-import { ShoppingCart, Eye } from "lucide-react";
+import { ShoppingCart, Eye, Lock } from "lucide-react";
 
 export default function ProductCard({ product }) {
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const { customer } = useAuth();
   const v0 = (product.variants || [])[0] || {};
   const outOfStock = product.badges?.out_of_stock || v0.stock_status === "out_of_stock";
   const scheme = (v0.active_schemes || [])[0];
@@ -51,15 +53,24 @@ export default function ProductCard({ product }) {
         </div>
 
         <div className="mt-3 flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1 border-vm-green text-vm-green hover:bg-vm-bg"
-                  onClick={() => navigate(`/products/${product.slug}`)} data-testid={`view-product-${product.slug}`}>
-            <Eye className="w-4 h-4 mr-1" /> View
-          </Button>
-          <Button size="sm" disabled={outOfStock} className="flex-1 bg-vm-green hover:bg-vm-greenhover"
-                  onClick={() => addItem(v0.id, v0.min_order_qty || 1, { name: product.name, pack: v0.pack_size })}
-                  data-testid={`add-to-cart-${product.slug}`}>
-            <ShoppingCart className="w-4 h-4 mr-1" /> {outOfStock ? "N/A" : "Add"}
-          </Button>
+          {customer ? (
+            <>
+              <Button variant="outline" size="sm" className="flex-1 border-vm-green text-vm-green hover:bg-vm-bg"
+                      onClick={() => navigate(`/products/${product.slug}`)} data-testid={`view-product-${product.slug}`}>
+                <Eye className="w-4 h-4 mr-1" /> View
+              </Button>
+              <Button size="sm" disabled={outOfStock} className="flex-1 bg-vm-green hover:bg-vm-greenhover"
+                      onClick={() => addItem(v0.id, v0.min_order_qty || 1, { name: product.name, pack: v0.pack_size })}
+                      data-testid={`add-to-cart-${product.slug}`}>
+                <ShoppingCart className="w-4 h-4 mr-1" /> {outOfStock ? "N/A" : "Add"}
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" className="flex-1 bg-vm-green hover:bg-vm-greenhover"
+                    onClick={() => navigate(`/products/${product.slug}`)} data-testid={`view-product-${product.slug}`}>
+              <Eye className="w-4 h-4 mr-1" /> View
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -16,6 +16,7 @@ const empty = { prefix: "Dr.", name: "", mobile: "", whatsapp: "", email: "", co
 export default function Register() {
   const loc = useLocation();
   const navigate = useNavigate();
+  const redirect = new URLSearchParams(loc.search).get("redirect");
   const [form, setForm] = useState({ ...empty, mobile: loc.state?.mobile || "" });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(null);
@@ -40,8 +41,8 @@ export default function Register() {
         <h1 className="font-heading text-2xl font-bold text-vm-ink">Registration Received</h1>
         <p className="text-slate-600 mt-3" data-testid="register-success-msg">{done.message}</p>
         <div className="mt-6 flex gap-3 justify-center">
-          <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => navigate("/account")} data-testid="register-goto-login">Go to Login</Button>
-          <Button variant="outline" onClick={() => navigate("/products")}>Browse Products</Button>
+          <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => navigate(redirect ? `/account?redirect=${encodeURIComponent(redirect)}` : "/account")} data-testid="register-goto-login">Go to Login</Button>
+          <Button variant="outline" onClick={() => navigate(redirect || "/products")}>Browse Products</Button>
         </div>
       </div>
     );

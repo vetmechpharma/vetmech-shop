@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api, mediaUrl } from "@/lib/api";
@@ -12,11 +12,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { statusMeta, CUSTOMER_CATEGORIES } from "@/lib/constants";
 import { User, Package, RotateCcw, LogOut, MapPin, ShoppingCart } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function Account() {
   const { customer, loading, logout } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const redirect = params.get("redirect");
+
+  useEffect(() => { if (customer && redirect) navigate(redirect, { replace: true }); }, [customer, redirect, navigate]);
 
   if (loading) return <div className="vm-container py-20 text-center text-slate-400">Loading...</div>;
 
