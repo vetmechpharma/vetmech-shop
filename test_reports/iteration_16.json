@@ -1,0 +1,20 @@
+{
+  "summary": "Tested Batch 8 features (careers resume upload, register license validation, product reviews CRUD + moderation, per-product SEO JSON-LD/canonical + aggregate, menu builder public reflection, email templates + SMTP admin/public privacy, catalog floating button, regression) via 23 pytest tests (all passing) and Playwright UI checks on /products/vetkclor, /register, /careers. All new features work end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_batch8_features.py", "/app/test_reports/pytest/batch8.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "cms.public_setting blocks whatsapp/smtp/email_templates (403) - confirmed working; however menu/website/company/homepage/seo are public which is correct.",
+    "review_aggregate iterates docs in Python for count/avg - fine at current volume but consider $group aggregation if reviews scale.",
+    "Register endpoint uses generic 400 for license missing - message is user-friendly; ensure frontend surfaces it clearly on the reg-license field."
+  ],
+  "updated_files": ["/app/backend/tests/test_batch8_features.py"],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% on tested flows"},
+  "test_credentials": "Admin: vetmechpharma@gmail.com / Admin@123",
+  "seed_data_creation": "Created transient TEST_ customers (doctor+farm registrations), 1 TEST product review (approved then deleted), saved menu items (Home/News/External), email_templates for 4 kinds, smtp cc_admin=true, website.catalog_url=/api/uploads/catalog_test.pdf",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 8 batch features validated. Menu is currently set to [Home, News, External]; if a next iteration needs the original menu, run PUT /api/admin/settings/menu with default items or use 'Load Default Menu' button. Catalog URL points to a placeholder PDF path - main agent may want to unset it if user prefers not to show the floating button until a real PDF is uploaded.",
+  "rca of the issue": "N/A - no issues found"
+}

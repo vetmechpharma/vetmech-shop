@@ -128,3 +128,15 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
 
 ## Credentials
 - Admin: vetmechpharma@gmail.com / Admin@123 (see /app/memory/test_credentials.md)
+
+## Implemented — Feature Batch 8 (2026-06)
+- **Careers resume upload**: applicants upload PDF/DOC/DOCX (max 2MB) instead of a link — POST /api/careers/upload-resume (public), stored on disk /api/uploads; admin Applications shows a Download link.
+- **Registration License Number**: compulsory for Doctor / Agency / Medical Shop / Distributor (hidden/optional for Farm & Other); validated backend (400) + frontend; stored on customer.
+- **Product reviews & ratings**: anyone can submit (name+rating+title+comment) → PENDING; admin approves in /admin/reviews (Content › Reviews) before it shows. Public GET /api/reviews returns approved only; product detail shows average + list + write-a-review form.
+- **Per-product SEO / structured data**: SEO.jsx now injects JSON-LD (Product + Offer + AggregateRating) and a canonical link + og:url/twitter tags. Product page passes product JSON-LD.
+- **News rich-text editor + Read More**: admin News Content uses a WYSIWYG (RichTextEditor); list cards show "Read More →"; article renders HTML.
+- **Menu builder**: admin /admin/menu (Content › Menu Builder) — add/reorder/remove items + custom external links (settings id 'menu'); public Header renders it (Products dropdown + Quick Order pinned).
+- **SMTP real email + templates**: helpers.send_email sends real email via SMTP (STARTTLS 587 / SSL 465) using admin SMTP settings, with CC-Admin toggle; falls back to simulated/logged when unconfigured. Email sent alongside WhatsApp for OTP, order received, order status, registration welcome, enquiry, career application. Editable content in /admin/email-templates (settings id 'email_templates'). Public access to smtp/email_templates settings blocked (403).
+- **Catalog floating button**: admin uploads master catalog PDF in Website Settings (catalog_url); a fixed right-side "Download Catalog" button appears on all public pages when set.
+- Verified: 23/23 backend tests + UI flows pass (iteration_16.json). No issues.
+- Deploy note: removed unused `emergentintegrations` dep and added `reportlab`+`num2words` to requirements.txt; seed_data.write_test_credentials now skips gracefully on non-Emergent hosts (VPS).
