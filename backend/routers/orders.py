@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Body, Query, BackgroundTasks, Header
+from fastapi import APIRouter, HTTPException, Depends, Body, Query, BackgroundTasks, Header, Request
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -108,6 +108,9 @@ class CheckoutBody(BaseModel):
     address: Address
     save_address: Optional[bool] = True
     notes: Optional[str] = ""
+    accept_terms: Optional[bool] = False
+    cash_discount: Optional[bool] = False
+    client_meta: Optional[dict] = None
 
 
 async def get_or_create_customer(body: CheckoutBody):
@@ -149,8 +152,39 @@ async def get_or_create_customer(body: CheckoutBody):
     return doc, addr
 
 
+def _parse_ua(ua):
+    ua_l = (ua or "").lower()
+    browser = "Unknown"
+    for name, key in [("edg", "Edge"), ("opr", "Opera"), ("chrome", "Chrome"), ("firefox", "Firefox"), ("safari", "Safari")]:
+        if name in ua_l:
+            browser = key
+            break
+    os_name = "Unknown"
+    for k, v in [("windows", "Windows"), ("android", "Android"), ("iphone", "iOS"), ("ipad", "iPadOS"), ("mac os", "macOS"), ("linux", "Linux")]:
+        if k in ua_l:
+            os_name = v
+            break
+    device = "Mobile" if ("mobile" in ua_l or "android" in ua_l or "iphone" in ua_l) else "Desktop"
+    return browser, os_name, device
+
+
+async def _geo_from_ip(ip):
+    if not ip or ip.startswith(("127.", "10.", "192.168.", "172.")) or ip in ("localhost", "::1"):
+        return ""
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=2.5) as c:
+            r = await c.get(f"http://ip-api.com/json/{ip}", params={"fields": "city,regionName,country"})
+            d = r.json()
+            return ", ".join([x for x in [d.get("city"), d.get("regionName"), d.get("country")] if x])
+    except Exception:
+        return ""
+
+
 @router.post("/orders")
-async def create_order(body: CheckoutBody):
+async def create_order(body: CheckoutBody, request: Request):
+    if not body.accept_terms:
+        raise HTTPException(status_code=400, detail="Please accept the Terms & Conditions to place your order")
     cust, addr = await get_or_create_customer(body)
     lines = await resolve_cart([i.model_dump() for i in body.items], cust)
     if not lines:
@@ -158,6 +192,16 @@ async def create_order(body: CheckoutBody):
     order_no = await next_order_number(db)
     total_qty = sum(l["qty"] for l in lines)
     total_free = sum(l["free_qty"] for l in lines)
+    xff = request.headers.get("x-forwarded-for", "")
+    ip = (xff.split(",")[0].strip() if xff else (request.client.host if request.client else ""))
+    ua = request.headers.get("user-agent", "")
+    browser, os_name, device = _parse_ua(ua)
+    cm = body.client_meta or {}
+    origin = {
+        "ip": ip, "user_agent": ua, "browser": browser, "os": os_name, "device": device,
+        "location": await _geo_from_ip(ip), "timezone": cm.get("timezone", ""),
+        "screen": cm.get("screen", ""), "language": cm.get("language", ""), "captured_at": now_iso(),
+    }
     order = {
         "id": new_id(),
         "order_number": order_no,
@@ -174,6 +218,9 @@ async def create_order(body: CheckoutBody):
         "total_dispatch": total_qty + total_free,
         "status": "new",
         "notes": body.notes or "",
+        "cash_discount": bool(body.cash_discount),
+        "accept_terms": True,
+        "origin": origin,
         "internal_notes": "",
         "activity": [],
         "created_at": now_iso(),
@@ -185,17 +232,24 @@ async def create_order(body: CheckoutBody):
     # Notifications
     prod_lines = "\n".join([f"- {l['product_name']} {l['pack_size']} {l['unit']} — {l['qty']}"
                             + (f" + {l['free_qty']} FREE" if l['free_qty'] else "") for l in lines])
-    cust_msg = (f"Dear {cust['name']}, your VETMECH order {order_no} has been RECEIVED.\n\n{prod_lines}\n\n"
+    cd_line = "\n\nBilling: CASH DISCOUNT BILL (4%) OPTED" if body.cash_discount else ""
+    origin_line = (f"\n\nOrder placed from: {origin['device']} · {origin['browser']} · {origin['os']} · IP {origin['ip']}"
+                   + (f" · {origin['location']}" if origin['location'] else ""))
+    sheet = f"{prod_lines}{cd_line}{origin_line}"
+    cust_msg = (f"Dear {cust['name']}, your VETMECH order {order_no} has been RECEIVED.\n\n{sheet}\n\n"
                 f"Our team will confirm shortly. Thank you!")
     await send_whatsapp(db, cust.get("whatsapp", cust["mobile"]), cust_msg, kind="order_received")
     if cust.get("email"):
-        subj, ebody = await email_for(db, "order_received", {"name": cust["name"], "order": order_no, "items": prod_lines})
+        subj, ebody = await email_for(db, "order_received", {"name": cust["name"], "order": order_no, "items": sheet})
         await send_email(db, cust["email"], subj, ebody, kind="order_received")
 
     settings = await db.settings.find_one({"id": "whatsapp"}, {"_id": 0}) or {}
     admin_numbers = settings.get("admin_numbers", [])
     admin_msg = (f"NEW ORDER {order_no}\nCustomer: {cust['name']} ({cust.get('company_name','')})\n"
-                 f"Products: {len(lines)}\nOrdered Qty: {total_qty}\nFree Qty: {total_free}\nStatus: NEW")
+                 f"Products: {len(lines)}\nOrdered Qty: {total_qty}\nFree Qty: {total_free}\nStatus: NEW"
+                 + ("\n⚠ CASH DISCOUNT BILL (4%) REQUESTED" if body.cash_discount else "")
+                 + f"\nOrigin: {origin['device']}/{origin['browser']}, IP {origin['ip']}"
+                 + (f", {origin['location']}" if origin['location'] else ""))
     for num in admin_numbers:
         await send_whatsapp(db, num, admin_msg, kind="admin_new_order")
     await send_email(db, "admin", f"New Order {order_no}", admin_msg, kind="new_order")

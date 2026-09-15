@@ -14,17 +14,26 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { INDIAN_STATES, CUSTOMER_CATEGORIES, PREFIXES } from "@/lib/constants";
 import { ShieldCheck, Loader2, CheckCircle2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useSettings } from "@/hooks/useSettings";
+
+const DEFAULT_TERMS = `1. All orders are subject to confirmation and stock availability.\n2. Prices, offers and schemes are for registered B2B partners and may change without notice.\n3. No online payment is collected; billing and dispatch are arranged by our team.\n4. Free goods and rates shown are indicative; the final invoice governs.\n5. Cash Discount Bill (4%), if opted, is applied on the final invoice as per company policy.\n6. Goods once dispatched are subject to our return/replacement policy.\nBy placing an order you confirm the details are correct and authorised by you.`;
 
 export default function Checkout() {
   const navigate = useNavigate();
   const { calc, clear } = useCart();
   const { customer } = useAuth();
+  const { data: website } = useSettings("website");
   const [otpOpen, setOtpOpen] = useState(false);
   const [verified, setVerified] = useState(false);
   const [mobile, setMobile] = useState("");
   const [existing, setExisting] = useState(null);
   const [useExistingAddr, setUseExistingAddr] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [cashDiscount, setCashDiscount] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const [form, setForm] = useState({
     prefix: "Dr.", name: "", whatsapp: "", company_name: "", category: "doctor",
     line1: "", line2: "", line3: "", pincode: "", state: "", district: "", notes: "",
@@ -57,7 +66,14 @@ export default function Checkout() {
       : { line1: form.line1, line2: form.line2, line3: form.line3, pincode: form.pincode, state: form.state, district: form.district };
     if (!addr.line1 || !addr.pincode || !addr.state) { toast.error("Please complete your delivery address"); return; }
     if (!/^\d{6}$/.test(String(addr.pincode))) { toast.error("Enter a valid 6-digit pincode"); return; }
+    if (!acceptTerms) { toast.error("Please accept the Terms & Conditions"); return; }
 
+    const clientMeta = {
+      user_agent: navigator.userAgent,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      screen: `${window.screen.width}x${window.screen.height}`,
+      language: navigator.language,
+    };
     setLoading(true);
     try {
       const { data } = await api.post("/orders", {
@@ -65,6 +81,7 @@ export default function Checkout() {
         prefix: form.prefix, name: form.name, mobile, whatsapp: form.whatsapp || mobile,
         company_name: form.company_name, category: form.category,
         address: addr, save_address: true, notes: form.notes,
+        accept_terms: acceptTerms, cash_discount: cashDiscount, client_meta: clientMeta,
       });
       clear();
       navigate(`/order-confirmed/${data.id}`, { state: { order: data } });
@@ -182,7 +199,17 @@ export default function Checkout() {
               <div className="flex justify-between"><span className="text-slate-500">Free Qty</span><span className="font-semibold text-vm-accent">{calc.total_free}</span></div>
               <div className="flex justify-between text-base"><span className="text-vm-ink font-medium">Total Dispatch</span><span className="font-heading font-bold text-vm-green">{calc.total_dispatch}</span></div>
             </div>
-            <Button size="lg" className="w-full mt-5 bg-vm-green hover:bg-vm-greenhover" disabled={!verified || loading} onClick={submit} data-testid="confirm-order-btn">
+            <div className="mt-4 space-y-3 border-t pt-4">
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <Checkbox checked={cashDiscount} onCheckedChange={(v) => setCashDiscount(!!v)} data-testid="cash-discount-checkbox" className="mt-0.5" />
+                <span className="text-slate-600">Opt for <strong className="text-vm-ink">Cash Discount Bill (4%)</strong> on total invoice</span>
+              </label>
+              <label className="flex items-start gap-2 text-sm cursor-pointer">
+                <Checkbox checked={acceptTerms} onCheckedChange={(v) => setAcceptTerms(!!v)} data-testid="terms-checkbox" className="mt-0.5" />
+                <span className="text-slate-600">I agree to the <button type="button" onClick={(e) => { e.preventDefault(); setTermsOpen(true); }} className="text-vm-green underline font-medium" data-testid="view-terms-btn">Terms &amp; Conditions</button> <span className="text-red-500">*</span></span>
+              </label>
+            </div>
+            <Button size="lg" className="w-full mt-5 bg-vm-green hover:bg-vm-greenhover" disabled={!verified || !acceptTerms || loading} onClick={submit} data-testid="confirm-order-btn">
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Confirm Order
             </Button>
             <p className="text-xs text-slate-400 mt-3 text-center">No payment now. We'll confirm on WhatsApp.</p>
@@ -191,6 +218,12 @@ export default function Checkout() {
       </div>
 
       <OtpDialog open={otpOpen} onOpenChange={setOtpOpen} onVerified={onVerified} />
+      <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto" data-testid="terms-dialog">
+          <DialogHeader><DialogTitle className="font-heading">Terms &amp; Conditions</DialogTitle></DialogHeader>
+          <div className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">{website?.terms_text || DEFAULT_TERMS}</div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

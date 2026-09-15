@@ -224,6 +224,15 @@ function OrderDetail({ id, onClose, onChange }) {
                 <p className="font-medium text-vm-ink">{order.customer_name} {order.company_name && `· ${order.company_name}`}</p>
                 <p className="text-slate-500">{order.customer_mobile} · {CUSTOMER_CATEGORIES.find((c) => c.value === order.customer_category)?.label}</p>
                 <p className="text-slate-500 mt-1">{order.address?.line1}, {order.address?.district}, {order.address?.state} - {order.address?.pincode}</p>
+                {order.cash_discount && <p className="mt-2 inline-block text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded px-2 py-1" data-testid="cash-discount-flag">CASH DISCOUNT BILL (4%) REQUESTED</p>}
+                {order.origin && (
+                  <div className="mt-3 text-[11px] text-slate-400 border-t pt-2" data-testid="order-origin">
+                    <p className="font-semibold text-slate-500">Order Origin (authenticity)</p>
+                    <p>{order.origin.device} · {order.origin.browser} · {order.origin.os}</p>
+                    <p>IP {order.origin.ip || "—"}{order.origin.location ? ` · ${order.origin.location}` : ""}</p>
+                    {(order.origin.timezone || order.origin.screen) && <p>{order.origin.timezone}{order.origin.screen ? ` · ${order.origin.screen}` : ""}</p>}
+                  </div>
+                )}
               </div>
 
               <div>

@@ -297,6 +297,8 @@ export function WebsiteSettings() {
       <p className="text-xs text-slate-500 -mt-2">Upload your master catalog PDF. A floating "Download Catalog" button appears on every page when set.</p>
       <ImageUpload label="Catalog PDF" value={form.catalog_url} onChange={(v) => set("catalog_url", v)} isPdf accept="application/pdf" />
       <F label="Button Label" value={form.catalog_label} onChange={(v) => set("catalog_label", v)} placeholder="Download Catalog" />
+      <hr />
+      <F label="Checkout Terms & Conditions (shown in the checkout popup)" value={form.terms_text} onChange={(v) => set("terms_text", v)} textarea />
     </Wrap>
   );
 }
