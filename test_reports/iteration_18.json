@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend E2E validation of VETMECH B2B checkout enhancements (terms gating, T&C popup, cash-discount, order-origin capture, admin reflection). Logged in as customer 9000000123 via WhatsApp OTP (dev_otp captured from POST /api/auth/otp/request response). Added VETKCLOR 100 ml (VKC-100) qty 22 to cart and went to /checkout. Verified: (1) Confirm Order button (data-testid confirm-order-btn) is DISABLED before ticking terms; (2) Clicking 'Terms & Conditions' link (view-terms-btn) opens the terms-dialog with the full T&C text (6 numbered clauses + closing line, ~581 chars); (3) Ticking terms-checkbox enables Confirm; (4) Ticking cash-discount-checkbox + terms and pressing Confirm posts to /api/orders successfully (HTTP 200) and navigates to /order-confirmed/{id}. Response payload contains accept_terms=true, cash_discount=true, and full origin object {ip: 34.16.56.64, browser: Chrome, os: Linux, device: Desktop, location: 'Council Bluffs, Iowa, United States', user_agent, timezone, screen 1440x900, language, captured_at}. Delivery address defaulted to saved address (Clinic Rd, Ahmedabad, Gujarat - 380001). Admin (vetmechpharma@gmail.com / Admin@123) -> /admin/orders -> viewed order VM-2026-00026 in the detail sheet: cash-discount-flag renders 'CASH DISCOUNT BILL (4%) REQUESTED' (amber highlight), order-origin block shows 'Desktop · Chrome · Linux', 'IP 34.16.56.64 · Council Bluffs, Iowa, United States', 'UTC · 1440x900'. Admin address block matches the checkout saved address exactly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor a11y console warning on the customer login dialog: 'DialogContent requires a DialogTitle for screen reader users'. Not a blocker, but wrap the AuthDialog title in VisuallyHidden or add a DialogTitle to silence the Radix warning.",
+    "The auto-detected origin.location for the test container reads 'Council Bluffs, Iowa, United States' (GCP egress via ip-api). This is expected in preview env but worth surfacing to admins as 'best-effort' or falling back to '—' when geo is a datacenter to avoid confusing real order origin diagnostics.",
+    "Consider adding a small helper text next to the cash-discount checkbox on checkout explaining that the 4% is applied by admin on the invoice (customer sees it as an option, not a live discount)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only, backend calls implicitly verified via /api/auth/otp/request and POST /api/orders 200)", "frontend": "100% on all 5 requested flows (terms gating, terms popup, cash-discount+order, admin flag+origin, admin address)"},
+  "test_credentials": "Customer OTP mobile 9000000123 (dev_otp returned in POST /api/auth/otp/request). Admin vetmechpharma@gmail.com / Admin@123.",
+  "seed_data_creation": "Created one test order VM-2026-00026 (id e29cf794-f9ac-4388-a3de-9abaaf3a656a). Left in place since admin flow needed it and delete happens only via admin trash icon; main agent may delete via [data-testid='delete-order-VM-2026-00026'] on /admin/orders.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "OTP dev_otp is returned in the JSON body of POST /api/auth/otp/request (also rendered on-screen as data-testid=auth-dev-otp). Product VKC-100 is the only priced variant for 9000000123. Admin order detail is opened via a Sheet (data-testid=order-detail) after clicking view-order-{order_number}, not via a dedicated URL. cash-discount-flag and order-origin selectors are present in the sheet.",
+  "rca of the issue": "N/A - all requested features working end-to-end."
+}

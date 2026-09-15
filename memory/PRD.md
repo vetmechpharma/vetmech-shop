@@ -126,6 +126,13 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
   - Frontend order history now shows unit rate + scheme/offer label + free qty per line, reflecting admin edits and future orders. Verified end-to-end.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.
 
+## Implemented — Feature Batch 11 (2026-06) — Checkout T&C, Cash Discount, Order Origin
+- **Delivery address**: checkout already defaults to the customer's saved/registered address with an option to enter a new one; the chosen address flows to the admin order (unchanged, confirmed).
+- **Terms & Conditions**: compulsory checkbox at checkout (Confirm disabled until ticked); "View" opens a popup with T&C text (editable in Admin → Website Settings → Checkout Terms; sensible default if blank). Backend rejects orders without accept_terms (400).
+- **Cash Discount Bill (4%)**: optional checkbox; stored as order.cash_discount. Admin order detail highlights "CASH DISCOUNT BILL (4%) REQUESTED"; the value is NOT computed/shown to the customer (applied on final invoice). Included in customer WhatsApp/email sheet + admin alert.
+- **Order origin / authenticity**: on order creation the server captures IP (X-Forwarded-For), User-Agent → browser/OS/device, IP-based location (ip-api.com best-effort), plus client timezone/screen/language. Stored in order.origin, shown in Admin order detail ("Order Origin") and appended to the customer order sheet (WhatsApp + email) and admin alert.
+- Verified end-to-end via curl: terms gating 400; order with cash_discount + origin (IP 49.36.100.50 → Mumbai, Chrome/iOS/Mobile) stored and returned; admin fetch shows flags. Frontend compiles; checkboxes use shadcn Checkbox.
+
 ## Implemented — Feature Batch 10 (2026-06) — Pricing/Offer engine fixes
 - **Best-offer = lowest NET RATE**: compute_scheme(qty, schemes, base_rate) now picks exactly ONE offer with the cheapest effective per-piece rate (net = paid ÷ pieces received). Fairly compares free-goods vs slab/case-price offers. NEVER stacks (previously it could apply a free offer AND a case price together).
 - **Ratio simplification**: free-qty offers reduced to lowest terms via _simplify() (Buy 10 Get 5 → 2+1, 12+4 → 3+1) and applied proportionally so smaller quantities also earn free units. compute_upsell + frontend use the simplified ratio.
