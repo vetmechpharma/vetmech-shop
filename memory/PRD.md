@@ -126,6 +126,12 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
   - Frontend order history now shows unit rate + scheme/offer label + free qty per line, reflecting admin edits and future orders. Verified end-to-end.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.
 
+## Implemented — Feature Batch 12 (2026-06) — UX fixes
+- **Scroll-to-top on navigation**: added components/ScrollToTop.jsx (wired in App.js inside BrowserRouter). Every route change now starts at the top of the page (fixed pages/products landing mid-scroll).
+- **Header menu**: removed the "Order on WhatsApp" header button and the duplicate "Quick Order" nav text link; a single green "Quick Order" button (data-testid quick-order-btn → /quick-order) now sits on the right. Top-bar WhatsApp contact link and Home hero button are unchanged.
+- **Products dropdown with subcategories**: header Products menu is now data-driven from /api/categories — each main category (parent_id null) shows as a heading with its subcategories (parent_id set) beneath, plus All Products. Mobile hamburger mirrors this. TEST_ categories hidden.
+- Verified: testing_agent iteration_19 (100% — scroll reset, button swap, subcategory dropdown desktop + mobile).
+
 ## Implemented — Feature Batch 11 (2026-06) — Checkout T&C, Cash Discount, Order Origin
 - **Delivery address**: checkout already defaults to the customer's saved/registered address with an option to enter a new one; the chosen address flows to the admin order (unchanged, confirmed).
 - **Terms & Conditions**: compulsory checkbox at checkout (Confirm disabled until ticked); "View" opens a popup with T&C text (editable in Admin → Website Settings → Checkout Terms; sensible default if blank). Backend rejects orders without accept_terms (400).
