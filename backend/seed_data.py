@@ -65,6 +65,8 @@ async def run_seed(db):
 
 def write_test_credentials():
     p = Path("/app/memory/test_credentials.md")
+    if not p.parent.exists():
+        return  # Skip on non-Emergent hosts (e.g. self-hosted VPS) where /app/memory doesn't exist
     p.write_text(
         "# VETMECH Test Credentials\n\n"
         "## Admin Panel (login at /admin/login)\n"
