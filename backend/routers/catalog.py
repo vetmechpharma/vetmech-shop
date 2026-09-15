@@ -422,6 +422,23 @@ async def create_review(body: dict = Body(...)):
     return {"submitted": True, "message": "Thank you! Your review will appear once approved."}
 
 
+@router.post("/admin/reviews")
+async def admin_create_review(body: dict = Body(...), admin=Depends(require_module("news"))):
+    doc = {
+        "id": new_id(), "kind": "site" if body.get("kind") == "site" else "product",
+        "product_id": body.get("product_id"),
+        "name": (body.get("name") or "").strip()[:80],
+        "rating": max(1, min(5, int(body.get("rating") or 5))),
+        "title": (body.get("title") or "").strip()[:120],
+        "comment": (body.get("comment") or "").strip()[:1500],
+        "designation": (body.get("designation") or "").strip()[:80],
+        "status": body.get("status", "approved"), "created_at": now_iso(),
+    }
+    await db.reviews.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
 @router.get("/reviews")
 async def list_reviews(product_id: Optional[str] = None, kind: str = "product"):
     docs, count, avg = await review_aggregate(product_id, kind)

@@ -1,0 +1,9 @@
+crons:
+  - name: review-reminders
+    description: "Daily: invites customers to review products delivered 3+ days ago via WhatsApp & email"
+    cron: "0 10 * * *"
+    timezone: "Asia/Kolkata"
+    endpoint: "{{BASE_URL}}/api/cron/review-reminders"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

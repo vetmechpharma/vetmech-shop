@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Body, Query
+from fastapi import APIRouter, HTTPException, Depends, Body, Query, BackgroundTasks, Header
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -337,7 +337,10 @@ async def update_status(oid: str, body: dict = Body(...), admin=Depends(require_
     if new_status not in STATUS_LABELS:
         raise HTTPException(status_code=400, detail="Invalid status")
     add_order_activity(order, f"Status changed {STATUS_LABELS.get(order['status'])} → {STATUS_LABELS[new_status]}", admin["name"])
-    await db.orders.update_one({"id": oid}, {"$set": {"status": new_status, "updated_at": now_iso(), "activity": order["activity"]}})
+    set_fields = {"status": new_status, "updated_at": now_iso(), "activity": order["activity"]}
+    if new_status == "delivered":
+        set_fields["delivered_at"] = now_iso()
+    await db.orders.update_one({"id": oid}, {"$set": set_fields})
     # WhatsApp status notification — uses editable Message Templates
     order["status"] = new_status
     tmpls = await get_templates()
@@ -489,6 +492,43 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
     await db.orders.update_one({"id": oid}, {"$set": updates})
     await log_audit(db, admin, "edit", "order", oid)
     return await db.orders.find_one({"id": oid}, {"_id": 0})
+
+
+# =============== REVIEW REMINDER CRON ===============
+async def _run_review_reminders():
+    import os
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+    base = os.environ.get("APP_BASE_URL") or os.environ.get("SITE_URL") or ""
+    orders = await db.orders.find({"status": "delivered", "review_reminder_sent": {"$ne": True}}, {"_id": 0}).to_list(500)
+    for o in orders:
+        da = o.get("delivered_at") or o.get("updated_at") or ""
+        if da and da > cutoff:
+            continue
+        name = o.get("customer_name", "")
+        first = (o.get("items") or [{}])[0]
+        slug = first.get("slug")
+        link = (f"{base}/products/{slug}" if slug else base).strip()
+        msg = (f"Dear {name}, thank you for your recent VETMECH order {o.get('order_number','')}! "
+               f"We'd love your feedback — please rate the products you received"
+               + (f": {link}" if link else ".")).strip()
+        await send_whatsapp(db, o.get("customer_whatsapp") or o.get("customer_mobile"), msg, kind="review_reminder")
+        cust = await db.customers.find_one({"id": o.get("customer_id")}, {"_id": 0, "email": 1})
+        if cust and cust.get("email"):
+            await send_email(db, cust["email"], "How was your VETMECH order?", msg, kind="review_reminder")
+        await db.orders.update_one({"id": o["id"]}, {"$set": {"review_reminder_sent": True}})
+
+
+@router.post("/cron/review-reminders")
+async def cron_review_reminders(background: BackgroundTasks, authorization: str = Header(None)):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    import os, hmac
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    token = (authorization or "").replace("Bearer ", "").strip()
+    if not secret or not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    background.add_task(_run_review_reminders)
+    return {"accepted": True}
 
 
 # =============== TRANSPORT MASTER ===============

@@ -25,6 +25,9 @@ export default function Home() {
   const { data: offers } = useQuery({ queryKey: ["home-offer"], queryFn: async () => (await api.get("/products", { params: { badge: "offer", limit: 4 } })).data });
   const { data: news } = useQuery({ queryKey: ["home-news"], queryFn: async () => (await api.get("/news", { params: { limit: 3 } })).data });
   const { data: gallery } = useQuery({ queryKey: ["home-gallery"], queryFn: async () => (await api.get("/gallery")).data });
+  const { data: siteReviews } = useQuery({ queryKey: ["site-reviews"], queryFn: async () => (await api.get("/reviews", { params: { kind: "site" } })).data });
+
+  const orgLd = siteReviews?.count > 0 ? { "@context": "https://schema.org", "@type": "Organization", name: company?.name || "VETMECH Pharmaceuticals", aggregateRating: { "@type": "AggregateRating", ratingValue: siteReviews.average, reviewCount: siteReviews.count } } : null;
 
   const topCats = (cats || []).filter((c) => !c.parent_id);
   const hero = home?.hero || {};
@@ -32,7 +35,7 @@ export default function Home() {
 
   return (
     <div>
-      <SEO title={home?.hero?.title || "VETMECH Pharmaceuticals"} description={home?.intro?.text} ogImage={hero.image} />
+      <SEO title={home?.hero?.title || "VETMECH Pharmaceuticals"} description={home?.intro?.text} ogImage={hero.image} jsonLd={orgLd} />
 
       {/* HERO */}
       <section className="relative bg-vm-ink text-white overflow-hidden">
@@ -175,6 +178,31 @@ export default function Home() {
               ))}
             </div>
             <div className="text-center mt-6"><Link to="/gallery"><Button variant="outline" className="border-vm-green text-vm-green">View Gallery</Button></Link></div>
+          </div>
+        </Section>
+      )}
+
+      {/* TESTIMONIALS */}
+      {siteReviews?.items?.length > 0 && (
+        <Section>
+          <div className="vm-container">
+            <div className="text-center mb-10">
+              <h2 className="font-heading text-3xl font-bold text-vm-ink tracking-tight">What Our Partners Say</h2>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="text-amber-400 text-lg" data-testid="testimonials-avg">{"★".repeat(Math.round(siteReviews.average))}{"☆".repeat(5 - Math.round(siteReviews.average))}</span>
+                <span className="text-slate-500 text-sm">{siteReviews.average} out of 5 · {siteReviews.count} reviews</span>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {siteReviews.items.slice(0, 6).map((r) => (
+                <div key={r.id} className="bg-vm-bg border border-[#E2E8F0] rounded-lg p-5" data-testid={`testimonial-${r.id}`}>
+                  <span className="text-amber-400">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                  {r.title && <p className="font-heading font-bold text-vm-ink mt-2">{r.title}</p>}
+                  <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{r.comment}</p>
+                  <p className="text-sm font-medium text-vm-ink mt-3">— {r.name}{r.designation ? `, ${r.designation}` : ""}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </Section>
       )}

@@ -102,6 +102,21 @@ async def whatsapp_test(body: dict = Body(...), admin=Depends(require_module("cm
     return res
 
 
+# =============== CATALOG DOWNLOAD ANALYTICS ===============
+@router.post("/catalog/track")
+async def track_catalog(body: dict = Body(...)):
+    await db.catalog_downloads.insert_one({"id": new_id(), "page": (body.get("page") or "/")[:200], "at": now_iso()})
+    return {"tracked": True}
+
+
+@router.get("/admin/catalog/stats")
+async def catalog_stats(admin=Depends(get_current_admin)):
+    total = await db.catalog_downloads.count_documents({})
+    pipeline = [{"$group": {"_id": "$page", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": 15}]
+    by_page = [{"page": d["_id"], "count": d["count"]} async for d in db.catalog_downloads.aggregate(pipeline)]
+    return {"total": total, "by_page": by_page}
+
+
 # =============== NEWS ===============
 @router.get("/news")
 async def public_news(page: int = 1, limit: int = 9):

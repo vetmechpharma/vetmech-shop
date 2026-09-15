@@ -126,6 +126,13 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
   - Frontend order history now shows unit rate + scheme/offer label + free qty per line, reflecting admin edits and future orders. Verified end-to-end.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.
 
+## Implemented — Feature Batch 9 (2026-06)
+- **Catalog download analytics**: floating catalog button now logs each download (POST /api/catalog/track {page}); Admin → Reports shows total downloads + top pages (GET /api/admin/catalog/stats, collection catalog_downloads).
+- **Review reminder (scheduled)**: platform cron `.emergent/crons.yml` (daily 10:00 IST) → POST /api/cron/review-reminders (Bearer WEBHOOK_CRON_SECRET, backgrounded). Finds orders delivered 3+ days ago without review_reminder_sent, sends WhatsApp + email inviting a review, marks sent. update_status now stamps delivered_at.
+- **Site testimonials**: homepage "What Our Partners Say" section shows approved kind=site reviews with overall star rating + Organization JSON-LD aggregateRating. Admins publish testimonials via Content → Reviews → "Add Testimonial" (POST /api/admin/reviews, status approved).
+- Env: added WEBHOOK_CRON_SECRET to backend/.env (must be set on VPS too).
+- Verified: cron auth 401/200, catalog tracking, testimonial create→homepage, all via curl + UI. No issues.
+
 ## Credentials
 - Admin: vetmechpharma@gmail.com / Admin@123 (see /app/memory/test_credentials.md)
 

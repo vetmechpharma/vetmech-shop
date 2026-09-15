@@ -95,6 +95,7 @@ export function AdminAuditLogs() {
 
 export function AdminReports() {
   const { data } = useQuery({ queryKey: ["admin-reports"], queryFn: async () => (await api.get("/admin/reports/summary")).data });
+  const { data: catalog } = useQuery({ queryKey: ["catalog-stats"], queryFn: async () => (await api.get("/admin/catalog/stats")).data });
   if (!data) return <div className="text-slate-400">Loading...</div>;
   return (
     <div>
@@ -107,6 +108,12 @@ export function AdminReports() {
         <h3 className="font-heading font-bold text-vm-ink mb-3">Most Reordered Products</h3>
         {data.most_reordered?.map((p, i) => <div key={i} className="flex justify-between text-sm border-b border-slate-50 py-1.5"><span className="text-slate-600">{p.name}</span><span className="font-medium">{p.count}×</span></div>)}
       </div>
+      <div className="bg-white border border-[#E2E8F0] rounded-lg p-5 max-w-lg mt-6" data-testid="catalog-stats">
+        <h3 className="font-heading font-bold text-vm-ink mb-1">Catalog Downloads</h3>
+        <p className="text-2xl font-heading font-bold text-vm-green mb-3">{catalog?.total || 0} <span className="text-sm font-normal text-slate-500">total</span></p>
+        {(catalog?.by_page || []).map((p, i) => <div key={i} className="flex justify-between text-sm border-b border-slate-50 py-1.5"><span className="text-slate-600 truncate">{p.page}</span><span className="font-medium">{p.count}</span></div>)}
+        {(!catalog?.by_page || catalog.by_page.length === 0) && <p className="text-sm text-slate-400">No downloads yet.</p>}
+      </div>
     </div>
   );
 }
@@ -114,6 +121,18 @@ export function AdminReports() {
 export function AdminReviews() {
   const qc = useQueryClient();
   const [status, setStatus] = useState("pending");
+  const [tOpen, setTOpen] = useState(false);
+  const [tForm, setTForm] = useState({ name: "", designation: "", title: "", comment: "", rating: 5 });
+  const createTestimonial = async () => {
+    if (!tForm.name.trim() || !tForm.comment.trim()) return toast.error("Name and testimonial are required");
+    try {
+      await api.post("/admin/reviews", { ...tForm, kind: "site", status: "approved" });
+      toast.success("Testimonial published");
+      setTOpen(false);
+      setTForm({ name: "", designation: "", title: "", comment: "", rating: 5 });
+      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+    } catch (e) { toast.error(apiError(e)); }
+  };
   const { data, isLoading } = useQuery({ queryKey: ["admin-reviews", status], queryFn: async () => (await api.get("/admin/reviews", { params: status ? { status } : {} })).data });
   const act = async (id, body) => { try { await api.put(`/admin/reviews/${id}`, body); qc.invalidateQueries({ queryKey: ["admin-reviews"] }); toast.success("Updated"); } catch (e) { toast.error(apiError(e)); } };
   const remove = async (id) => { try { await api.delete(`/admin/reviews/${id}`); qc.invalidateQueries({ queryKey: ["admin-reviews"] }); toast.success("Deleted"); } catch (e) { toast.error(apiError(e)); } };
@@ -122,9 +141,28 @@ export function AdminReviews() {
     <div>
       <h1 className="font-heading text-2xl font-bold text-vm-ink mb-1">Reviews & Ratings</h1>
       <p className="text-slate-500 text-sm mb-6">Approve customer reviews to publish them on the website</p>
-      <div className="flex gap-2 mb-4">
-        {tabs.map(([v, l]) => <button key={v} onClick={() => setStatus(v)} className={`px-3 py-1.5 rounded-full text-sm ${status === v ? "bg-vm-green text-white" : "bg-slate-100 text-slate-600"}`} data-testid={`reviews-tab-${v || "all"}`}>{l}</button>)}
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+        <div className="flex gap-2">
+          {tabs.map(([v, l]) => <button key={v} onClick={() => setStatus(v)} className={`px-3 py-1.5 rounded-full text-sm ${status === v ? "bg-vm-green text-white" : "bg-slate-100 text-slate-600"}`} data-testid={`reviews-tab-${v || "all"}`}>{l}</button>)}
+        </div>
+        <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => setTOpen(true)} data-testid="add-testimonial-btn"><Star className="w-4 h-4 mr-1" /> Add Testimonial</Button>
       </div>
+      <Dialog open={tOpen} onOpenChange={setTOpen}>
+        <DialogContent data-testid="testimonial-dialog">
+          <DialogHeader><DialogTitle className="font-heading">Add Website Testimonial</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Rating</Label>
+              <div className="flex mt-1">{[1, 2, 3, 4, 5].map((n) => <Star key={n} className={`w-6 h-6 cursor-pointer ${n <= tForm.rating ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} onClick={() => setTForm((f) => ({ ...f, rating: n }))} data-testid={`t-star-${n}`} />)}</div>
+            </div>
+            <Input placeholder="Name" value={tForm.name} onChange={(e) => setTForm((f) => ({ ...f, name: e.target.value }))} data-testid="t-name" />
+            <Input placeholder="Designation / Company (optional)" value={tForm.designation} onChange={(e) => setTForm((f) => ({ ...f, designation: e.target.value }))} />
+            <Input placeholder="Title (optional)" value={tForm.title} onChange={(e) => setTForm((f) => ({ ...f, title: e.target.value }))} />
+            <Textarea placeholder="Testimonial" value={tForm.comment} onChange={(e) => setTForm((f) => ({ ...f, comment: e.target.value }))} data-testid="t-comment" />
+          </div>
+          <div className="flex justify-end gap-2 mt-3"><Button variant="outline" onClick={() => setTOpen(false)}>Cancel</Button><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={createTestimonial} data-testid="t-save">Save &amp; Publish</Button></div>
+        </DialogContent>
+      </Dialog>
       <div className="space-y-3">
         {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
           : (data?.items || []).map((r) => (
