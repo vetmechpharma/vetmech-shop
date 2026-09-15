@@ -58,6 +58,8 @@ const GROUPS = [
     label: "Content", icon: LayoutGrid, children: [
       { to: "/admin/pages", label: "Website Pages", module: "pages" },
       { to: "/admin/news", label: "News", module: "news" },
+      { to: "/admin/reviews", label: "Reviews", module: "news" },
+      { to: "/admin/menu", label: "Menu Builder", module: "cms" },
       { to: "/admin/gallery", label: "Gallery", module: "gallery" },
       { to: "/admin/careers", label: "Careers", module: "careers" },
       { to: "/admin/applications", label: "Applications", module: "careers" },
@@ -71,6 +73,7 @@ const GROUPS = [
     label: "Communications", icon: MessageCircle, children: [
       { to: "/admin/notifications", label: "WhatsApp Log", module: null },
       { to: "/admin/message-templates", label: "Message Templates", module: "orders" },
+      { to: "/admin/email-templates", label: "Email Templates", module: "cms" },
       { to: "/admin/whatsapp", label: "WhatsApp Settings", module: "cms" },
       { to: "/admin/smtp", label: "Email / SMTP", module: "cms" },
     ],

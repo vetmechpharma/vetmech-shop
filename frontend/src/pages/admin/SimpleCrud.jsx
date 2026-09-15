@@ -73,8 +73,8 @@ export function AdminNews() {
         { name: "slug", label: "URL Slug (optional)", type: "text" },
         { name: "category", label: "Category", type: "text" },
         { name: "author", label: "Author", type: "text" },
-        { name: "excerpt", label: "Excerpt", type: "textarea" },
-        { name: "content", label: "Content", type: "textarea", rows: 8, span: 2 },
+        { name: "excerpt", label: "Excerpt (shown on the news list card)", type: "textarea" },
+        { name: "content", label: "Content", type: "richtext", span: 2 },
         { name: "featured_image", label: "Featured Image", type: "image", span: 2 },
         { name: "active", label: "Published", type: "switch" },
       ]}

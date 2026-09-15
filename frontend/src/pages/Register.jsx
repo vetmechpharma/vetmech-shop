@@ -11,7 +11,9 @@ import { toast } from "sonner";
 import { CUSTOMER_CATEGORIES, PREFIXES, INDIAN_STATES } from "@/lib/constants";
 import { CheckCircle2, Loader2, ShieldCheck, Tag, RotateCcw } from "lucide-react";
 
-const empty = { prefix: "Dr.", name: "", mobile: "", whatsapp: "", email: "", company_name: "", address: "", pincode: "", district: "", state: "", category: "doctor", password: "" };
+const empty = { prefix: "Dr.", name: "", mobile: "", whatsapp: "", email: "", company_name: "", address: "", pincode: "", district: "", state: "", category: "doctor", license_number: "", password: "" };
+
+const LICENSE_REQUIRED = ["doctor", "agency", "medical_shop", "distributor"];
 
 export default function Register() {
   const loc = useLocation();
@@ -25,6 +27,7 @@ export default function Register() {
   const submit = async () => {
     if (!form.name.trim()) return toast.error("Please enter your name");
     if (form.mobile.length !== 10) return toast.error("Enter a valid 10-digit mobile");
+    if (LICENSE_REQUIRED.includes(form.category) && !form.license_number.trim()) return toast.error("License Number is required for your selected category");
     setLoading(true);
     try {
       const { data } = await api.post("/auth/register", form);
@@ -95,6 +98,9 @@ export default function Register() {
               <Select value={form.category} onValueChange={(v) => set("category", v)}><SelectTrigger className="mt-1" data-testid="reg-category"><SelectValue /></SelectTrigger>
                 <SelectContent>{CUSTOMER_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select>
             </div>
+            {LICENSE_REQUIRED.includes(form.category) && (
+              <div className="sm:col-span-2"><Label>License Number *</Label><Input value={form.license_number} onChange={(e) => set("license_number", e.target.value)} className="mt-1" placeholder="Drug / Trade license number" data-testid="reg-license" /></div>
+            )}
             <div className="sm:col-span-2"><Label>Password (optional)</Label><Input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} className="mt-1" placeholder="Set a password for password login (you can always use OTP)" data-testid="reg-password" /></div>
           </div>
 

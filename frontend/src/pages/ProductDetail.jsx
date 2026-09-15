@@ -7,6 +7,7 @@ import AuthDialog from "@/components/public/AuthDialog";
 import SEO from "@/components/SEO";
 import ProductBadges from "@/components/public/ProductBadges";
 import ProductCard from "@/components/public/ProductCard";
+import ProductReviews from "@/components/public/ProductReviews";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -58,9 +59,18 @@ export default function ProductDetail() {
     return best;
   }, null);
 
+  const reviewLd = p.review_count ? { "@type": "AggregateRating", ratingValue: p.review_avg, reviewCount: p.review_count } : null;
+  const jsonLd = {
+    "@context": "https://schema.org", "@type": "Product",
+    name: p.name, image: mediaUrl(images[0] || p.image), description: p.short_description || p.full_description || p.name,
+    sku: variant.sku || p.product_code || "", brand: { "@type": "Brand", name: p.brand_name || "VETMECH" },
+    offers: { "@type": "Offer", priceCurrency: "INR", price: variant.mrp || 0, availability: outOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock" },
+    ...(reviewLd ? { aggregateRating: reviewLd } : {}),
+  };
+
   return (
     <div className="vm-container py-8">
-      <SEO title={p.name} description={p.short_description} ogImage={p.image} seo={p.seo} />
+      <SEO title={p.name} description={p.short_description} ogImage={p.image} seo={p.seo} jsonLd={jsonLd} />
       <nav className="text-xs text-slate-400 mb-5">
         <Link to="/" className="hover:text-vm-green">Home</Link> / <Link to="/products" className="hover:text-vm-green">Products</Link> / <span className="text-vm-ink">{p.name}</span>
       </nav>
@@ -239,6 +249,8 @@ export default function ProductDetail() {
       )}
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} onLoggedIn={() => qc.invalidateQueries({ queryKey: ["product", slug] })} />
+
+      <ProductReviews productId={p.id} />
     </div>
   );
 }

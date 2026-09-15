@@ -15,6 +15,22 @@ export default function Careers() {
   const [applyJob, setApplyJob] = useState(null);
   const [form, setForm] = useState({ name: "", mobile: "", email: "", qualification: "", experience: "", resume_url: "", message: "" });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const [uploading, setUploading] = useState(false);
+  const uploadResume = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("File too large (max 2MB)"); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await api.post("/careers/upload-resume", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      set("resume_url", data.url);
+      set("resume_name", data.filename || "Resume uploaded");
+      toast.success("Resume uploaded");
+    } catch (err) { toast.error(apiError(err)); }
+    setUploading(false);
+  };
 
   const submit = async () => {
     if (!form.name || !form.mobile) { toast.error("Name and mobile are required"); return; }
@@ -59,7 +75,14 @@ export default function Careers() {
             <div><Label>Email</Label><Input value={form.email} onChange={(e) => set("email", e.target.value)} /></div>
             <div><Label>Qualification</Label><Input value={form.qualification} onChange={(e) => set("qualification", e.target.value)} /></div>
             <div><Label>Experience</Label><Input value={form.experience} onChange={(e) => set("experience", e.target.value)} /></div>
-            <div><Label>Resume URL</Label><Input value={form.resume_url} onChange={(e) => set("resume_url", e.target.value)} placeholder="Link to resume" /></div>
+            <div className="sm:col-span-2">
+              <Label>Resume (PDF or DOC, max 2MB)</Label>
+              <div className="flex items-center gap-3 mt-1">
+                <input id="resume-file" type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={uploadResume} data-testid="apply-resume-file" />
+                <Button type="button" variant="outline" onClick={() => document.getElementById("resume-file").click()} disabled={uploading} data-testid="apply-resume-btn">{uploading ? "Uploading..." : "Upload Resume"}</Button>
+                {form.resume_url && <span className="text-sm text-vm-green truncate" data-testid="apply-resume-name">{form.resume_name || "Uploaded"}</span>}
+              </div>
+            </div>
           </div>
           <div><Label>Message</Label><Textarea value={form.message} onChange={(e) => set("message", e.target.value)} /></div>
           <Button className="w-full bg-vm-green hover:bg-vm-greenhover" onClick={submit} data-testid="submit-application">Submit Application</Button>

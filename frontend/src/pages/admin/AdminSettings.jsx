@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import ImageUpload from "@/components/admin/ImageUpload";
 import { toast } from "sonner";
 import { Loader2, Save, Plus, X } from "lucide-react";
@@ -155,17 +156,83 @@ export function WhatsAppSettings() {
 export function SmtpSettings() {
   const { form, set, save, saving } = useSettingForm("smtp");
   return (
-    <Wrap title="Email / SMTP Settings" subtitle="Email config (simulated until credentials added)" onSave={save} saving={saving}>
-      <p className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded p-2">SIMULATED MODE: Emails are logged. Add SMTP host & credentials to send real emails.</p>
+    <Wrap title="Email / SMTP Settings" subtitle="Configure SMTP to send real emails" onSave={save} saving={saving}>
+      <p className="text-xs bg-slate-50 border border-slate-200 text-slate-600 rounded p-2.5">Add your SMTP host, port and login to send real emails. Use port <b>587</b> (STARTTLS) or <b>465</b> (SSL). Edit the email content under <b>Communications → Email Templates</b>.</p>
       <div className="grid sm:grid-cols-2 gap-4">
-        <F label="SMTP Host" value={form.host} onChange={(v) => set("host", v)} />
-        <F label="SMTP Port" value={form.port} onChange={(v) => set("port", v)} />
+        <F label="SMTP Host" value={form.host} onChange={(v) => set("host", v)} placeholder="smtp.gmail.com" />
+        <F label="SMTP Port" value={form.port} onChange={(v) => set("port", v)} placeholder="587" />
         <F label="Username" value={form.username} onChange={(v) => set("username", v)} />
         <F label="Password" value={form.password} onChange={(v) => set("password", v)} type="password" />
         <F label="Sender Name" value={form.sender_name} onChange={(v) => set("sender_name", v)} />
         <F label="Sender Email" value={form.sender_email} onChange={(v) => set("sender_email", v)} />
         <F label="Admin Email" value={form.admin_email} onChange={(v) => set("admin_email", v)} />
       </div>
+      <div className="flex items-center justify-between border border-[#E2E8F0] rounded-md px-3 py-2">
+        <div><Label>CC Admin on customer emails</Label><p className="text-xs text-slate-500">Send a copy of order & registration emails to the Admin Email (OTP emails excluded).</p></div>
+        <Switch checked={!!form.cc_admin} onCheckedChange={(v) => set("cc_admin", v)} data-testid="smtp-cc-admin" />
+      </div>
+    </Wrap>
+  );
+}
+
+const DEFAULT_MENU = [
+  { label: "Home", url: "/" },
+  { label: "About Us", url: "/about" },
+  { label: "Quality", url: "/quality" },
+  { label: "News", url: "/news" },
+  { label: "Gallery", url: "/gallery" },
+  { label: "Careers", url: "/careers" },
+  { label: "Contact", url: "/contact" },
+];
+
+export function MenuSettings() {
+  const { form, set, save, saving } = useSettingForm("menu");
+  const items = form.items || [];
+  const upd = (i, k, v) => set("items", items.map((it, ii) => ii === i ? { ...it, [k]: v } : it));
+  const move = (i, dir) => { const j = i + dir; if (j < 0 || j >= items.length) return; const c = [...items]; [c[i], c[j]] = [c[j], c[i]]; set("items", c); };
+  return (
+    <Wrap title="Menu Builder" subtitle="Arrange the website header menu & add custom links (Products and Quick Order stay pinned)" onSave={save} saving={saving}>
+      {items.length === 0 && <Button variant="outline" onClick={() => set("items", DEFAULT_MENU)} data-testid="menu-load-default">Load Default Menu</Button>}
+      <div className="space-y-2">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-center gap-2 border border-[#E2E8F0] rounded-md p-2" data-testid={`menu-item-${i}`}>
+            <div className="flex flex-col text-xs">
+              <button type="button" onClick={() => move(i, -1)} className="text-slate-400 hover:text-vm-green leading-none">▲</button>
+              <button type="button" onClick={() => move(i, 1)} className="text-slate-400 hover:text-vm-green leading-none">▼</button>
+            </div>
+            <Input value={it.label || ""} onChange={(e) => upd(i, "label", e.target.value)} placeholder="Label" className="w-40" data-testid={`menu-label-${i}`} />
+            <Input value={it.url || ""} onChange={(e) => upd(i, "url", e.target.value)} placeholder="/path or https://..." className="flex-1" data-testid={`menu-url-${i}`} />
+            <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap"><input type="checkbox" checked={!!it.external} onChange={(e) => upd(i, "external", e.target.checked)} /> New tab</label>
+            <Button variant="ghost" size="icon" onClick={() => set("items", items.filter((_, ii) => ii !== i))}><X className="w-4 h-4" /></Button>
+          </div>
+        ))}
+      </div>
+      <Button variant="outline" size="sm" onClick={() => set("items", [...items, { label: "New Link", url: "/" }])} data-testid="menu-add"><Plus className="w-4 h-4 mr-1" /> Add Menu Item</Button>
+    </Wrap>
+  );
+}
+
+const EMAIL_TEMPLATE_KEYS = [
+  { key: "welcome", label: "Welcome (on registration)" },
+  { key: "otp", label: "OTP / Verification code" },
+  { key: "order_received", label: "Order Received" },
+  { key: "order_status", label: "Order Status Update" },
+];
+
+export function EmailTemplates() {
+  const { form, set, save, saving } = useSettingForm("email_templates");
+  const tmpls = form.templates || {};
+  const upd = (key, field, v) => set("templates", { ...tmpls, [key]: { ...(tmpls[key] || {}), [field]: v } });
+  return (
+    <Wrap title="Email Templates" subtitle="Content of automated emails (sent alongside WhatsApp)" onSave={save} saving={saving}>
+      <p className="text-xs bg-slate-50 border border-slate-200 text-slate-600 rounded p-2.5">Placeholders: <b>{"{name}"}</b>, <b>{"{order}"}</b>, <b>{"{items}"}</b>, <b>{"{otp}"}</b>, <b>{"{status_message}"}</b>. Leave blank to use the built-in default.</p>
+      {EMAIL_TEMPLATE_KEYS.map(({ key, label }) => (
+        <div key={key} className="border border-[#E2E8F0] rounded-md p-3 space-y-2" data-testid={`email-tmpl-${key}`}>
+          <p className="font-heading font-semibold text-vm-ink text-sm">{label}</p>
+          <Input placeholder="Subject line" value={tmpls[key]?.subject || ""} onChange={(e) => upd(key, "subject", e.target.value)} data-testid={`email-subject-${key}`} />
+          <Textarea rows={3} placeholder="Email body" value={tmpls[key]?.body || ""} onChange={(e) => upd(key, "body", e.target.value)} data-testid={`email-body-${key}`} />
+        </div>
+      ))}
     </Wrap>
   );
 }
@@ -223,8 +290,13 @@ export function HomepageSettings() {
 export function WebsiteSettings() {
   const { form, set, save, saving } = useSettingForm("website");
   return (
-    <Wrap title="Website Settings" subtitle="Footer & general" onSave={save} saving={saving}>
+    <Wrap title="Website Settings" subtitle="Footer, catalog & general" onSave={save} saving={saving}>
       <F label="Footer About Text" value={form.footer_about} onChange={(v) => set("footer_about", v)} textarea />
+      <hr />
+      <h3 className="font-heading font-bold text-vm-ink">Product Catalog (floating download button)</h3>
+      <p className="text-xs text-slate-500 -mt-2">Upload your master catalog PDF. A floating "Download Catalog" button appears on every page when set.</p>
+      <ImageUpload label="Catalog PDF" value={form.catalog_url} onChange={(v) => set("catalog_url", v)} isPdf accept="application/pdf" />
+      <F label="Button Label" value={form.catalog_label} onChange={(v) => set("catalog_label", v)} placeholder="Download Catalog" />
     </Wrap>
   );
 }

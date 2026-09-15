@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, apiError } from "@/lib/api";
+import { api, apiError, mediaUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageUpload from "@/components/admin/ImageUpload";
 import { toast } from "sonner";
-import { Loader2, Pencil, MessageCircle, Mail } from "lucide-react";
+import { Loader2, Pencil, MessageCircle, Mail, Trash2, Star } from "lucide-react";
 
 export function AdminEnquiries() {
   const { data, isLoading } = useQuery({ queryKey: ["admin-enquiries"], queryFn: async () => (await api.get("/admin/enquiries")).data });
@@ -44,7 +44,7 @@ export function AdminApplications() {
             {isLoading ? <TableRow><TableCell colSpan={5} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
               : (data || []).length === 0 ? <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400">No applications yet.</TableCell></TableRow>
               : data.map((a) => (
-                <TableRow key={a.id}><TableCell className="font-medium text-vm-ink">{a.name}</TableCell><TableCell className="text-sm">{a.job_title}</TableCell><TableCell className="text-sm">{a.mobile}</TableCell><TableCell className="text-sm">{a.qualification}</TableCell><TableCell>{a.resume_url ? <a href={a.resume_url} target="_blank" rel="noreferrer" className="text-vm-green underline text-sm">View</a> : "—"}</TableCell></TableRow>
+                <TableRow key={a.id}><TableCell className="font-medium text-vm-ink">{a.name}</TableCell><TableCell className="text-sm">{a.job_title}</TableCell><TableCell className="text-sm">{a.mobile}</TableCell><TableCell className="text-sm">{a.qualification}</TableCell><TableCell>{a.resume_url ? <a href={mediaUrl(a.resume_url)} target="_blank" rel="noreferrer" className="text-vm-green underline text-sm">Download</a> : "—"}</TableCell></TableRow>
               ))}
           </TableBody>
         </Table>
@@ -106,6 +106,50 @@ export function AdminReports() {
       <div className="bg-white border border-[#E2E8F0] rounded-lg p-5 max-w-lg">
         <h3 className="font-heading font-bold text-vm-ink mb-3">Most Reordered Products</h3>
         {data.most_reordered?.map((p, i) => <div key={i} className="flex justify-between text-sm border-b border-slate-50 py-1.5"><span className="text-slate-600">{p.name}</span><span className="font-medium">{p.count}×</span></div>)}
+      </div>
+    </div>
+  );
+}
+
+export function AdminReviews() {
+  const qc = useQueryClient();
+  const [status, setStatus] = useState("pending");
+  const { data, isLoading } = useQuery({ queryKey: ["admin-reviews", status], queryFn: async () => (await api.get("/admin/reviews", { params: status ? { status } : {} })).data });
+  const act = async (id, body) => { try { await api.put(`/admin/reviews/${id}`, body); qc.invalidateQueries({ queryKey: ["admin-reviews"] }); toast.success("Updated"); } catch (e) { toast.error(apiError(e)); } };
+  const remove = async (id) => { try { await api.delete(`/admin/reviews/${id}`); qc.invalidateQueries({ queryKey: ["admin-reviews"] }); toast.success("Deleted"); } catch (e) { toast.error(apiError(e)); } };
+  const tabs = [["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"], ["", "All"]];
+  return (
+    <div>
+      <h1 className="font-heading text-2xl font-bold text-vm-ink mb-1">Reviews & Ratings</h1>
+      <p className="text-slate-500 text-sm mb-6">Approve customer reviews to publish them on the website</p>
+      <div className="flex gap-2 mb-4">
+        {tabs.map(([v, l]) => <button key={v} onClick={() => setStatus(v)} className={`px-3 py-1.5 rounded-full text-sm ${status === v ? "bg-vm-green text-white" : "bg-slate-100 text-slate-600"}`} data-testid={`reviews-tab-${v || "all"}`}>{l}</button>)}
+      </div>
+      <div className="space-y-3">
+        {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+          : (data?.items || []).map((r) => (
+            <div key={r.id} className="border border-[#E2E8F0] rounded-lg p-4 bg-white" data-testid={`review-${r.id}`}>
+              <div className="flex justify-between flex-wrap gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-vm-ink">{r.name}</span>
+                    {r.designation && <span className="text-xs text-slate-400">{r.designation}</span>}
+                    <span className="flex text-amber-400">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`w-3.5 h-3.5 ${i < r.rating ? "fill-amber-400" : "text-slate-300"}`} />)}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.kind === "site" ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"}`}>{r.kind === "site" ? "Website" : r.product_name || "Product"}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.status === "approved" ? "bg-green-100 text-green-700" : r.status === "rejected" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>{r.status}</span>
+                  </div>
+                  {r.title && <p className="font-medium text-sm mt-1 text-vm-ink">{r.title}</p>}
+                  <p className="text-sm text-slate-600 mt-0.5 whitespace-pre-line">{r.comment}</p>
+                </div>
+                <div className="flex items-start gap-1 flex-shrink-0">
+                  {r.status !== "approved" && <Button size="sm" className="bg-vm-green hover:bg-vm-greenhover" onClick={() => act(r.id, { status: "approved" })} data-testid={`approve-${r.id}`}>Approve</Button>}
+                  {r.status !== "rejected" && <Button size="sm" variant="outline" onClick={() => act(r.id, { status: "rejected" })} data-testid={`reject-${r.id}`}>Reject</Button>}
+                  <Button size="sm" variant="ghost" className="text-red-500" onClick={() => remove(r.id)} data-testid={`del-review-${r.id}`}><Trash2 className="w-4 h-4" /></Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        {data?.items?.length === 0 && <p className="text-slate-400 text-center py-10">No reviews here.</p>}
       </div>
     </div>
   );

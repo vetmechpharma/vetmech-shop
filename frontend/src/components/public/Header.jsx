@@ -28,6 +28,11 @@ export default function Header() {
   const { count } = useCart();
   const { customer } = useAuth();
   const { data: company } = useSettings("company");
+  const { data: menu } = useSettings("menu");
+  const navItems = ((menu?.items?.length ? menu.items : NAV)).map((n) => {
+    const to = n.url || n.to || "/";
+    return { label: n.label, to, external: !!n.external || /^https?:\/\//.test(to) };
+  });
   const navigate = useNavigate();
   const waNumber = company?.whatsapp || "919825000000";
 
@@ -66,13 +71,6 @@ export default function Header() {
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavLink to="/" className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-vm-green">Home</NavLink>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavLink to="/about" className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-vm-green">About Us</NavLink>
-                  <NavLink to="/quick-order" className="px-3 py-2 text-sm font-semibold text-vm-accent hover:text-vm-green" data-testid="nav-quick-order">Quick Order</NavLink>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm font-medium text-slate-600">Products</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid gap-1 p-3 w-56">
@@ -87,9 +85,14 @@ export default function Header() {
                     </div>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
-                {NAV.slice(2).map((n) => (
-                  <NavigationMenuItem key={n.to}>
-                    <NavLink to={n.to} className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-vm-green">{n.label}</NavLink>
+                <NavigationMenuItem>
+                  <NavLink to="/quick-order" className="px-3 py-2 text-sm font-semibold text-vm-accent hover:text-vm-green" data-testid="nav-quick-order">Quick Order</NavLink>
+                </NavigationMenuItem>
+                {navItems.map((n) => (
+                  <NavigationMenuItem key={`${n.to}-${n.label}`}>
+                    {n.external
+                      ? <a href={n.to} target="_blank" rel="noreferrer" className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-vm-green">{n.label}</a>
+                      : <NavLink to={n.to} className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-vm-green">{n.label}</NavLink>}
                   </NavigationMenuItem>
                 ))}
               </NavigationMenuList>
@@ -123,8 +126,10 @@ export default function Header() {
                   {[["Large Animal", "large-animal"], ["Small Animal", "small-animal"], ["Poultry", "poultry"]].map(([n, s]) => (
                     <Link key={s} to={`/categories/${s}`} onClick={() => setMobileOpen(false)} className="px-6 py-2 rounded-md hover:bg-vm-bg text-sm text-slate-600">{n}</Link>
                   ))}
-                  {NAV.map((n) => (
-                    <Link key={n.to} to={n.to} onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-md hover:bg-vm-bg text-slate-700">{n.label}</Link>
+                  {navItems.map((n) => (
+                    n.external
+                      ? <a key={`${n.to}-${n.label}`} href={n.to} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-md hover:bg-vm-bg text-slate-700">{n.label}</a>
+                      : <Link key={`${n.to}-${n.label}`} to={n.to} onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-md hover:bg-vm-bg text-slate-700">{n.label}</Link>
                   ))}
                   <Link to="/account" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-md hover:bg-vm-bg text-slate-700">{customer ? "My Account" : "Login"}</Link>
                 </div>

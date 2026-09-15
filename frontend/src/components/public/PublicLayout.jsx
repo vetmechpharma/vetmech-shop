@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Footer from "./Footer";
 import MobileNav from "./MobileNav";
+import CatalogButton from "./CatalogButton";
 
 export default function PublicLayout() {
   return (
@@ -12,6 +13,7 @@ export default function PublicLayout() {
         <Outlet />
       </main>
       <Footer />
+      <CatalogButton />
       <MobileNav />
     </div>
   );

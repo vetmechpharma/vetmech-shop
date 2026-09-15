@@ -282,6 +282,9 @@ async def public_product(slug: str, customer=Depends(optional_customer)):
         await enrich_products(rel_docs, customer)
         related = rel_docs
     p["related"] = related
+    _, rc, ravg = await review_aggregate(p["id"], "product")
+    p["review_count"] = rc
+    p["review_avg"] = ravg
     return p
 
 
@@ -381,4 +384,68 @@ async def update_scheme(sid: str, body: dict = Body(...), admin=Depends(require_
 @router.delete("/admin/schemes/{sid}")
 async def delete_scheme(sid: str, admin=Depends(require_module("schemes"))):
     await db.schemes.delete_one({"id": sid})
+    return {"deleted": True}
+
+
+# =============== REVIEWS & RATINGS ===============
+async def review_aggregate(product_id=None, kind="product"):
+    q = {"status": "approved", "kind": kind}
+    if product_id:
+        q["product_id"] = product_id
+    docs = await db.reviews.find(q, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    count = len(docs)
+    avg = round(sum(d.get("rating", 0) for d in docs) / count, 1) if count else 0
+    return docs, count, avg
+
+
+@router.post("/reviews")
+async def create_review(body: dict = Body(...)):
+    rating = int(body.get("rating") or 0)
+    if rating < 1 or rating > 5:
+        raise HTTPException(status_code=400, detail="Please give a rating between 1 and 5 stars")
+    if not (body.get("name") or "").strip():
+        raise HTTPException(status_code=400, detail="Please enter your name")
+    kind = "site" if body.get("kind") == "site" else "product"
+    doc = {
+        "id": new_id(), "kind": kind,
+        "product_id": body.get("product_id") if kind == "product" else None,
+        "name": (body.get("name") or "").strip()[:80], "rating": rating,
+        "title": (body.get("title") or "").strip()[:120],
+        "comment": (body.get("comment") or "").strip()[:1500],
+        "designation": (body.get("designation") or "").strip()[:80],
+        "status": "pending", "created_at": now_iso(),
+    }
+    if kind == "product" and doc["product_id"]:
+        prod = await db.products.find_one({"id": doc["product_id"]}, {"_id": 0, "name": 1})
+        doc["product_name"] = prod.get("name") if prod else ""
+    await db.reviews.insert_one(dict(doc))
+    return {"submitted": True, "message": "Thank you! Your review will appear once approved."}
+
+
+@router.get("/reviews")
+async def list_reviews(product_id: Optional[str] = None, kind: str = "product"):
+    docs, count, avg = await review_aggregate(product_id, kind)
+    return {"items": docs, "count": count, "average": avg}
+
+
+@router.get("/admin/reviews")
+async def admin_reviews(status: Optional[str] = None, admin=Depends(require_module("news"))):
+    q = {}
+    if status:
+        q["status"] = status
+    return {"items": await db.reviews.find(q, {"_id": 0}).sort("created_at", -1).to_list(3000)}
+
+
+@router.put("/admin/reviews/{rid}")
+async def update_review(rid: str, body: dict = Body(...), admin=Depends(require_module("news"))):
+    body.pop("id", None)
+    body.pop("_id", None)
+    await db.reviews.update_one({"id": rid}, {"$set": body})
+    await log_audit(db, admin, "update", "review", rid)
+    return await db.reviews.find_one({"id": rid}, {"_id": 0})
+
+
+@router.delete("/admin/reviews/{rid}")
+async def delete_review(rid: str, admin=Depends(require_module("news"))):
+    await db.reviews.delete_one({"id": rid})
     return {"deleted": True}

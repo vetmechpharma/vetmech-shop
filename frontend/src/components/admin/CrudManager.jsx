@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ImageUpload from "./ImageUpload";
+import RichTextEditor from "./RichTextEditor";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
@@ -99,6 +100,7 @@ export default function CrudManager({ title, subtitle, endpoint, listKey, column
                 {f.type === "text" && <Input value={form[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} placeholder={f.placeholder} data-testid={`field-${f.name}`} />}
                 {f.type === "number" && <Input type="number" value={form[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value === "" ? null : Number(e.target.value))} data-testid={`field-${f.name}`} />}
                 {f.type === "textarea" && <Textarea rows={f.rows || 3} value={form[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)} data-testid={`field-${f.name}`} />}
+                {f.type === "richtext" && <RichTextEditor value={form[f.name] ?? ""} onChange={(v) => set(f.name, v)} />}
                 {f.type === "image" && <ImageUpload label="" value={form[f.name]} onChange={(v) => set(f.name, v)} testid={`upload-${f.name}`} isPdf={f.isPdf} accept={f.accept} />}
                 {f.type === "select" && (
                   <Select value={form[f.name] ?? ""} onValueChange={(v) => set(f.name, v)}>

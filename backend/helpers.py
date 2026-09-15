@@ -179,19 +179,97 @@ async def send_whatsapp(db, to_number, message, kind="generic"):
     return logged
 
 
-async def send_email(db, to_email, subject, body, kind="generic"):
+def _smtp_send(host, port, username, password, sender, recipients, subject, html_body):
+    import smtplib
+    import ssl
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = ", ".join(recipients)
+    msg.attach(MIMEText(html_body, "html"))
+    port = int(port or 587)
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=25, context=ssl.create_default_context()) as s:
+            s.login(username, password)
+            s.sendmail(username, recipients, msg.as_string())
+    else:
+        with smtplib.SMTP(host, port, timeout=25) as s:
+            s.ehlo()
+            try:
+                s.starttls(context=ssl.create_default_context())
+                s.ehlo()
+            except Exception:
+                pass
+            s.login(username, password)
+            s.sendmail(username, recipients, msg.as_string())
+
+
+EMAIL_DEFAULTS = {
+    "welcome": {"subject": "Welcome to VETMECH Pharmaceuticals",
+                "body": "Dear {name},\n\nThank you for registering with VETMECH Pharmaceuticals. Your account is being reviewed and you will be notified once it is approved. You can then log in to view your special B2B pricing and place orders.\n\nRegards,\nVETMECH Pharmaceuticals"},
+    "otp": {"subject": "Your VETMECH verification code",
+            "body": "Dear Customer,\n\nYour VETMECH verification code is {otp}. It is valid for 10 minutes.\n\nIf you did not request this, please ignore this email."},
+    "order_received": {"subject": "VETMECH Order {order} received",
+                       "body": "Dear {name},\n\nYour VETMECH order {order} has been received.\n\n{items}\n\nOur team will confirm it shortly. Thank you!"},
+    "order_status": {"subject": "VETMECH Order {order} update",
+                     "body": "Dear {name},\n\n{status_message}\n\nRegards,\nVETMECH Pharmaceuticals"},
+}
+
+
+async def email_for(db, key, ctx):
+    doc = await db.settings.find_one({"id": "email_templates"}, {"_id": 0}) or {}
+    t = (doc.get("templates") or {}).get(key) or {}
+    d = EMAIL_DEFAULTS.get(key, {"subject": "VETMECH Pharmaceuticals", "body": "{body}"})
+    subject = t.get("subject") or d["subject"]
+    body = t.get("body") or d["body"]
+    for k, v in (ctx or {}).items():
+        subject = subject.replace("{" + k + "}", str(v))
+        body = body.replace("{" + k + "}", str(v))
+    return subject, body
+
+
+async def send_email(db, to_email, subject, body, kind="generic", cc_admin=None):
     settings = await db.settings.find_one({"id": "smtp"}, {"_id": 0}) or {}
+    host = (settings.get("host") or "").strip()
+    username = (settings.get("username") or "").strip()
+    password = (settings.get("password") or "").strip()
+    admin_email = (settings.get("admin_email") or "").strip()
+    sender_email = (settings.get("sender_email") or username).strip()
+    sender_name = settings.get("sender_name") or "VETMECH Pharmaceuticals"
+    to = admin_email if to_email == "admin" else to_email
+    recipients = [r for r in [to] if r]
+    if cc_admin is None:
+        cc_admin = bool(settings.get("cc_admin"))
+    if cc_admin and admin_email and to_email != "admin" and admin_email not in recipients:
+        recipients.append(admin_email)
+    live = bool(host and username and password and recipients)
     logged = {
         "id": new_id(),
         "channel": "email",
-        "to": to_email,
+        "to": ", ".join(recipients) or to_email,
         "subject": subject,
         "kind": kind,
         "message": body,
-        "simulated": not bool(settings.get("host") and settings.get("username")),
+        "simulated": not live,
+        "status": "simulated",
         "created_at": now_iso(),
     }
+    if live:
+        try:
+            sender = f"{sender_name} <{sender_email}>" if sender_email else username
+            html = body if ("<" in body and ">" in body) else \
+                "<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;white-space:pre-line;line-height:1.6\">" + body + "</div>"
+            import asyncio
+            await asyncio.to_thread(_smtp_send, host, settings.get("port"), username, password, sender, recipients, subject, html)
+            logged["status"] = "sent"
+        except Exception as e:
+            logged["status"] = "failed"
+            logged["error"] = str(e)[:300]
+            logger.warning(f"[EMAIL FAIL -> {to}] {e}")
+    else:
+        logger.info(f"[EMAIL(sim) -> {to}] {subject}")
     await db.notification_logs.insert_one(dict(logged))
-    logger.info(f"[EMAIL -> {to_email}] {subject}")
     logged.pop("_id", None)
     return logged

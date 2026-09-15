@@ -5,7 +5,7 @@ from typing import Optional, List
 from db import db, paginate
 from security import get_current_customer, optional_customer, require_module, get_current_admin
 from helpers import (new_id, now_iso, next_order_number, log_audit, add_order_activity,
-                     send_whatsapp, send_email)
+                     send_whatsapp, send_email, email_for)
 from pricing_engine import price_line, get_pricing_settings
 
 router = APIRouter(prefix="/api", tags=["orders"])
@@ -187,6 +187,9 @@ async def create_order(body: CheckoutBody):
     cust_msg = (f"Dear {cust['name']}, your VETMECH order {order_no} has been RECEIVED.\n\n{prod_lines}\n\n"
                 f"Our team will confirm shortly. Thank you!")
     await send_whatsapp(db, cust.get("whatsapp", cust["mobile"]), cust_msg, kind="order_received")
+    if cust.get("email"):
+        subj, ebody = await email_for(db, "order_received", {"name": cust["name"], "order": order_no, "items": prod_lines})
+        await send_email(db, cust["email"], subj, ebody, kind="order_received")
 
     settings = await db.settings.find_one({"id": "whatsapp"}, {"_id": 0}) or {}
     admin_numbers = settings.get("admin_numbers", [])
@@ -344,6 +347,10 @@ async def update_status(oid: str, body: dict = Body(...), admin=Depends(require_
     else:
         msg = f"Update: Your VETMECH order {order['order_number']} is now {STATUS_LABELS[new_status].upper()}."
     await send_whatsapp(db, order.get("customer_whatsapp", order["customer_mobile"]), msg, kind=f"status_{new_status}")
+    cust = await db.customers.find_one({"id": order.get("customer_id")}, {"_id": 0, "email": 1})
+    if cust and cust.get("email"):
+        subj, ebody = await email_for(db, "order_status", {"name": order.get("customer_name", ""), "order": order["order_number"], "status_message": msg})
+        await send_email(db, cust["email"], subj, ebody, kind=f"status_{new_status}")
     await log_audit(db, admin, "status_change", "order", oid, {"status": new_status})
     return await db.orders.find_one({"id": oid}, {"_id": 0})
 

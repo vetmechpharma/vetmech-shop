@@ -22,6 +22,7 @@ export function NewsList() {
                   <h3 className="font-heading font-bold text-vm-ink mt-1 line-clamp-2 group-hover:text-vm-green">{n.title}</h3>
                   <p className="text-sm text-slate-500 mt-1 line-clamp-2">{n.excerpt}</p>
                   <p className="text-xs text-slate-400 mt-2">{new Date(n.publish_date).toLocaleDateString()}</p>
+                  <span className="text-xs font-semibold text-vm-green mt-2 inline-block group-hover:underline">Read More →</span>
                 </div>
               </Link>
             ))}
@@ -42,7 +43,7 @@ export function NewsArticle() {
       <h1 className="font-heading text-3xl md:text-4xl font-bold text-vm-ink mt-2 tracking-tight">{a.title}</h1>
       <p className="text-sm text-slate-400 mt-2">By {a.author} · {new Date(a.publish_date).toLocaleDateString()}</p>
       {a.featured_image && <img src={mediaUrl(a.featured_image)} alt={a.title} className="w-full h-72 object-cover rounded-lg mt-6" />}
-      <div className="prose-vm mt-6 text-slate-600 leading-relaxed whitespace-pre-line">{a.content}</div>
+      <div className="prose-vm mt-6 text-slate-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: a.content || "" }} />
       {a.related?.length > 0 && (
         <div className="mt-12 border-t pt-8">
           <h2 className="font-heading text-xl font-bold text-vm-ink mb-4">Related Articles</h2>

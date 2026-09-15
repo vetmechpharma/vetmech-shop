@@ -87,6 +87,19 @@ async def upload_file(file: UploadFile = File(...), square: bool = False, admin=
     return {"url": f"/api/uploads/{name}"}
 
 
+@app.post("/api/careers/upload-resume")
+async def upload_resume(file: UploadFile = File(...)):
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in {".pdf", ".doc", ".docx"}:
+        raise HTTPException(status_code=400, detail="Only PDF or DOC/DOCX files are allowed")
+    data = await file.read()
+    if len(data) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 2MB)")
+    name = f"resume_{uuid.uuid4().hex}{ext}"
+    (UPLOAD_DIR / name).write_bytes(data)
+    return {"url": f"/api/uploads/{name}", "filename": file.filename}
+
+
 # --- Backups (Super Admin only) ---
 BACKUP_COLLECTIONS = ["admin_users", "customers", "crm_customers", "products", "categories",
                       "brands", "units", "schemes", "orders", "tickets", "ticket_notifications",
@@ -130,7 +143,8 @@ async def backup_stats(admin=Depends(require_module("*"))):
 
 CONTENT_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
                  ".webp": "image/webp", ".gif": "image/gif", ".pdf": "application/pdf",
-                 ".svg": "image/svg+xml"}
+                 ".svg": "image/svg+xml", ".doc": "application/msword",
+                 ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
 
 
 @app.get("/api/uploads/{name}")

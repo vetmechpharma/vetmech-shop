@@ -32,8 +32,8 @@ import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminCustomers from "@/pages/admin/AdminCustomers";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import { AdminCategories, AdminBrands, AdminUnits, AdminNews, AdminGallery, AdminCareers } from "@/pages/admin/SimpleCrud";
-import { CompanySettings, WhatsAppSettings, SmtpSettings, SeoSettings, HomepageSettings, WebsiteSettings } from "@/pages/admin/AdminSettings";
-import { AdminEnquiries, AdminApplications, AdminNotifications, AdminAuditLogs, AdminReports, AdminPages } from "@/pages/admin/AdminMisc";
+import { CompanySettings, WhatsAppSettings, SmtpSettings, SeoSettings, HomepageSettings, WebsiteSettings, MenuSettings, EmailTemplates } from "@/pages/admin/AdminSettings";
+import { AdminEnquiries, AdminApplications, AdminNotifications, AdminAuditLogs, AdminReports, AdminPages, AdminReviews } from "@/pages/admin/AdminMisc";
 import BackupSettings from "@/pages/admin/BackupSettings";
 import AdminPricingSettings from "@/pages/admin/AdminPricingSettings";
 import AdminTransports from "@/pages/admin/AdminTransports";
@@ -102,6 +102,9 @@ function App() {
                   <Route path="customers" element={<AdminCustomers />} />
                   <Route path="pages" element={<AdminPages />} />
                   <Route path="news" element={<AdminNews />} />
+                  <Route path="reviews" element={<AdminReviews />} />
+                  <Route path="menu" element={<MenuSettings />} />
+                  <Route path="email-templates" element={<EmailTemplates />} />
                   <Route path="gallery" element={<AdminGallery />} />
                   <Route path="careers" element={<AdminCareers />} />
                   <Route path="applications" element={<AdminApplications />} />

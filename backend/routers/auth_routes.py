@@ -7,7 +7,7 @@ from typing import Optional
 from db import db
 from security import (hash_password, verify_password, create_token,
                       get_current_admin, get_current_customer, customer_status_label)
-from helpers import new_id, now_iso, log_audit, send_whatsapp, send_email, normalize_mobile
+from helpers import new_id, now_iso, log_audit, send_whatsapp, send_email, email_for, normalize_mobile
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -51,6 +51,7 @@ class Register(BaseModel):
     district: Optional[str] = ""
     state: Optional[str] = ""
     category: Optional[str] = "other"
+    license_number: Optional[str] = ""
     password: Optional[str] = None
 
 
@@ -90,6 +91,10 @@ async def register(body: Register):
     settings = await pricing_settings()
     require_approval = settings.get("require_approval", True)
     status = "pending" if require_approval else "active"
+    LICENSE_REQUIRED = {"doctor", "agency", "medical_shop", "distributor"}
+    license_number = (body.license_number or "").strip()
+    if body.category in LICENSE_REQUIRED and not license_number:
+        raise HTTPException(status_code=400, detail="License Number is required for your selected category.")
     doc = {
         "id": new_id(),
         "prefix": body.prefix or "Mr.",
@@ -104,6 +109,7 @@ async def register(body: Register):
         "district": body.district or "",
         "state": body.state or "",
         "category": body.category or "other",
+        "license_number": license_number,
         "status": status,
         "active": True,
         "price_protected": False,
@@ -125,6 +131,9 @@ async def register(body: Register):
     for num in (wa.get("admin_numbers") or []):
         if num:
             await send_whatsapp(db, num, admin_msg, kind="new_registration")
+    if doc["email"]:
+        subj, ebody = await email_for(db, "welcome", {"name": doc["name"]})
+        await send_email(db, doc["email"], subj, ebody, kind="welcome")
     return {"registered": True, "status": status,
             "message": ("Registration received. Your account is pending admin approval — "
                         "you'll be notified once approved." if status == "pending"
@@ -166,6 +175,10 @@ async def otp_request(body: OtpRequest):
         upsert=True,
     )
     await send_whatsapp(db, mobile, f"Your VETMECH verification code is {otp}. Valid for 10 minutes.", kind="otp")
+    cust = await db.customers.find_one({"$or": [{"normalized_mobile": mobile}, {"mobile": {"$regex": mobile + "$"}}]}, {"_id": 0, "email": 1})
+    if cust and cust.get("email"):
+        subj, ebody = await email_for(db, "otp", {"otp": otp})
+        await send_email(db, cust["email"], subj, ebody, kind="otp", cc_admin=False)
     return {"sent": True, "dev_otp": otp, "message": "OTP sent via WhatsApp (simulated)"}
 
 

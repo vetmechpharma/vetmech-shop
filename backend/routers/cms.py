@@ -41,7 +41,7 @@ SETTING_IDS = ["company", "whatsapp", "smtp", "seo", "website", "homepage"]
 @router.get("/settings/{sid}")
 async def public_setting(sid: str):
     # public safe settings only
-    if sid in ("whatsapp", "smtp"):
+    if sid in ("whatsapp", "smtp", "email_templates"):
         raise HTTPException(status_code=403, detail="Not public")
     s = await db.settings.find_one({"id": sid}, {"_id": 0})
     return s or {"id": sid}
