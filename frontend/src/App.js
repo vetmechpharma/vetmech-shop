@@ -1,5 +1,6 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ScrollToTop from "@/components/ScrollToTop";
 import { Toaster } from "sonner";
 
 import { AuthProvider } from "@/context/AuthContext";
@@ -60,6 +61,7 @@ function App() {
     <div className="App">
       <Toaster position="top-center" richColors closeButton />
       <BrowserRouter>
+        <ScrollToTop />
         <AdminAuthProvider>
           <AuthProvider>
             <CartProvider>

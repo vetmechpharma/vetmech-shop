@@ -3,6 +3,8 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/hooks/useSettings";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import SearchModal from "./SearchModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +12,7 @@ import {
   NavigationMenuTrigger, NavigationMenuLink,
 } from "@/components/ui/navigation-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Search, ShoppingCart, User, Menu, Phone, MessageCircle } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, Phone, MessageCircle, Zap } from "lucide-react";
 
 const NAV = [
   { label: "Home", to: "/" },
@@ -35,6 +37,10 @@ export default function Header() {
   });
   const navigate = useNavigate();
   const waNumber = company?.whatsapp || "919825000000";
+  const { data: cats } = useQuery({ queryKey: ["categories"], queryFn: async () => (await api.get("/categories")).data });
+  const catList = (cats || []).filter((c) => !String(c.name).startsWith("TEST_"));
+  const mainCats = catList.filter((c) => !c.parent_id);
+  const subsByParent = catList.reduce((m, c) => { if (c.parent_id) { (m[c.parent_id] = m[c.parent_id] || []).push(c); } return m; }, {});
 
   return (
     <>
@@ -73,20 +79,26 @@ export default function Header() {
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm font-medium text-slate-600">Products</NavigationMenuTrigger>
                   <NavigationMenuContent>
-                    <div className="grid gap-1 p-3 w-56">
-                      {[["Large Animal", "large-animal"], ["Small Animal", "small-animal"], ["Poultry", "poultry"]].map(([n, s]) => (
-                        <NavigationMenuLink asChild key={s}>
-                          <Link to={`/categories/${s}`} className="block px-3 py-2 rounded-md text-sm hover:bg-vm-bg text-slate-700" data-testid={`nav-cat-${s}`}>{n}</Link>
-                        </NavigationMenuLink>
+                    <div className="p-4 w-[540px] grid grid-cols-2 gap-x-6 gap-y-3">
+                      {mainCats.map((c) => (
+                        <div key={c.id}>
+                          <NavigationMenuLink asChild>
+                            <Link to={`/categories/${c.slug}`} className="block font-heading font-bold text-vm-ink text-sm hover:text-vm-green" data-testid={`nav-cat-${c.slug}`}>{c.name}</Link>
+                          </NavigationMenuLink>
+                          <div className="mt-1 space-y-0.5">
+                            {(subsByParent[c.id] || []).map((s) => (
+                              <NavigationMenuLink asChild key={s.id}>
+                                <Link to={`/categories/${s.slug}`} className="block text-xs text-slate-500 hover:text-vm-green" data-testid={`nav-subcat-${s.slug}`}>{s.name}</Link>
+                              </NavigationMenuLink>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                       <NavigationMenuLink asChild>
-                        <Link to="/products" className="block px-3 py-2 rounded-md text-sm hover:bg-vm-bg font-semibold text-vm-green">All Products</Link>
+                        <Link to="/products" className="col-span-2 mt-1 pt-2 border-t border-[#E2E8F0] block font-semibold text-vm-green text-sm">All Products →</Link>
                       </NavigationMenuLink>
                     </div>
                   </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavLink to="/quick-order" className="px-3 py-2 text-sm font-semibold text-vm-accent hover:text-vm-green" data-testid="nav-quick-order">Quick Order</NavLink>
                 </NavigationMenuItem>
                 {navItems.map((n) => (
                   <NavigationMenuItem key={`${n.to}-${n.label}`}>
@@ -110,11 +122,11 @@ export default function Header() {
             <Button variant="ghost" size="icon" onClick={() => navigate("/account")} data-testid="account-button" aria-label="Account">
               <User className="w-5 h-5" />
             </Button>
-            <a href={`https://wa.me/${waNumber}?text=Hi%20VETMECH,%20I%20want%20to%20place%20an%20order`} target="_blank" rel="noreferrer" className="hidden md:block">
-              <Button className="bg-vm-accent hover:bg-[#0C8A4F] ml-1" data-testid="whatsapp-order-btn">
-                <MessageCircle className="w-4 h-4 mr-1" /> Order on WhatsApp
+            <Link to="/quick-order" className="hidden md:block">
+              <Button className="bg-vm-accent hover:bg-[#0C8A4F] ml-1" data-testid="quick-order-btn">
+                <Zap className="w-4 h-4 mr-1" /> Quick Order
               </Button>
-            </a>
+            </Link>
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="lg:hidden" data-testid="mobile-menu-btn" aria-label="Menu"><Menu className="w-5 h-5" /></Button>
@@ -123,8 +135,13 @@ export default function Header() {
                 <div className="mt-6 flex flex-col gap-1">
                   <Link to="/products" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-md hover:bg-vm-bg font-semibold text-vm-green">All Products</Link>
                   <Link to="/quick-order" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 rounded-md hover:bg-vm-bg font-semibold text-vm-accent" data-testid="mnav-quick-order">Quick Order</Link>
-                  {[["Large Animal", "large-animal"], ["Small Animal", "small-animal"], ["Poultry", "poultry"]].map(([n, s]) => (
-                    <Link key={s} to={`/categories/${s}`} onClick={() => setMobileOpen(false)} className="px-6 py-2 rounded-md hover:bg-vm-bg text-sm text-slate-600">{n}</Link>
+                  {mainCats.map((c) => (
+                    <div key={c.id}>
+                      <Link to={`/categories/${c.slug}`} onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded-md hover:bg-vm-bg text-sm font-semibold text-vm-ink block">{c.name}</Link>
+                      {(subsByParent[c.id] || []).map((s) => (
+                        <Link key={s.id} to={`/categories/${s.slug}`} onClick={() => setMobileOpen(false)} className="px-6 py-1.5 rounded-md hover:bg-vm-bg text-sm text-slate-500 block">{s.name}</Link>
+                      ))}
+                    </div>
                   ))}
                   {navItems.map((n) => (
                     n.external
