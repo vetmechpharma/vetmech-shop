@@ -126,6 +126,14 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
   - Frontend order history now shows unit rate + scheme/offer label + free qty per line, reflecting admin edits and future orders. Verified end-to-end.
 - P2: Structured data (JSON-LD) on product/article, image WebP optimization pipeline, granular per-admin custom permissions UI, order edit (add/remove products) UI in admin.
 
+## Implemented — Feature Batch 10 (2026-06) — Pricing/Offer engine fixes
+- **Best-offer = lowest NET RATE**: compute_scheme(qty, schemes, base_rate) now picks exactly ONE offer with the cheapest effective per-piece rate (net = paid ÷ pieces received). Fairly compares free-goods vs slab/case-price offers. NEVER stacks (previously it could apply a free offer AND a case price together).
+- **Ratio simplification**: free-qty offers reduced to lowest terms via _simplify() (Buy 10 Get 5 → 2+1, 12+4 → 3+1) and applied proportionally so smaller quantities also earn free units. compute_upsell + frontend use the simplified ratio.
+- **Net rate everywhere**: price_line returns net_rate; cart line + Cart page show a Net Rate column (+GST). Product page shows a live "Net rate: ₹.. /unit + GST" line and marks the winning offer with an 'Applied' badge (others dimmed), updating as qty changes.
+- **Cart replace bug fixed**: CartContext.addItem accepts a replace flag; product-page Add to Cart / Buy Now now REPLACE the qty for the same variant (10 then 36 → 36, not 46).
+- Verified: backend curl (qty10→2+1/₹66.67, qty22→22+13/₹62.86, qty36→2+1/₹66.67 beats ₹85 slab, qty72→22+13/₹64.86) + testing_agent iteration_17 (100% on offer selection, ratio display, cart net-rate, cart replace, guest gating).
+- Preview test data (test_database only, NOT production): VETKCLOR 100ml has 4 demo offers + an active customer 9000000123 @ ₹100 for testing.
+
 ## Implemented — Feature Batch 9 (2026-06)
 - **Catalog download analytics**: floating catalog button now logs each download (POST /api/catalog/track {page}); Admin → Reports shows total downloads + top pages (GET /api/admin/catalog/stats, collection catalog_downloads).
 - **Review reminder (scheduled)**: platform cron `.emergent/crons.yml` (daily 10:00 IST) → POST /api/cron/review-reminders (Bearer WEBHOOK_CRON_SECRET, backgrounded). Finds orders delivered 3+ days ago without review_reminder_sent, sends WhatsApp + email inviting a review, marks sent. update_status now stamps delivered_at.

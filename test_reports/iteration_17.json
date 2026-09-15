@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only validation of VETMECH pricing/offer engine + cart replace fix. Logged in via OTP as 9000000123 (dev_otp returned in response and displayed on UI). On /products/vetkclor (100 ml Bottle variant, base ₹100), verified that exactly ONE offer is marked 'Applied' per quantity and matches the lowest-net-rate rule: qty=10 -> 'Buy 10 Get 5' (2+1) Applied, net ₹66.67; qty=22 -> 'Buy 22 Get 13' Applied, net ₹62.86; qty=36 -> '2+1' Applied, net ₹66.67 (correctly beats the ₹85 slab); qty=72 -> 'Buy 22 Get 13' Applied, net ₹64.86. Applied offer visually highlighted (green border + Applied badge) and non-applied offers dim. Ratio simplification confirmed on product page: 'Buy 10 Get 5' renders as '2+1 - buy 2, get 1 free'. data-testid net-rate present and shows '+X% GST' note plus (base x qty div total) breakdown. Cart REPLACE bug fixed: adding qty 10 then qty 36 for the same VKC-100 results in a single line at qty 36 (not 46), with Free=18, Dispatch=54, Net Rate ₹66.67 +12% GST (data-testid cart-netrate-VKC-100). Guest view on the same product hides prices/offers and shows 'Login to View Your Prices' card with MRP-only display (no ₹100 leaked, 0 offers rendered).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OTP request rate limiter is quite aggressive (blocked repeat login attempts within ~2 min window). Not a bug but consider per-mobile+IP cooldown message with retry-after seconds to improve UX during automated testing and legitimate re-sends.",
+    "Quick Order simplified offer chips regression could not be re-verified in this run due to OTP rate limit after multiple logins; ProductDetail already uses simplifyRatio and renders 2+1 correctly. Main agent can self-verify on /quick-order once rate limit clears.",
+    "Consider adding a data-testid on the 'Applied' badge itself (e.g. offer-applied-badge) so tests don't rely on class or text matching."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100% on tested flows (offer selection at 4 qtys, ratio display, cart replace, cart net-rate, guest gating)"},
+  "test_credentials": "Customer OTP mobile 9000000123 (dev_otp shown on screen and returned in POST /api/auth/otp/request response). Admin: vetmechpharma@gmail.com / Admin@123.",
+  "seed_data_creation": "None. Cart mutations reverted by ordinary flow; no persistent seed added.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "OTP endpoint has a strict rate limiter (~2 min lockout after several requests). If you hit it, wait ~2-3 min or use password login on the modal (Password tab). Product variant with pricing/offers is VKC-100 (100 ml Bottle) only. Applied badge selection is driven by simplifyRatio + pickBestOffer in ProductDetail.jsx; cart replace uses addItem(item, true).",
+  "rca of the issue": "N/A - all requested fixes verified working."
+}
