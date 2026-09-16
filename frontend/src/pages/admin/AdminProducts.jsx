@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ImageUpload from "@/components/admin/ImageUpload";
 import { toast } from "sonner";
 import { CUSTOMER_CATEGORIES } from "@/lib/constants";
-import { Plus, Pencil, Trash2, Loader2, X, IndianRupee, Gift, Check, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, X, IndianRupee, Gift, Check, AlertTriangle, Sparkles } from "lucide-react";
 
 const BADGES = ["new", "featured", "best_seller", "offer", "out_of_stock", "coming_soon"];
 const STOCK = [{ value: "in_stock", label: "In Stock" }, { value: "out_of_stock", label: "Out of Stock" }, { value: "coming_soon", label: "Coming Soon" }];
@@ -368,6 +368,19 @@ export default function AdminProducts() {
 
             <TabsContent value="seo" className="space-y-3 mt-4">
               <SeoCompleteness form={form} />
+              <div className="flex justify-end">
+                <Button type="button" size="sm" variant="outline" data-testid="seo-autofill-btn"
+                  onClick={async () => {
+                    try {
+                      const { data } = await api.post("/admin/seo/suggest", { name: form.name, brand_name: form.brand_name, short_description: form.short_description, full_description: form.full_description, composition: form.composition, indications: form.indications, dosage: form.dosage, storage: form.storage, variants: form.variants });
+                      const cur = form.seo || {};
+                      set("seo", { ...cur, title: cur.title || data.title, meta_description: cur.meta_description || data.meta_description, focus_keyword: cur.focus_keyword || data.focus_keyword, faqs: (cur.faqs && cur.faqs.length) ? cur.faqs : data.faqs });
+                      toast.success("SEO draft filled from product info — review & Save");
+                    } catch (e) { toast.error(apiError(e)); }
+                  }}>
+                  <Sparkles className="w-3.5 h-3.5 mr-1" /> Generate from product info
+                </Button>
+              </div>
               <div><Label>URL Slug</Label><Input value={form.slug || ""} onChange={(e) => set("slug", e.target.value)} placeholder="auto-generated if empty" data-testid="seo-slug" /></div>
               <div><Label>SEO Title</Label><Input value={form.seo?.title || ""} onChange={(e) => set("seo", { ...form.seo, title: e.target.value })} data-testid="seo-title" /></div>
               <div><Label>Meta Description</Label><Textarea value={form.seo?.meta_description || ""} onChange={(e) => set("seo", { ...form.seo, meta_description: e.target.value })} data-testid="seo-meta-description" /></div>

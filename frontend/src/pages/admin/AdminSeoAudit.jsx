@@ -1,9 +1,10 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Link } from "react-router-dom";
-import { Loader2, CheckCircle2, AlertTriangle, Copy, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, Copy, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const Stat = ({ label, value, tone = "ink", testid }) => (
   <div className="border border-[#E2E8F0] rounded-lg p-4 bg-white" data-testid={testid}>
@@ -14,6 +15,11 @@ const Stat = ({ label, value, tone = "ink", testid }) => (
 
 export default function AdminSeoAudit() {
   const { data, isLoading, refetch, isFetching } = useQuery({ queryKey: ["seo-audit"], queryFn: async () => (await api.get("/admin/seo/audit")).data });
+  const autofill = useMutation({
+    mutationFn: async () => (await api.post("/admin/seo/autofill-all")).data,
+    onSuccess: (d) => { toast.success(`Auto-filled SEO for ${d.updated} product(s)`); refetch(); },
+    onError: () => toast.error("Auto-fill failed"),
+  });
 
   if (isLoading) return <div className="py-20 text-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin inline" /></div>;
   const s = data?.summary || {};
@@ -25,9 +31,14 @@ export default function AdminSeoAudit() {
           <h1 className="font-heading text-2xl font-bold text-vm-ink">SEO Health Check</h1>
           <p className="text-slate-500 text-sm">Missing titles, duplicate descriptions and missing schema across your catalog.</p>
         </div>
-        <Button variant="outline" onClick={() => refetch()} data-testid="seo-audit-refresh">
-          {isFetching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />} Re-scan
-        </Button>
+        <div className="flex gap-2">
+          <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => autofill.mutate()} disabled={autofill.isPending} data-testid="seo-autofill-all">
+            {autofill.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />} Auto-fill missing SEO
+          </Button>
+          <Button variant="outline" onClick={() => refetch()} data-testid="seo-audit-refresh">
+            {isFetching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />} Re-scan
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

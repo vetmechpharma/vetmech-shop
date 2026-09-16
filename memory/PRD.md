@@ -198,3 +198,11 @@ Non-destructive SEO enhancement (existing functionality preserved). Domain: http
 - SeoSettings now shows automatic-file links (sitemap/robots/feed).
 - **Verified**: render (product/category/home all correct JSON-LD types + canonical to vetmechpharma.in), feed (7 items, valid), audit endpoint + admin UI screenshot (3 products flagged, categories/news lists). Frontend compiles clean.
 - Deploy: push via Save to GitHub → run deploy-vps.sh → apply nginx-seo.conf.example (nginx -t && reload). Then in Google: submit sitemap + verify GSC + upload/schedule feed in Merchant Center.
+
+## SEO Enhancements — Rich Sitemap Images + Auto-Fill SEO (2026-06)
+- **Rich sitemap images**: /api/sitemap.xml now declares xmlns:image and emits <image:image><image:loc>+<image:title> for each active product's image(s) (up to 6), so product photos can be indexed in Google Images. Products moved out of _sitemap_urls into a dedicated image-aware loop in server.py.
+- **Auto-Fill SEO (template-based, no LLM — safe for pharma, never invents claims)**: backend routers/seo.py generate_seo(prod) builds title (≤60), meta_description (≤155), focus_keyword and FAQ list purely from EXISTING approved fields (short/full description, composition, indications, dosage, storage, variant pack sizes).
+  - `POST /api/admin/seo/suggest` (stateless) → draft for the product editor.
+  - `POST /api/admin/seo/autofill-all?overwrite=false` → fills only EMPTY seo fields across all active products (won't overwrite manual edits).
+  - Admin UI: product editor SEO tab has "Generate from product info" (fills empty fields for review before Save); SEO Health page has "Auto-fill missing SEO" (bulk) button.
+- **Verified**: sitemap image tags present; suggest returns title/meta/focus + 6 FAQs; autofill-all updated 3/3 products → audit now 3/3 OK, 0 issues. No compile/runtime errors.

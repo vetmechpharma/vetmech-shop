@@ -6,11 +6,12 @@
 import os
 import html as _html
 import json
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import HTMLResponse, Response
 
 from db import db
 from security import require_module
+from helpers import now_iso
 
 router = APIRouter(prefix="/api", tags=["seo"])
 ORG_NAME = "VETMECH PHARMACEUTICALS PRIVATE LIMITED"
@@ -245,6 +246,81 @@ async def google_feed():
            "<description>VETMECH veterinary product catalog (MRP listing)</description>"
            + "".join(items) + "</channel></rss>")
     return Response(content=xml, media_type="application/xml")
+
+
+def _trim(s, n):
+    s = " ".join(str(s or "").split())
+    if len(s) <= n:
+        return s
+    return s[:n - 1].rsplit(" ", 1)[0] + "…"
+
+
+def generate_seo(prod):
+    """Template-based SEO draft from EXISTING approved product fields only (no invented claims)."""
+    name = prod.get("name") or "Product"
+    brand = prod.get("brand_name") or "VETMECH"
+    short = prod.get("short_description") or ""
+    comp = prod.get("composition") or ""
+    ind = prod.get("indications") or ""
+    dose = prod.get("dosage") or ""
+    storage = prod.get("storage") or ""
+    full = prod.get("full_description") or ""
+    variants = prod.get("variants") or []
+    packs = ", ".join(f"{v.get('pack_size', '')} {v.get('unit', '')}".strip() for v in variants if v.get("pack_size"))
+
+    title = _trim(f"{name} - {short}" if short else f"{name} | {brand} Veterinary", 60)
+    md_parts = [short] if short else []
+    if ind:
+        md_parts.append(f"Indicated for {ind}" if len(ind) < 80 else ind)
+    elif comp:
+        md_parts.append(f"Contains {comp}")
+    if not md_parts:
+        md_parts.append(f"{name} from {brand}.")
+    meta_description = _trim(". ".join(p.rstrip('.') for p in md_parts) + ".", 155)
+
+    faqs = []
+    if short or full:
+        faqs.append({"q": f"What is {name}?", "a": _trim(short or full, 300)})
+    if comp:
+        faqs.append({"q": f"What is the composition of {name}?", "a": _trim(comp, 300)})
+    if ind:
+        faqs.append({"q": f"What is {name} used for?", "a": _trim(ind, 300)})
+    if dose:
+        faqs.append({"q": f"What is the recommended dosage of {name}?", "a": _trim(dose, 300)})
+    if packs:
+        faqs.append({"q": f"What pack sizes is {name} available in?", "a": f"{name} is available in: {packs}."})
+    if storage:
+        faqs.append({"q": f"How should {name} be stored?", "a": _trim(storage, 300)})
+    return {"title": title, "meta_description": meta_description, "focus_keyword": name.lower(), "faqs": faqs}
+
+
+@router.post("/admin/seo/suggest")
+async def seo_suggest(body: dict = Body(...), admin=Depends(require_module("products"))):
+    """Return an SEO draft for the given product fields WITHOUT saving (for the product editor)."""
+    return generate_seo(body)
+
+
+@router.post("/admin/seo/autofill-all")
+async def seo_autofill_all(overwrite: bool = False, admin=Depends(require_module("products"))):
+    """Fill empty SEO fields (title, meta description, focus keyword, FAQ) for all active products."""
+    prods = await db.products.find({"active": True}, {"_id": 0}).to_list(5000)
+    updated = 0
+    for prod in prods:
+        seo = dict(prod.get("seo") or {})
+        gen = generate_seo(prod)
+        changed = False
+        for k in ("title", "meta_description", "focus_keyword"):
+            if (overwrite or not seo.get(k)) and gen.get(k) and seo.get(k) != gen[k]:
+                seo[k] = gen[k]
+                changed = True
+        has_faq = bool([f for f in (seo.get("faqs") or []) if f and f.get("q") and f.get("a")])
+        if gen.get("faqs") and (overwrite or not has_faq):
+            seo["faqs"] = gen["faqs"]
+            changed = True
+        if changed:
+            await db.products.update_one({"id": prod["id"]}, {"$set": {"seo": seo, "updated_at": now_iso()}})
+            updated += 1
+    return {"updated": updated, "total": len(prods)}
 
 
 @router.get("/admin/seo/audit")

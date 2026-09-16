@@ -182,8 +182,6 @@ async def _sitemap_urls():
     ]
     cats = await db.categories.find({"active": True}, {"_id": 0, "slug": 1, "updated_at": 1}).to_list(1000)
     urls += [(f"/categories/{c['slug']}", c.get("updated_at"), "weekly", "0.7") for c in cats if c.get("slug")]
-    prods = await db.products.find({"active": True}, {"_id": 0, "slug": 1, "updated_at": 1, "created_at": 1}).to_list(5000)
-    urls += [(f"/products/{p['slug']}", p.get("updated_at") or p.get("created_at"), "weekly", "0.8") for p in prods if p.get("slug")]
     news = await db.news.find({"active": True}, {"_id": 0, "slug": 1, "updated_at": 1, "publish_date": 1}).to_list(2000)
     urls += [(f"/news/{n['slug']}", n.get("updated_at") or n.get("publish_date"), "monthly", "0.5") for n in news if n.get("slug")]
     return urls
@@ -192,12 +190,31 @@ async def _sitemap_urls():
 @app.get("/api/sitemap.xml")
 async def sitemap():
     base = _site_base()
+
+    def _media(u):
+        if not u:
+            return ""
+        return u if str(u).startswith("http") else base + u
+
     parts = []
     for path, lastmod, cf, pr in await _sitemap_urls():
         lm = f"<lastmod>{_xml_escape(str(lastmod)[:10])}</lastmod>" if lastmod else ""
         parts.append(f"<url><loc>{base}{path}</loc>{lm}<changefreq>{cf}</changefreq><priority>{pr}</priority></url>")
+    # Products with image entries (Google Image indexing)
+    prods = await db.products.find({"active": True}, {"_id": 0, "slug": 1, "name": 1, "image": 1, "images": 1, "updated_at": 1, "created_at": 1}).to_list(5000)
+    for p in prods:
+        if not p.get("slug"):
+            continue
+        lastmod = p.get("updated_at") or p.get("created_at")
+        lm = f"<lastmod>{_xml_escape(str(lastmod)[:10])}</lastmod>" if lastmod else ""
+        imgs = p.get("images") or ([p.get("image")] if p.get("image") else [])
+        itags = "".join(f"<image:image><image:loc>{_xml_escape(_media(i))}</image:loc>"
+                        f"<image:title>{_xml_escape(p.get('name'))}</image:title></image:image>"
+                        for i in imgs[:6] if i)
+        parts.append(f"<url><loc>{base}/products/{p['slug']}</loc>{lm}<changefreq>weekly</changefreq><priority>0.8</priority>{itags}</url>")
     xml = ('<?xml version="1.0" encoding="UTF-8"?>'
-           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(parts) + "</urlset>")
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+           'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' + "".join(parts) + "</urlset>")
     return Response(content=xml, media_type="application/xml")
 
 
