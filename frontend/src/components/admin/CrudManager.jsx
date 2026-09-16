@@ -114,6 +114,14 @@ export default function CrudManager({ title, subtitle, endpoint, listKey, column
                     <Switch checked={!!form[f.name]} onCheckedChange={(v) => set(f.name, v)} data-testid={`field-${f.name}`} />
                   </div>
                 )}
+                {f.type === "seogroup" && (
+                  <div className="border border-[#E2E8F0] rounded-md p-3 space-y-2 bg-vm-bg/40" data-testid={`field-${f.name}`}>
+                    <Input placeholder="SEO Title" value={form.seo?.title ?? ""} onChange={(e) => set("seo", { ...form.seo, title: e.target.value })} data-testid="seo-title" />
+                    <Textarea rows={2} placeholder="Meta Description" value={form.seo?.meta_description ?? ""} onChange={(e) => set("seo", { ...form.seo, meta_description: e.target.value })} data-testid="seo-meta-description" />
+                    <Input placeholder="Meta Keywords (comma separated)" value={form.seo?.meta_keywords ?? ""} onChange={(e) => set("seo", { ...form.seo, meta_keywords: e.target.value })} data-testid="seo-keywords" />
+                    <Textarea rows={2} placeholder="Intro text shown on the category page" value={form.seo?.intro ?? ""} onChange={(e) => set("seo", { ...form.seo, intro: e.target.value })} data-testid="seo-intro" />
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -28,6 +28,7 @@ export function AdminCategories() {
         { name: "parent_id", label: "Parent Category", type: "select", options: parentOptions },
         { name: "description", label: "Description", type: "textarea", span: 2 },
         { name: "image", label: "Category Image", type: "image", span: 2 },
+        { name: "seo", label: "SEO (title, description, keywords, intro)", type: "seogroup", span: 2 },
         { name: "order", label: "Display Order", type: "number" },
         { name: "active", label: "Active", type: "switch" },
       ]}

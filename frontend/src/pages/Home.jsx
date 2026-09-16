@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, mediaUrl } from "@/lib/api";
 import { useSettings } from "@/hooks/useSettings";
 import SEO from "@/components/SEO";
+import { organizationLd, websiteLd, siteUrl } from "@/lib/seo";
 import ProductCard from "@/components/public/ProductCard";
 import { Button } from "@/components/ui/button";
 import * as Icons from "lucide-react";
@@ -27,7 +28,8 @@ export default function Home() {
   const { data: gallery } = useQuery({ queryKey: ["home-gallery"], queryFn: async () => (await api.get("/gallery")).data });
   const { data: siteReviews } = useQuery({ queryKey: ["site-reviews"], queryFn: async () => (await api.get("/reviews", { params: { kind: "site" } })).data });
 
-  const orgLd = siteReviews?.count > 0 ? { "@context": "https://schema.org", "@type": "Organization", name: company?.name || "VETMECH Pharmaceuticals", aggregateRating: { "@type": "AggregateRating", ratingValue: siteReviews.average, reviewCount: siteReviews.count } } : null;
+  const orgLd = organizationLd(company, siteReviews?.count > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: siteReviews.average, reviewCount: siteReviews.count } } : {});
+  const jsonLd = [orgLd, websiteLd()];
 
   const topCats = (cats || []).filter((c) => !c.parent_id);
   const hero = home?.hero || {};
@@ -35,7 +37,7 @@ export default function Home() {
 
   return (
     <div>
-      <SEO title={home?.hero?.title || "VETMECH Pharmaceuticals"} description={home?.intro?.text} ogImage={hero.image} jsonLd={orgLd} />
+      <SEO title={home?.hero?.title || "VETMECH Pharmaceuticals"} description={home?.intro?.text} ogImage={hero.image} jsonLd={jsonLd} canonical={siteUrl("/")} />
 
       {/* HERO */}
       <section className="relative bg-vm-ink text-white overflow-hidden">

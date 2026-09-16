@@ -157,22 +157,67 @@ async def serve_upload(name: str):
                     media_type=CONTENT_TYPES.get(ext, "application/octet-stream"))
 
 
+def _site_base():
+    return os.environ.get("SITE_URL", "").rstrip("/")
+
+
+def _xml_escape(s):
+    return (str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace('"', "&quot;").replace("'", "&apos;"))
+
+
+async def _sitemap_urls():
+    """(loc_path, lastmod, changefreq, priority) tuples for every indexable public URL."""
+    urls = [
+        ("/", None, "daily", "1.0"),
+        ("/products", None, "daily", "0.9"),
+        ("/about", None, "monthly", "0.6"),
+        ("/quality", None, "monthly", "0.5"),
+        ("/infrastructure", None, "monthly", "0.5"),
+        ("/research", None, "monthly", "0.5"),
+        ("/news", None, "weekly", "0.6"),
+        ("/gallery", None, "monthly", "0.4"),
+        ("/careers", None, "monthly", "0.4"),
+        ("/contact", None, "monthly", "0.5"),
+    ]
+    cats = await db.categories.find({"active": True}, {"_id": 0, "slug": 1, "updated_at": 1}).to_list(1000)
+    urls += [(f"/categories/{c['slug']}", c.get("updated_at"), "weekly", "0.7") for c in cats if c.get("slug")]
+    prods = await db.products.find({"active": True}, {"_id": 0, "slug": 1, "updated_at": 1, "created_at": 1}).to_list(5000)
+    urls += [(f"/products/{p['slug']}", p.get("updated_at") or p.get("created_at"), "weekly", "0.8") for p in prods if p.get("slug")]
+    news = await db.news.find({"active": True}, {"_id": 0, "slug": 1, "updated_at": 1, "publish_date": 1}).to_list(2000)
+    urls += [(f"/news/{n['slug']}", n.get("updated_at") or n.get("publish_date"), "monthly", "0.5") for n in news if n.get("slug")]
+    return urls
+
+
 @app.get("/api/sitemap.xml")
 async def sitemap():
-    base = os.environ.get("SITE_URL", "")
-    urls = ["/", "/products", "/about", "/quality", "/news", "/gallery", "/careers", "/contact"]
-    products = await db.products.find({"active": True}, {"_id": 0, "slug": 1}).to_list(1000)
-    urls += [f"/products/{p['slug']}" for p in products if p.get("slug")]
-    news = await db.news.find({"active": True}, {"_id": 0, "slug": 1}).to_list(1000)
-    urls += [f"/news/{n['slug']}" for n in news if n.get("slug")]
-    items = "".join([f"<url><loc>{base}{u}</loc></url>" for u in urls])
-    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{items}</urlset>'
+    base = _site_base()
+    parts = []
+    for path, lastmod, cf, pr in await _sitemap_urls():
+        lm = f"<lastmod>{_xml_escape(str(lastmod)[:10])}</lastmod>" if lastmod else ""
+        parts.append(f"<url><loc>{base}{path}</loc>{lm}<changefreq>{cf}</changefreq><priority>{pr}</priority></url>")
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(parts) + "</urlset>")
     return Response(content=xml, media_type="application/xml")
 
 
 @app.get("/api/robots.txt")
 async def robots():
-    return PlainTextResponse("User-agent: *\nAllow: /\n")
+    base = _site_base()
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin",
+        "Disallow: /account",
+        "Disallow: /cart",
+        "Disallow: /checkout",
+        "Disallow: /order-confirmed",
+        "Disallow: /api/admin",
+        "Allow: /api/uploads",
+        "",
+        f"Sitemap: {base}/sitemap.xml",
+    ]
+    return PlainTextResponse("\n".join(lines) + "\n")
 
 
 app.include_router(auth_routes.router)

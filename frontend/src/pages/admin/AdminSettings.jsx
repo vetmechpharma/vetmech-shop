@@ -246,6 +246,13 @@ export function SeoSettings() {
       <F label="Default Keywords" value={form.default_keywords} onChange={(v) => set("default_keywords", v)} />
       <ImageUpload label="Default OG Image" value={form.default_og_image} onChange={(v) => set("default_og_image", v)} />
       <F label="Robots" value={form.robots} onChange={(v) => set("robots", v)} placeholder="index, follow" />
+      <div className="border-t pt-4 mt-2">
+        <p className="text-sm font-semibold text-vm-ink mb-1">Analytics &amp; Search Console</p>
+        <p className="text-xs text-slate-400 mb-3">Paste IDs from Google. Leave blank to disable.</p>
+      </div>
+      <F label="Google Analytics ID (GA4)" value={form.ga_id} onChange={(v) => set("ga_id", v)} placeholder="G-XXXXXXXXXX" />
+      <F label="Google Tag Manager ID" value={form.gtm_id} onChange={(v) => set("gtm_id", v)} placeholder="GTM-XXXXXXX" />
+      <F label="Search Console Verification" value={form.gsc_verification} onChange={(v) => set("gsc_verification", v)} placeholder="google-site-verification token" />
     </Wrap>
   );
 }

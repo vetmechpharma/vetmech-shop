@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import SEO from "@/components/SEO";
 import ProductCard from "@/components/public/ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { breadcrumbLd, siteUrl } from "@/lib/seo";
 
 export default function CategoryPage() {
   const { slug } = useParams();
@@ -14,14 +15,28 @@ export default function CategoryPage() {
     queryFn: async () => (await api.get("/products", { params: { category: slug, limit: 24 } })).data,
   });
 
+  const crumbs = [{ name: "Home", path: "/" }, { name: "Products", path: "/products" }];
+  if (cat?.parent?.slug) crumbs.push({ name: cat.parent.name, path: `/categories/${cat.parent.slug}` });
+  if (cat?.name) crumbs.push({ name: cat.name, path: `/categories/${slug}` });
+  const collectionLd = cat ? {
+    "@context": "https://schema.org", "@type": "CollectionPage",
+    name: cat.seo?.title || cat.name, description: cat.seo?.meta_description || cat.description,
+    url: siteUrl(`/categories/${slug}`),
+  } : null;
+  const jsonLd = [breadcrumbLd(crumbs), collectionLd].filter(Boolean);
+
   return (
     <div>
-      <SEO title={cat?.name} description={cat?.description} seo={cat?.seo} />
+      <SEO title={cat?.name} description={cat?.description} seo={cat?.seo} jsonLd={jsonLd} canonical={siteUrl(`/categories/${slug}`)} />
       <section className="bg-vm-ink text-white">
         <div className="vm-container py-14">
-          <p className="text-xs uppercase tracking-widest text-vm-accent"><Link to="/products">Products</Link> / {cat?.name}</p>
+          <nav className="text-xs uppercase tracking-widest text-vm-accent" aria-label="Breadcrumb">
+            <Link to="/products" className="hover:underline">Products</Link>
+            {cat?.parent?.slug && <> / <Link to={`/categories/${cat.parent.slug}`} className="hover:underline">{cat.parent.name}</Link></>}
+            {" "}/ {cat?.name}
+          </nav>
           <h1 className="font-heading text-4xl font-bold mt-2 tracking-tight">{cat?.name || "Category"}</h1>
-          <p className="text-slate-300 mt-2 max-w-2xl">{cat?.description}</p>
+          <p className="text-slate-300 mt-2 max-w-2xl">{cat?.seo?.intro || cat?.description}</p>
         </div>
       </section>
       <div className="vm-container py-10">

@@ -9,6 +9,7 @@ import ProductBadges from "@/components/public/ProductBadges";
 import ProductCard from "@/components/public/ProductCard";
 import ProductReviews from "@/components/public/ProductReviews";
 import { useCart } from "@/context/CartContext";
+import { breadcrumbLd, faqLd, siteUrl } from "@/lib/seo";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -93,17 +94,25 @@ export default function ProductDetail() {
   const upsell = computeUpsellFE(schemes, qty, dispatchFree, baseRate, netRate);
 
   const reviewLd = p.review_count ? { "@type": "AggregateRating", ratingValue: p.review_avg, reviewCount: p.review_count } : null;
-  const jsonLd = {
+  const productLd = {
     "@context": "https://schema.org", "@type": "Product",
     name: p.name, image: mediaUrl(images[0] || p.image), description: p.short_description || p.full_description || p.name,
-    sku: variant.sku || p.product_code || "", brand: { "@type": "Brand", name: p.brand_name || "VETMECH" },
-    offers: { "@type": "Offer", priceCurrency: "INR", price: variant.mrp || 0, availability: outOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock" },
+    sku: variant.sku || p.product_code || "", mpn: variant.sku || p.product_code || "",
+    brand: { "@type": "Brand", name: p.brand_name || "VETMECH" },
+    category: p.category?.name || undefined,
+    offers: { "@type": "Offer", priceCurrency: "INR", price: variant.mrp || 0, url: siteUrl(`/products/${slug}`),
+      availability: outOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock" },
     ...(reviewLd ? { aggregateRating: reviewLd } : {}),
   };
+  const crumbs = [{ name: "Home", path: "/" }, { name: "Products", path: "/products" }];
+  if (p.category?.slug) crumbs.push({ name: p.category.name, path: `/categories/${p.category.slug}` });
+  crumbs.push({ name: p.name, path: `/products/${slug}` });
+  const faqs = p.seo?.faqs || [];
+  const jsonLd = [productLd, breadcrumbLd(crumbs), faqLd(faqs)].filter(Boolean);
 
   return (
     <div className="vm-container py-8">
-      <SEO title={p.name} description={p.short_description} ogImage={p.image} seo={p.seo} jsonLd={jsonLd} />
+      <SEO title={p.name} description={p.short_description} ogImage={p.image} seo={p.seo} jsonLd={jsonLd} ogType="product" canonical={siteUrl(`/products/${slug}`)} />
       <nav className="text-xs text-slate-400 mb-5">
         <Link to="/" className="hover:text-vm-green">Home</Link> / <Link to="/products" className="hover:text-vm-green">Products</Link> / <span className="text-vm-ink">{p.name}</span>
       </nav>
@@ -112,13 +121,13 @@ export default function ProductDetail() {
         <div>
           <div className="relative bg-[#F8FAF9] border border-[#E2E8F0] rounded-lg aspect-square p-8">
             <ProductBadges badges={p.badges} className="absolute top-3 left-3 z-10" />
-            <img src={mediaUrl(images[activeImg] || images[0])} alt={p.name} className="w-full h-full object-contain" data-testid="product-main-image" />
+            <img src={mediaUrl(images[activeImg] || images[0])} alt={`${p.name} ${variant.pack_size || ""} ${variant.unit || ""}`.trim()} className="w-full h-full object-contain" data-testid="product-main-image" />
           </div>
           {images.length > 1 && (
             <div className="flex gap-2 mt-3">
               {images.map((img, i) => (
                 <button key={i} onClick={() => setActiveImg(i)} className={`w-16 h-16 bg-[#F8FAF9] rounded border p-1 ${activeImg === i ? "border-vm-accent" : "border-[#E2E8F0]"}`}>
-                  <img src={mediaUrl(img)} alt="" className="w-full h-full object-contain" />
+                  <img src={mediaUrl(img)} alt={`${p.name} view ${i + 1}`} className="w-full h-full object-contain" loading="lazy" />
                 </button>
               ))}
             </div>
@@ -292,6 +301,21 @@ export default function ProductDetail() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {p.related.map((rp) => <ProductCard key={rp.id} product={rp} />)}
           </div>
+        </div>
+      )}
+
+      {/* FAQ */}
+      {(p.seo?.faqs || []).filter((f) => f && f.q && f.a).length > 0 && (
+        <div className="mt-12 max-w-3xl" data-testid="product-faq">
+          <h2 className="font-heading text-xl font-bold text-vm-ink mb-3">Frequently Asked Questions</h2>
+          <Accordion type="single" collapsible className="border border-[#E2E8F0] rounded-lg px-4">
+            {p.seo.faqs.filter((f) => f && f.q && f.a).map((f, i) => (
+              <AccordionItem key={i} value={`faq-${i}`}>
+                <AccordionTrigger className="font-heading font-semibold text-vm-ink text-left">{f.q}</AccordionTrigger>
+                <AccordionContent><p className="text-slate-600 leading-relaxed whitespace-pre-line">{f.a}</p></AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
       )}
 

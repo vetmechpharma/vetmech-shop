@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, mediaUrl } from "@/lib/api";
 import SEO from "@/components/SEO";
 import { Skeleton } from "@/components/ui/skeleton";
+import { articleLd, breadcrumbLd, siteUrl } from "@/lib/seo";
 
 export function NewsList() {
   const { data, isLoading } = useQuery({ queryKey: ["news-list"], queryFn: async () => (await api.get("/news", { params: { limit: 24 } })).data });
@@ -36,9 +37,14 @@ export function NewsArticle() {
   const { slug } = useParams();
   const { data: a } = useQuery({ queryKey: ["article", slug], queryFn: async () => (await api.get(`/news/${slug}`)).data });
   if (!a) return <div className="vm-container py-20 text-center text-slate-400">Loading...</div>;
+  const jsonLd = [
+    articleLd({ title: a.title, description: a.excerpt, image: a.featured_image,
+      datePublished: a.publish_date, dateModified: a.updated_at, author: a.author, path: `/news/${slug}` }),
+    breadcrumbLd([{ name: "Home", path: "/" }, { name: "News", path: "/news" }, { name: a.title, path: `/news/${slug}` }]),
+  ];
   return (
     <div className="vm-container py-10 max-w-3xl">
-      <SEO title={a.title} description={a.excerpt} ogImage={a.featured_image} seo={a.seo} />
+      <SEO title={a.title} description={a.excerpt} ogImage={a.featured_image} seo={a.seo} jsonLd={jsonLd} ogType="article" canonical={siteUrl(`/news/${slug}`)} />
       <p className="text-xs text-vm-accent font-semibold uppercase tracking-wider">{a.category}</p>
       <h1 className="font-heading text-3xl md:text-4xl font-bold text-vm-ink mt-2 tracking-tight">{a.title}</h1>
       <p className="text-sm text-slate-400 mt-2">By {a.author} · {new Date(a.publish_date).toLocaleDateString()}</p>

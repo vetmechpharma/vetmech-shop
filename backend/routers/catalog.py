@@ -41,6 +41,9 @@ async def public_category(slug: str):
     cat = await db.categories.find_one({"slug": slug, "active": True}, {"_id": 0})
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
+    if cat.get("parent_id"):
+        parent = await db.categories.find_one({"id": cat["parent_id"]}, {"_id": 0, "name": 1, "slug": 1})
+        cat["parent"] = parent
     return cat
 
 
@@ -282,6 +285,11 @@ async def public_product(slug: str, customer=Depends(optional_customer)):
         await enrich_products(rel_docs, customer)
         related = rel_docs
     p["related"] = related
+    # Attach category/subcategory {name, slug} for breadcrumbs + structured data
+    if p.get("category_id"):
+        p["category"] = await db.categories.find_one({"id": p["category_id"]}, {"_id": 0, "name": 1, "slug": 1})
+    if p.get("subcategory_id"):
+        p["subcategory"] = await db.categories.find_one({"id": p["subcategory_id"]}, {"_id": 0, "name": 1, "slug": 1})
     _, rc, ravg = await review_aggregate(p["id"], "product")
     p["review_count"] = rc
     p["review_avg"] = ravg

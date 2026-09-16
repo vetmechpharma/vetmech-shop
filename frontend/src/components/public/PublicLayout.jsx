@@ -4,10 +4,12 @@ import Header from "./Header";
 import Footer from "./Footer";
 import MobileNav from "./MobileNav";
 import CatalogButton from "./CatalogButton";
+import SeoGlobals from "./SeoGlobals";
 
 export default function PublicLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-white">
+      <SeoGlobals />
       <Header />
       <main className="flex-1 pb-20 lg:pb-0">
         <Outlet />

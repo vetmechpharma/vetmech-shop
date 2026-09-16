@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ImageUpload from "@/components/admin/ImageUpload";
 import { toast } from "sonner";
 import { CUSTOMER_CATEGORIES } from "@/lib/constants";
-import { Plus, Pencil, Trash2, Loader2, X, IndianRupee, Gift } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, X, IndianRupee, Gift, Check, AlertTriangle } from "lucide-react";
 
 const BADGES = ["new", "featured", "best_seller", "offer", "out_of_stock", "coming_soon"];
 const STOCK = [{ value: "in_stock", label: "In Stock" }, { value: "out_of_stock", label: "Out of Stock" }, { value: "coming_soon", label: "Coming Soon" }];
@@ -28,6 +28,43 @@ function offerLabel(o) {
   if (o.scheme_type === "free_qty") return `Buy ${o.buy_quantity} Get ${o.free_quantity} Free`;
   if (o.scheme_type === "case_price") return `Case @ ₹${o.special_price} (min ${o.min_quantity || o.buy_quantity})`;
   return `${o.min_quantity || ""} @ ₹${o.special_price}`;
+}
+
+function SeoCompleteness({ form }) {
+  const s = form.seo || {};
+  const faqs = (s.faqs || []).filter((f) => f && f.q && f.a);
+  const checks = [
+    { label: "SEO Title", ok: !!s.title },
+    { label: "Meta Description", ok: !!s.meta_description },
+    { label: "URL Slug", ok: !!form.slug },
+    { label: "Focus Keyword", ok: !!s.focus_keyword },
+    { label: "OG Image", ok: !!(s.og_image || form.image) },
+    { label: "Short Description", ok: !!form.short_description },
+    { label: "Product Image", ok: !!(form.image || (form.images || []).length) },
+    { label: "FAQ", ok: faqs.length > 0 },
+  ];
+  const done = checks.filter((c) => c.ok).length;
+  const pct = Math.round((done / checks.length) * 100);
+  const color = pct >= 80 ? "text-green-600" : pct >= 50 ? "text-amber-600" : "text-red-600";
+  const bar = pct >= 80 ? "bg-green-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500";
+  return (
+    <div className="border border-[#E2E8F0] rounded-md p-3 bg-vm-bg/40" data-testid="seo-completeness">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-semibold text-vm-ink">SEO Completeness</span>
+        <span className={`text-sm font-bold ${color}`} data-testid="seo-score">{pct}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-slate-200 overflow-hidden mb-2"><div className={`h-full ${bar}`} style={{ width: `${pct}%` }} /></div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        {checks.map((c) => (
+          <div key={c.label} className={`text-xs flex items-center gap-1.5 ${c.ok ? "text-slate-600" : "text-amber-600"}`}>
+            {c.ok ? <Check className="w-3.5 h-3.5 text-green-500" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
+            {c.label}
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-slate-400 mt-2">Guidance only — Google does not use this exact score.</p>
+    </div>
+  );
 }
 
 export default function AdminProducts() {
@@ -330,10 +367,38 @@ export default function AdminProducts() {
             </TabsContent>
 
             <TabsContent value="seo" className="space-y-3 mt-4">
-              <div><Label>URL Slug</Label><Input value={form.slug || ""} onChange={(e) => set("slug", e.target.value)} placeholder="auto-generated if empty" /></div>
-              <div><Label>SEO Title</Label><Input value={form.seo?.title || ""} onChange={(e) => set("seo", { ...form.seo, title: e.target.value })} /></div>
-              <div><Label>Meta Description</Label><Textarea value={form.seo?.meta_description || ""} onChange={(e) => set("seo", { ...form.seo, meta_description: e.target.value })} /></div>
-              <div><Label>Meta Keywords</Label><Input value={form.seo?.meta_keywords || ""} onChange={(e) => set("seo", { ...form.seo, meta_keywords: e.target.value })} /></div>
+              <SeoCompleteness form={form} />
+              <div><Label>URL Slug</Label><Input value={form.slug || ""} onChange={(e) => set("slug", e.target.value)} placeholder="auto-generated if empty" data-testid="seo-slug" /></div>
+              <div><Label>SEO Title</Label><Input value={form.seo?.title || ""} onChange={(e) => set("seo", { ...form.seo, title: e.target.value })} data-testid="seo-title" /></div>
+              <div><Label>Meta Description</Label><Textarea value={form.seo?.meta_description || ""} onChange={(e) => set("seo", { ...form.seo, meta_description: e.target.value })} data-testid="seo-meta-description" /></div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div><Label>Focus Keyword</Label><Input value={form.seo?.focus_keyword || ""} onChange={(e) => set("seo", { ...form.seo, focus_keyword: e.target.value })} data-testid="seo-focus-keyword" /></div>
+                <div><Label>Secondary Keywords</Label><Input value={form.seo?.meta_keywords || ""} onChange={(e) => set("seo", { ...form.seo, meta_keywords: e.target.value })} placeholder="comma separated" data-testid="seo-keywords" /></div>
+              </div>
+              <div><Label>Canonical URL (optional)</Label><Input value={form.seo?.canonical || ""} onChange={(e) => set("seo", { ...form.seo, canonical: e.target.value })} placeholder="leave blank to auto-generate" data-testid="seo-canonical" /></div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div><Label>OG Title</Label><Input value={form.seo?.og_title || ""} onChange={(e) => set("seo", { ...form.seo, og_title: e.target.value })} data-testid="seo-og-title" /></div>
+                <div><Label>OG Description</Label><Input value={form.seo?.og_description || ""} onChange={(e) => set("seo", { ...form.seo, og_description: e.target.value })} data-testid="seo-og-description" /></div>
+              </div>
+              <div><Label>OG Image</Label><ImageUpload label="" value={form.seo?.og_image} onChange={(v) => set("seo", { ...form.seo, og_image: v })} testid="upload-og-image" /></div>
+              <div><Label>SEO Content (extra indexable copy)</Label><Textarea rows={4} value={form.seo?.seo_content || ""} onChange={(e) => set("seo", { ...form.seo, seo_content: e.target.value })} data-testid="seo-content" /></div>
+              <div className="border-t pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="font-semibold">FAQ (rich snippets)</Label>
+                  <Button type="button" size="sm" variant="outline" onClick={() => set("seo", { ...form.seo, faqs: [...(form.seo?.faqs || []), { q: "", a: "" }] })} data-testid="seo-add-faq"><Plus className="w-3.5 h-3.5 mr-1" /> Add FAQ</Button>
+                </div>
+                <div className="space-y-2">
+                  {(form.seo?.faqs || []).map((f, i) => (
+                    <div key={i} className="border border-[#E2E8F0] rounded-md p-2 space-y-1.5" data-testid={`seo-faq-${i}`}>
+                      <div className="flex gap-2">
+                        <Input placeholder="Question" value={f.q} onChange={(e) => { const faqs = [...form.seo.faqs]; faqs[i] = { ...faqs[i], q: e.target.value }; set("seo", { ...form.seo, faqs }); }} data-testid={`seo-faq-q-${i}`} />
+                        <Button type="button" size="icon" variant="ghost" className="text-red-500 shrink-0" onClick={() => { const faqs = form.seo.faqs.filter((_, j) => j !== i); set("seo", { ...form.seo, faqs }); }} data-testid={`seo-faq-del-${i}`}><X className="w-4 h-4" /></Button>
+                      </div>
+                      <Textarea rows={2} placeholder="Answer" value={f.a} onChange={(e) => { const faqs = [...form.seo.faqs]; faqs[i] = { ...faqs[i], a: e.target.value }; set("seo", { ...form.seo, faqs }); }} data-testid={`seo-faq-a-${i}`} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
 
