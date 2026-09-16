@@ -31,6 +31,7 @@ ENVF="$APP_DIR/backend/.env"
 touch "$ENVF"
 grep -q "^WEBHOOK_CRON_SECRET=" "$ENVF" || echo 'WEBHOOK_CRON_SECRET="vm_cron_9f3a2b7c8e1d4a6f0b5c9d2e7a1f8c3b"' >> "$ENVF" && ok "WEBHOOK_CRON_SECRET present"
 grep -q "^APP_BASE_URL=" "$ENVF" || echo 'APP_BASE_URL="https://vetmechpharma.in"' >> "$ENVF" && ok "APP_BASE_URL present"
+grep -q "^SITE_URL=" "$ENVF" || echo 'SITE_URL="https://vetmechpharma.in"' >> "$ENVF" && ok "SITE_URL present"
 
 # --- 3. Backend deps ---
 info "Installing backend dependencies"
