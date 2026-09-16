@@ -8,6 +8,7 @@ import SEO from "@/components/SEO";
 import ProductBadges from "@/components/public/ProductBadges";
 import ProductCard from "@/components/public/ProductCard";
 import ProductReviews from "@/components/public/ProductReviews";
+import ShareButtons from "@/components/public/ShareButtons";
 import { useCart } from "@/context/CartContext";
 import { breadcrumbLd, faqLd, siteUrl } from "@/lib/seo";
 import { Button } from "@/components/ui/button";
@@ -258,6 +259,8 @@ export default function ProductDetail() {
           </div>
           </>
           )}
+
+          <ShareButtons url={siteUrl(`/products/${slug}`)} title={p.name} className="mt-5 pt-4 border-t border-[#E2E8F0]" />
 
           {p.brochure_url && (
             <a href={mediaUrl(p.brochure_url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-4 text-sm text-vm-green font-medium hover:underline" data-testid="download-brochure">
