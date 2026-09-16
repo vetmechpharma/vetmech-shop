@@ -253,6 +253,15 @@ export function SeoSettings() {
       <F label="Google Analytics ID (GA4)" value={form.ga_id} onChange={(v) => set("ga_id", v)} placeholder="G-XXXXXXXXXX" />
       <F label="Google Tag Manager ID" value={form.gtm_id} onChange={(v) => set("gtm_id", v)} placeholder="GTM-XXXXXXX" />
       <F label="Search Console Verification" value={form.gsc_verification} onChange={(v) => set("gsc_verification", v)} placeholder="google-site-verification token" />
+      <div className="border-t pt-4 mt-2 text-sm" data-testid="seo-feed-links">
+        <p className="font-semibold text-vm-ink mb-2">Automatic files</p>
+        <ul className="space-y-1 text-slate-600">
+          <li>Sitemap: <a className="text-vm-green break-all hover:underline" href="https://vetmechpharma.in/sitemap.xml" target="_blank" rel="noreferrer">https://vetmechpharma.in/sitemap.xml</a></li>
+          <li>Robots: <a className="text-vm-green break-all hover:underline" href="https://vetmechpharma.in/robots.txt" target="_blank" rel="noreferrer">https://vetmechpharma.in/robots.txt</a></li>
+          <li>Google Merchant Feed (MRP): <a className="text-vm-green break-all hover:underline" href="https://vetmechpharma.in/api/feed/google.xml" target="_blank" rel="noreferrer">/api/feed/google.xml</a></li>
+        </ul>
+        <p className="text-[11px] text-slate-400 mt-2">These update automatically as you add products, categories and news.</p>
+      </div>
     </Wrap>
   );
 }

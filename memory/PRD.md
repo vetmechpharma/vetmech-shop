@@ -189,3 +189,12 @@ Non-destructive SEO enhancement (existing functionality preserved). Domain: http
 ### SEO backlog
 - P1: server-side crawler rendering (index.html meta/JSON-LD injection for bots) + nginx rule; image ALT/lazy pass site-wide; internal linking; admin SEO validation (dupes/missing/broken).
 - P2: MRP-only Google Merchant feed; Core Web Vitals pass; 301 redirect manager.
+
+## SEO Upgrade — P1 + P2 (2026-06)
+- **SPA Crawler Rendering (dynamic rendering)** — new backend `routers/seo.py`: `GET /api/seo/render?path=...` returns a server-rendered HTML doc with baked-in title/description/canonical/OG + JSON-LD (Product+Breadcrumb+FAQ / CollectionPage+Breadcrumb / BlogPosting+Breadcrumb / Organization+WebSite) and real body text. Fixes social-crawler previews (WhatsApp/FB/LinkedIn) that don't run JS. Wire on VPS via `/app/nginx-seo.conf.example` (bot UA → proxy to /api/seo/render; also exposes /sitemap.xml, /robots.txt at root). Preview note: ingress only routes /api, so test at /api/seo/render directly.
+- **MRP Google Merchant feed** — `GET /api/feed/google.xml` RSS2.0 + g: namespace, ONE item per active variant, price=variant MRP INR, brand, availability, condition=new, identifier_exists=no, mpn=sku. MRP-only per user choice (B2B prices stay hidden). 7 items on seed data.
+- **SEO Health Check** — `GET /api/admin/seo/audit` (require_module products): per-product missing checks (title, meta desc, slug, image, short desc, focus keyword, FAQ) + score, duplicate title/description detection, category/news light checks, sitemap+feed links. New admin page `/admin/seo-audit` (AdminSeoAudit.jsx) under Content → "SEO Health"; route added in App.js; nav in AdminLayout.
+- **Image & Speed pass** — added loading="lazy"+decoding="async" to Home (category/quality/news/gallery imgs), News list, About imgs; hero img kept eager with fetchpriority="high" (LCP). ProductCard/Gallery already lazy.
+- SeoSettings now shows automatic-file links (sitemap/robots/feed).
+- **Verified**: render (product/category/home all correct JSON-LD types + canonical to vetmechpharma.in), feed (7 items, valid), audit endpoint + admin UI screenshot (3 products flagged, categories/news lists). Frontend compiles clean.
+- Deploy: push via Save to GitHub → run deploy-vps.sh → apply nginx-seo.conf.example (nginx -t && reload). Then in Google: submit sitemap + verify GSC + upload/schedule feed in Merchant Center.

@@ -1,0 +1,35 @@
+# =============================================================================
+# VETMECH — nginx SEO rules (add inside your existing `server { ... }` block)
+# Exposes /sitemap.xml, /robots.txt and the Google feed at the domain ROOT,
+# and serves crawlers/social bots server-rendered meta + JSON-LD (dynamic
+# rendering) while real users still get the normal React SPA.
+#
+# Assumes: React build in /opt/vetmech-shop/frontend/build
+#          FastAPI backend on 127.0.0.1:8001
+# After editing: sudo nginx -t && sudo systemctl reload nginx
+# =============================================================================
+
+# 1) Detect bots/social crawlers (put this at http{} level, outside server{})
+map $http_user_agent $vm_is_bot {
+    default 0;
+    "~*(googlebot|bingbot|yandex|duckduckbot|baiduspider|facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|slackbot|telegrambot|discordbot|embedly|pinterest|redditbot|applebot|petalbot|ia_archiver|semrushbot)" 1;
+}
+
+# --- inside server { } ---
+
+# Root SEO files -> backend
+location = /sitemap.xml { proxy_pass http://127.0.0.1:8001/api/sitemap.xml; }
+location = /robots.txt  { proxy_pass http://127.0.0.1:8001/api/robots.txt; }
+
+# API (already present in most setups) — keep as-is
+location /api/ { proxy_pass http://127.0.0.1:8001; }
+
+# SPA + dynamic rendering for bots
+location / {
+    root /opt/vetmech-shop/frontend/build;
+    # Serve bots the server-rendered SEO HTML
+    if ($vm_is_bot) {
+        proxy_pass http://127.0.0.1:8001/api/seo/render?path=$request_uri;
+    }
+    try_files $uri /index.html;
+}

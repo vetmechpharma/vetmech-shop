@@ -35,7 +35,7 @@ export default function About() {
 
       {/* HERO */}
       <section className="relative bg-vm-ink text-white overflow-hidden">
-        <img src={IMG.lab} alt="Pharmaceutical laboratory" className="absolute inset-0 w-full h-full object-cover opacity-25" />
+        <img src={IMG.lab} alt="Pharmaceutical laboratory" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-25" />
         <div className="absolute inset-0 bg-gradient-to-r from-vm-ink via-vm-ink/90 to-vm-ink/40" />
         <div className="vm-container relative py-24 md:py-32 max-w-3xl">
           <span className="inline-flex items-center gap-2 text-sm uppercase tracking-widest bg-white/10 border border-white/20 rounded-full px-4 py-1.5 mb-6">
@@ -71,7 +71,7 @@ export default function About() {
           </div>
           <div className="grid md:grid-cols-3 gap-6 mt-10">
             <div className="md:col-span-2 bg-vm-ink text-white rounded-2xl p-8 md:p-10 relative overflow-hidden">
-              <img src={IMG.cattle} alt="Livestock" className="absolute right-0 top-0 h-full w-1/2 object-cover opacity-20" />
+              <img src={IMG.cattle} alt="Livestock" loading="lazy" decoding="async" className="absolute right-0 top-0 h-full w-1/2 object-cover opacity-20" />
               <Target className="w-9 h-9 text-vm-accent" />
               <h3 className="font-heading text-2xl font-bold mt-4">Our Mission</h3>
               <p className="mt-3 text-slate-200 text-lg leading-relaxed max-w-lg">
@@ -101,7 +101,7 @@ export default function About() {
       <section className="bg-white py-20 md:py-24">
         <div className="vm-container grid md:grid-cols-2 gap-12 items-center">
           <div className="rounded-2xl overflow-hidden shadow-sm">
-            <img src={IMG.qc} alt="Quality control laboratory" className="w-full h-full object-cover" />
+            <img src={IMG.qc} alt="Quality control laboratory" loading="lazy" decoding="async" className="w-full h-full object-cover" />
           </div>
           <div>
             <p className="text-vm-accent font-semibold uppercase tracking-widest text-sm">Manufacturing & Quality</p>

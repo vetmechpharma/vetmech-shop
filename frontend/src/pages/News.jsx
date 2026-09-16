@@ -17,7 +17,7 @@ export function NewsList() {
           <div className="grid md:grid-cols-3 gap-6">
             {(data?.items || []).map((n) => (
               <Link key={n.id} to={`/news/${n.slug}`} className="group border border-[#E2E8F0] rounded-lg overflow-hidden hover:border-vm-accent transition-colors" data-testid={`news-${n.slug}`}>
-                {n.featured_image && <img src={mediaUrl(n.featured_image)} alt={n.title} className="w-full h-44 object-cover" />}
+                {n.featured_image && <img src={mediaUrl(n.featured_image)} alt={n.title} loading="lazy" decoding="async" className="w-full h-44 object-cover" />}
                 <div className="p-4">
                   <span className="text-xs text-vm-accent font-semibold uppercase tracking-wider">{n.category}</span>
                   <h3 className="font-heading font-bold text-vm-ink mt-1 line-clamp-2 group-hover:text-vm-green">{n.title}</h3>

@@ -21,7 +21,7 @@ from db import db
 from security import get_current_admin, require_module
 from seed_data import run_seed
 from seed_tickets import run_seed_tickets
-from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations, pricing
+from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations, pricing, seo
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -228,6 +228,7 @@ app.include_router(admin_routes.router)
 app.include_router(tickets.router)
 app.include_router(quotations.router)
 app.include_router(pricing.router)
+app.include_router(seo.router)
 
 app.add_middleware(
     CORSMiddleware,

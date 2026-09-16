@@ -39,6 +39,7 @@ import BackupSettings from "@/pages/admin/BackupSettings";
 import AdminPricingSettings from "@/pages/admin/AdminPricingSettings";
 import AdminTransports from "@/pages/admin/AdminTransports";
 import AdminPricingManager from "@/pages/admin/AdminPricingManager";
+import AdminSeoAudit from "@/pages/admin/AdminSeoAudit";
 import AdminDispatchList from "@/pages/admin/AdminDispatchList";
 import AdminMessageTemplates from "@/pages/admin/AdminMessageTemplates";
 import Register from "@/pages/Register";
@@ -115,6 +116,7 @@ function App() {
                   <Route path="whatsapp" element={<WhatsAppSettings />} />
                   <Route path="smtp" element={<SmtpSettings />} />
                   <Route path="seo" element={<SeoSettings />} />
+                  <Route path="seo-audit" element={<AdminSeoAudit />} />
                   <Route path="settings" element={<CompanySettings />} />
                   <Route path="settings/homepage" element={<HomepageSettings />} />
                   <Route path="settings/website" element={<WebsiteSettings />} />

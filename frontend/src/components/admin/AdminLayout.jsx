@@ -67,6 +67,7 @@ const GROUPS = [
       { to: "/admin/settings/homepage", label: "Homepage Content", module: "cms" },
       { to: "/admin/settings/website", label: "Footer & Website", module: "cms" },
       { to: "/admin/seo", label: "SEO", module: "cms" },
+      { to: "/admin/seo-audit", label: "SEO Health", module: "products" },
     ],
   },
   {

@@ -41,7 +41,7 @@ export default function Home() {
 
       {/* HERO */}
       <section className="relative bg-vm-ink text-white overflow-hidden">
-        {hero.image && <img src={mediaUrl(hero.image)} alt="VETMECH" className="absolute inset-0 w-full h-full object-cover" />}
+        {hero.image && <img src={mediaUrl(hero.image)} alt={company?.name || "VETMECH Pharmaceuticals"} fetchpriority="high" className="absolute inset-0 w-full h-full object-cover" />}
         <div className="absolute inset-0 hero-overlay" />
         <div className="vm-container relative py-20 md:py-32 max-w-2xl vm-fade-up">
           <span className="inline-flex items-center gap-2 text-xs uppercase tracking-widest bg-white/10 border border-white/20 rounded-full px-3 py-1 mb-5">
@@ -101,7 +101,7 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-6 mt-10">
             {topCats.map((c) => (
               <Link key={c.id} to={`/categories/${c.slug}`} className="group relative rounded-xl overflow-hidden h-56 border border-[#E2E8F0]" data-testid={`home-category-${c.slug}`}>
-                {c.image && <img src={mediaUrl(c.image)} alt={c.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />}
+                {c.image && <img src={mediaUrl(c.image)} alt={c.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />}
                 <div className="absolute inset-0 bg-gradient-to-t from-vm-ink/90 to-transparent" />
                 <div className="absolute bottom-0 p-5 text-white">
                   <h3 className="font-heading text-xl font-bold">{c.name}</h3>
@@ -128,7 +128,7 @@ export default function Home() {
         <Section alt>
           <div className="vm-container grid md:grid-cols-2 gap-10 items-center">
             <div className="rounded-xl overflow-hidden border border-[#E2E8F0]">
-              {home.quality.image && <img src={mediaUrl(home.quality.image)} alt="Quality" className="w-full h-72 object-cover" />}
+              {home.quality.image && <img src={mediaUrl(home.quality.image)} alt="VETMECH quality assurance" loading="lazy" decoding="async" className="w-full h-72 object-cover" />}
             </div>
             <div>
               <span className="text-xs uppercase tracking-widest text-vm-accent font-semibold">Quality & Manufacturing</span>
@@ -154,7 +154,7 @@ export default function Home() {
             <div className="grid md:grid-cols-3 gap-6">
               {news.items.map((n) => (
                 <Link key={n.id} to={`/news/${n.slug}`} className="group border border-[#E2E8F0] rounded-lg overflow-hidden hover:border-vm-accent transition-colors" data-testid={`home-news-${n.slug}`}>
-                  {n.featured_image && <img src={mediaUrl(n.featured_image)} alt={n.title} className="w-full h-40 object-cover" />}
+                  {n.featured_image && <img src={mediaUrl(n.featured_image)} alt={n.title} loading="lazy" decoding="async" className="w-full h-40 object-cover" />}
                   <div className="p-4">
                     <span className="text-xs text-vm-accent font-semibold uppercase tracking-wider">{n.category}</span>
                     <h3 className="font-heading font-bold text-vm-ink mt-1 line-clamp-2 group-hover:text-vm-green">{n.title}</h3>
@@ -175,7 +175,7 @@ export default function Home() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {gallery.slice(0, 4).map((g) => (
                 <div key={g.id} className="rounded-lg overflow-hidden border border-[#E2E8F0] aspect-video">
-                  <img src={mediaUrl(g.image)} alt={g.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                  <img src={mediaUrl(g.image)} alt={g.title} loading="lazy" decoding="async" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                 </div>
               ))}
             </div>
