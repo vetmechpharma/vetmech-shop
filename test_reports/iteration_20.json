@@ -1,0 +1,33 @@
+{
+  "summary": "P0 SEO foundation validated end-to-end. Backend sitemap/robots/settings/product-FAQ/category-SEO all pass (8/8 pytest). Frontend client-rendered SEO tags verified on Product, Category, News, and Home pages (title '| VETMECH' suffix, canonical to https://vetmechpharma.in, correct og:type, single H1, JSON-LD includes Product+BreadcrumbList+FAQPage / CollectionPage+BreadcrumbList / BlogPosting+BreadcrumbList / Organization+WebSite). Admin Product SEO tab exposes completeness (50% for VETKCLOR), focus keyword, canonical, OG title, Add FAQ (rows appear with data-testid seo-faq-q-0/a-0). Admin Category edit modal exposes seogroup fields (seo-title, seo-meta-description, seo-keywords, seo-intro). Admin SEO Settings (/admin/seo) shows and saves GA4 ID, GTM ID, GSC verification. FAQ set via API renders on public product page inside data-testid=product-faq.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminProducts SEO tab", "issue": "OG Image field lacks data-testid='seo-og-image' hook (agent context says it exists). All other SEO testids present. Minor.", "selector": "[data-testid='seo-og-image']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home (/)", "issues": ["JSON-LD contains duplicate Organization and WebSite entries (once from Home.jsx and once from SeoGlobals). Not a validity issue for Google but consider deduping."]},
+      {"screen": "News article (/news/<slug>)", "issues": ["document.title on news page does NOT end with '| VETMECH' suffix (title='VETMECH launches new large-animal tonic range'). Product/Category/Home do apply the suffix — News SEO helper likely missing setTitleSuffix."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_seo_p0.py", "/app/test_reports/pytest/seo_p0.xml"],
+  "action_items": [
+    "(Optional/Minor) Add data-testid='seo-og-image' to the OG Image URL input in AdminProducts SEO tab to match the hook list.",
+    "(Optional/Minor) De-duplicate Organization/WebSite JSON-LD on home (either drop from Home.jsx or from SeoGlobals so it appears once).",
+    "(Optional/Minor) Append '| VETMECH' suffix on News article title for consistency with Product/Category/Home."
+  ],
+  "critical_code_review_comments": [
+    "backend/routers/catalog.py PUT /admin/categories does a $set on the whole body which is fine, but response is returned via find_one directly — good; not vulnerable to _id leak (excluded).",
+    "Frontend SEO is 100% client-rendered — this is acceptable for Google (JS rendering) but WhatsApp/Facebook/LinkedIn crawlers will NOT execute JS and will see empty og:tags. Consider SSR/prerender or a fallback in index.html for share previews (out of P0 scope, but worth flagging).",
+    "SeoGlobals + per-page SEO both inject Organization/WebSite JSON-LD on '/' — dedupe recommended."
+  ],
+  "updated_files": ["/app/backend/tests/test_seo_p0.py"],
+  "success_rate": {"backend": "100%", "frontend": "95%"},
+  "test_credentials": "Admin vetmechpharma@gmail.com / Admin@123 (works, JWT returned in 'token' field, not 'access_token')",
+  "seed_data_creation": "Test set FAQ {q:'TEST_Q_Storage?',a:'TEST_A_Store below 25C.'} on product prod-nerviphos-m via API. FAQ now shows on public product page — main agent may want to clear this later. SEO settings updated: ga_id=G-TESTGA4, gtm_id=GTM-TEST123, gsc_verification=test-gsc-token-xyz (main agent should reset to real/blank values before prod).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "P0 SEO validated. Backend admin login returns JWT under 'token' key (not 'access_token'). Settings endpoints: PUT /api/admin/settings/{sid}, GET /api/settings/{sid}. No singular GET /api/admin/categories/{cid} — use /api/admin/categories list. Frontend SEO is client-side only (SEO.jsx injects DOM in useEffect) — always wait_for network idle + short delay before reading meta/canonical/JSON-LD. In preview, /sitemap.xml and /robots.txt are only at /api/sitemap.xml and /api/robots.txt (root paths not routed).",
+  "rca of the issue": "N/A — all P0 SEO features working. Minor cosmetic issues only."
+}

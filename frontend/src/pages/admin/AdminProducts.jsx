@@ -380,7 +380,7 @@ export default function AdminProducts() {
                 <div><Label>OG Title</Label><Input value={form.seo?.og_title || ""} onChange={(e) => set("seo", { ...form.seo, og_title: e.target.value })} data-testid="seo-og-title" /></div>
                 <div><Label>OG Description</Label><Input value={form.seo?.og_description || ""} onChange={(e) => set("seo", { ...form.seo, og_description: e.target.value })} data-testid="seo-og-description" /></div>
               </div>
-              <div><Label>OG Image</Label><ImageUpload label="" value={form.seo?.og_image} onChange={(v) => set("seo", { ...form.seo, og_image: v })} testid="upload-og-image" /></div>
+              <div><Label>OG Image</Label><ImageUpload label="" value={form.seo?.og_image} onChange={(v) => set("seo", { ...form.seo, og_image: v })} testid="seo-og-image" /></div>
               <div><Label>SEO Content (extra indexable copy)</Label><Textarea rows={4} value={form.seo?.seo_content || ""} onChange={(e) => set("seo", { ...form.seo, seo_content: e.target.value })} data-testid="seo-content" /></div>
               <div className="border-t pt-3">
                 <div className="flex items-center justify-between mb-2">

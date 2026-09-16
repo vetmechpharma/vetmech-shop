@@ -174,3 +174,18 @@ Built in 4 tested phases. Extends the existing scheme engine + adds a pricing la
 - **Upsell nudge only when net rate improves**: `compute_upsell` (backend) and `computeUpsellFE` (ProductDetail.jsx) now hide the "add X more to get Y free" nudge unless reaching the higher tier strictly lowers the per-unit net rate. At efficient multiples (no wasted remainder) the nudge disappears; it only shows on a genuine per-unit improvement.
 - Files: backend/pricing_engine.py, backend/routers/orders.py, frontend/src/pages/ProductDetail.jsx, frontend/src/pages/admin/AdminOrders.jsx.
 - Verified: engine test — qty 72 → ₹58 (last_confirmed), qty 10 → actual rate, listing → actual rate; compute_upsell hides nudge at exact multiple, shows on remainder. Frontend compiles/renders.
+
+## SEO Upgrade — P0 Foundation (2026-06)
+Non-destructive SEO enhancement (existing functionality preserved). Domain: https://vetmechpharma.in (vetmech.in forwards). Confirmed choices: server-side crawler rendering planned for P1, MRP-only Merchant feed in P2, analytics/GSC admin fields added.
+- **Env**: backend/.env SITE_URL + APP_BASE_URL = https://vetmechpharma.in; frontend/.env REACT_APP_SITE_URL = https://vetmechpharma.in.
+- **Sitemap** (server.py GET /api/sitemap.xml): now includes home+static pages, all active categories, products, news with lastmod/changefreq/priority, absolute SITE_URL. **Robots** (GET /api/robots.txt): disallows /admin /account /cart /checkout /order-confirmed /api/admin, allows /api/uploads, references Sitemap. NOTE: on VPS these must be exposed at ROOT via nginx (proxy /sitemap.xml + /robots.txt → backend /api/...) — manual nginx step.
+- **Shared FE helper** src/lib/seo.js: siteUrl, breadcrumbLd, faqLd, articleLd, organizationLd, websiteLd.
+- **SEO.jsx** enhanced: array JSON-LD, robots/noindex, og:site_name, og:type, twitter tags, canonical from SITE_URL+pathname.
+- **Per-page structured data** (client-injected): Product page → Product+Offer+AggregateRating + BreadcrumbList + FAQPage (reads product.seo.faqs) + FAQ UI section; Category → BreadcrumbList + CollectionPage + breadcrumb nav + intro; News article → BlogPosting + BreadcrumbList; Home → Organization + WebSite(SearchAction). index.html: real title/description/OG + static Organization+WebSite baseline + theme-color.
+- **Backend**: public_product attaches category/subcategory {name,slug}; public_category attaches parent. build_product already passes seo dict through → product SEO fields (focus_keyword, secondary/meta keywords, canonical, og_title/description/image, seo_content, faqs[]) stored with NO schema migration.
+- **Admin**: Product SEO tab expanded (focus keyword, canonical, OG fields, SEO content, FAQ repeater) + live "SEO Completeness" indicator; Category editor gains SEO group (title/desc/keywords/intro) via new CrudManager 'seogroup' field type; SEO Settings adds GA4 ID / GTM ID / GSC verification (injected by SeoGlobals from /api/settings/seo).
+- **Validated**: iteration_20.json — backend 100% (8/8 pytest), frontend 95%. Known limitation (addressed in P1): SEO is client-rendered, so non-JS social crawlers see generic tags → P1 adds server-side crawler meta/JSON-LD injection.
+
+### SEO backlog
+- P1: server-side crawler rendering (index.html meta/JSON-LD injection for bots) + nginx rule; image ALT/lazy pass site-wide; internal linking; admin SEO validation (dupes/missing/broken).
+- P2: MRP-only Google Merchant feed; Core Web Vitals pass; 301 redirect manager.
