@@ -333,7 +333,8 @@ async def order_prev_pricing(oid: str, admin=Depends(require_module("orders"))):
         vids = [l.get("variant_id") for l in order.get("items", [])]
         docs = await db.customer_prices.find({"customer_id": cid, "variant_id": {"$in": vids}, "active": True}, {"_id": 0}).to_list(500)
         for d in docs:
-            prices[d["variant_id"]] = {"rate": d.get("rate"), "offer": d.get("offer"), "source": d.get("source")}
+            prices[d["variant_id"]] = {"rate": d.get("rate"), "offer": d.get("offer"),
+                                       "source": d.get("source"), "qty": d.get("qty")}
     return {"customer_id": cid, "prices": prices}
 
 
@@ -472,7 +473,7 @@ async def apply_last_confirmed(customer_id, lines, admin):
     """Save the confirmed order rate/offer as the customer's negotiated (last-confirmed) pricing."""
     for l in lines:
         doc = {"rate": l["unit_price"], "offer": l.get("_customer_offer"), "source": "last_confirmed",
-               "active": True, "updated_at": now_iso()}
+               "qty": int(l.get("qty") or 0), "active": True, "updated_at": now_iso()}
         existing = await db.customer_prices.find_one({"customer_id": customer_id, "variant_id": l["variant_id"]}, {"_id": 0})
         if existing:
             doc["protected"] = existing.get("protected", False)

@@ -36,7 +36,7 @@ function pickBestOffer(schemes, qty, baseRate) {
   }
   return best;
 }
-function computeUpsellFE(schemes, qty, currentFree) {
+function computeUpsellFE(schemes, qty, currentFree, baseRate, currentNet) {
   let best = null;
   for (const s of schemes || []) {
     if (!(s.type === "free_qty" || !s.type) || !s.buy || !s.free) continue;
@@ -45,6 +45,11 @@ function computeUpsellFE(schemes, qty, currentFree) {
     if (s.max && thr > s.max) continue;
     const freeAt = (thr / sb) * sf;
     if (freeAt <= currentFree) continue;
+    // Only nudge when reaching the higher tier strictly improves the net rate.
+    if (baseRate != null && currentNet != null) {
+      const targetNet = Math.round((baseRate * thr / (thr + freeAt)) * 100) / 100;
+      if (targetNet >= currentNet) continue;
+    }
     const add = thr - qty;
     if (!best || add < best.add) best = { add, target: thr, free: freeAt, label: `${sb}+${sf}` };
   }
@@ -85,7 +90,7 @@ export default function ProductDetail() {
   const netRate = bestOffer
     ? (bestOffer.kind === "price" ? bestOffer.unit : (dispatchFree ? Math.round((baseRate * qty / (qty + dispatchFree)) * 100) / 100 : baseRate))
     : baseRate;
-  const upsell = computeUpsellFE(schemes, qty, dispatchFree);
+  const upsell = computeUpsellFE(schemes, qty, dispatchFree, baseRate, netRate);
 
   const reviewLd = p.review_count ? { "@type": "AggregateRating", ratingValue: p.review_avg, reviewCount: p.review_count } : null;
   const jsonLd = {

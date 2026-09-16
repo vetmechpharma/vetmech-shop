@@ -45,8 +45,13 @@ def scheme_desc(s):
             "special_price": s.get("special_price"), "min": s.get("min_quantity")}
 
 
-async def resolve_pricing(db, product, variant, customer, settings=None):
-    """Return the applicable base rate + offer descriptor for a customer (or guest)."""
+async def resolve_pricing(db, product, variant, customer, settings=None, qty=None):
+    """Return the applicable base rate + offer descriptor for a customer (or guest).
+
+    `qty` (when provided) enforces quantity-bound negotiated rates: a rate agreed
+    for a specific quantity applies ONLY at that exact quantity, never as a
+    standing base rate for other quantities.
+    """
     settings = settings if settings is not None else await get_pricing_settings(db)
     mrp = variant.get("mrp")
     public = variant.get("selling_price")
@@ -64,12 +69,18 @@ async def resolve_pricing(db, product, variant, customer, settings=None):
         cp = await db.customer_prices.find_one(
             {"customer_id": customer["id"], "variant_id": variant["id"], "active": True}, {"_id": 0})
     if cp and cp.get("rate") is not None:
-        result["rate"] = cp["rate"]
-        result["source"] = cp.get("source") or "customer_specific"
-        if cp.get("offer"):
-            result["custom_offer"] = cp["offer"]
-            result["offer_source"] = "customer"
-        return result
+        bound_qty = cp.get("qty")
+        # A negotiated (last-confirmed) rate is tied to the exact quantity it was agreed
+        # at. Outside that quantity it must fall back to normal category/public pricing.
+        if cp.get("source") == "last_confirmed" and bound_qty and qty != bound_qty:
+            pass  # not the negotiated quantity -> ignore this rate, fall through below
+        else:
+            result["rate"] = cp["rate"]
+            result["source"] = cp.get("source") or "customer_specific"
+            if cp.get("offer"):
+                result["custom_offer"] = cp["offer"]
+                result["offer_source"] = "customer"
+            return result
 
     if settings.get("enable_category_pricing", True) and cat:
         catp = await db.category_prices.find_one(
@@ -81,8 +92,12 @@ async def resolve_pricing(db, product, variant, customer, settings=None):
     return result
 
 
-def compute_upsell(qty, offer_schemes, current_free):
-    """Smallest add that reaches a higher free-qty tier (uses simplified ratios)."""
+def compute_upsell(qty, offer_schemes, current_free, base_rate=None, current_net=None):
+    """Smallest add that reaches a higher free-qty tier AND strictly improves the net rate.
+
+    A nudge is only surfaced when reaching the higher tier genuinely lowers the
+    per-unit net rate; buying more for the same effective rate is never suggested.
+    """
     best = None
     for s in offer_schemes:
         if s.get("scheme_type") not in (None, "free_qty"):
@@ -98,6 +113,11 @@ def compute_upsell(qty, offer_schemes, current_free):
             continue
         free_at = (thr // sb) * sf
         if free_at > current_free:
+            # Only nudge when the target quantity yields a strictly better net rate.
+            if base_rate is not None and current_net is not None:
+                target_net = round(base_rate * thr / (thr + free_at), 2)
+                if target_net >= current_net:
+                    continue
             add = thr - qty
             cand = {"add": add, "target_qty": thr, "free_qty": free_at, "label": f"{sb}+{sf}"}
             if best is None or add < best["add"] or (add == best["add"] and free_at > best["free_qty"]):
@@ -111,7 +131,7 @@ def compute_upsell(qty, offer_schemes, current_free):
 async def price_line(db, product, variant, qty, customer, settings=None):
     """Full priced line for cart/order: unit price, free qty, offer + source labels + upsell nudges."""
     settings = settings if settings is not None else await get_pricing_settings(db)
-    pr = await resolve_pricing(db, product, variant, customer, settings)
+    pr = await resolve_pricing(db, product, variant, customer, settings, qty)
     if pr["custom_offer"]:
         offer_schemes = [_scheme_from_custom(pr["custom_offer"])]
         offer_source = "customer"
@@ -126,7 +146,7 @@ async def price_line(db, product, variant, qty, customer, settings=None):
     free_qty = sc["free_qty"]
     denom = qty + free_qty
     net_rate = round(unit_price * qty / denom, 2) if denom else unit_price
-    upsell = compute_upsell(qty, offer_schemes, sc["free_qty"])
+    upsell = compute_upsell(qty, offer_schemes, sc["free_qty"], pr["rate"], net_rate)
 
     # Case offer nudge: a full case may be cheaper per unit than the current effective rate
     case_suggestion = None

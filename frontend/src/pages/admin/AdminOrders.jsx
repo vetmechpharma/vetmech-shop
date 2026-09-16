@@ -269,7 +269,7 @@ function OrderDetail({ id, onClose, onChange }) {
                           <div><Label className="text-[10px]">Buy</Label><Input type="number" value={r.buy} onChange={(e) => setRow(i, "buy", e.target.value)} className="h-8" data-testid={`order-buy-${i}`} /></div>
                           <div><Label className="text-[10px]">Free</Label><Input type="number" value={r.free} onChange={(e) => setRow(i, "free", e.target.value)} className="h-8" data-testid={`order-free-${i}`} /></div>
                         </div>
-                        {prevPricing[r.variant_id] && <p className="text-[11px] text-vm-accent bg-vm-accent/5 border border-vm-accent/20 rounded px-2 py-1 mt-1" data-testid={`prev-pricing-${i}`}>Previously bought @ ₹{prevPricing[r.variant_id].rate}{prevPricing[r.variant_id].offer && prevPricing[r.variant_id].offer.free_quantity ? ` · offer ${prevPricing[r.variant_id].offer.buy_quantity}+${prevPricing[r.variant_id].offer.free_quantity} free` : ""}</p>}
+                        {prevPricing[r.variant_id] && <p className="text-[11px] text-vm-accent bg-vm-accent/5 border border-vm-accent/20 rounded px-2 py-1 mt-1" data-testid={`prev-pricing-${i}`}>Previously bought @ ₹{prevPricing[r.variant_id].rate}{prevPricing[r.variant_id].qty ? ` for qty ${prevPricing[r.variant_id].qty}` : ""}{prevPricing[r.variant_id].offer && prevPricing[r.variant_id].offer.free_quantity ? ` · offer ${prevPricing[r.variant_id].offer.buy_quantity}+${prevPricing[r.variant_id].offer.free_quantity} free` : ""}{prevPricing[r.variant_id].qty ? ` (applies only at qty ${prevPricing[r.variant_id].qty})` : ""}</p>}
                       </div>
                     ))}
                     <div className="p-3 space-y-3">
