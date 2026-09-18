@@ -30,6 +30,7 @@ const GROUPS = [
       { to: "/admin/dispatch-list", label: "Dispatch Register", module: "orders" },
       { to: "/admin/transports", label: "Transport Master", module: "orders" },
       { to: "/admin/customers", label: "Customers", module: "customers" },
+      { to: "/admin/customers/reports", label: "Customer Reports", module: "reports" },
       { to: "/admin/pricing-manager", label: "Pricing Manager", module: "customers" },
       { to: "/admin/pricing-settings", label: "Pricing Engine", module: "customers" },
     ],

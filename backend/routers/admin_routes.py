@@ -329,3 +329,119 @@ async def reports_summary(admin=Depends(require_module("reports"))):
         "total_value": round(total_value, 2),
         "most_reordered": [{"name": n, "count": c} for n, c in reorder_counter.most_common(10)],
     }
+
+
+# =============== CUSTOMER REPORTS ===============
+@router.get("/reports/customers")
+async def customer_reports(date_from: Optional[str] = None, date_to: Optional[str] = None,
+                           customer_type: Optional[str] = None, days: int = 90,
+                           admin=Depends(require_module("reports"))):
+    oq = {}
+    if date_from or date_to:
+        rng = {}
+        if date_from:
+            rng["$gte"] = date_from
+        if date_to:
+            rng["$lte"] = date_to + "T23:59:59"
+        oq["created_at"] = rng
+    orders = await db.orders.find(oq, {"_id": 0, "customer_id": 1, "customer_name": 1, "customer_mobile": 1,
+                                       "customer_category": 1, "company_name": 1, "created_at": 1,
+                                       "items": 1, "address": 1}).to_list(100000)
+    customers = await db.customers.find({}, {"_id": 0}).to_list(100000)
+    now = datetime.now(timezone.utc)
+
+    def oval(o):
+        return sum((i.get("unit_price") or 0) * (i.get("qty") or 0) for i in o.get("items", []))
+
+    def dsince(iso):
+        try:
+            return (now - datetime.fromisoformat(str(iso).replace("Z", "+00:00"))).days
+        except Exception:
+            return None
+
+    agg, geo = {}, {"state": {}, "district": {}, "taluk": {}}
+    for o in orders:
+        cid = o.get("customer_id") or o.get("customer_mobile")
+        if not cid:
+            continue
+        val, ca = oval(o), o.get("created_at")
+        a = agg.get(cid)
+        if not a:
+            a = agg[cid] = {"customer_id": o.get("customer_id"), "name": o.get("customer_name"),
+                            "mobile": o.get("customer_mobile"), "category": o.get("customer_category"),
+                            "company": o.get("company_name") or "", "orders": 0, "revenue": 0.0,
+                            "first": None, "last": None}
+        a["orders"] += 1
+        a["revenue"] += val
+        if ca:
+            if not a["first"] or ca < a["first"]:
+                a["first"] = ca
+            if not a["last"] or ca > a["last"]:
+                a["last"] = ca
+        addr = o.get("address") or {}
+        for lvl, key in (("state", addr.get("state")), ("district", addr.get("district")),
+                         ("taluk", addr.get("taluk") or addr.get("line3"))):
+            if key:
+                g = geo[lvl].get(key)
+                if not g:
+                    g = geo[lvl][key] = {"customers": set(), "orders": 0, "revenue": 0.0}
+                g["customers"].add(cid)
+                g["orders"] += 1
+                g["revenue"] += val
+
+    rows = [r for r in agg.values() if (not customer_type or r["category"] == customer_type)]
+    for r in rows:
+        r["revenue"] = round(r["revenue"], 2)
+        r["aov"] = round(r["revenue"] / r["orders"], 2) if r["orders"] else 0
+        r["recency_days"] = dsince(r["last"]) if r["last"] else None
+        r["repeat"] = r["orders"] > 1
+        fd, ld = dsince(r["first"]), r["recency_days"]
+        span = (fd - ld) if (fd is not None and ld is not None) else 0
+        r["frequency_per_month"] = round(r["orders"] / max(span / 30.0, 1), 2)
+
+    ctf = [c for c in customers if (not customer_type or c.get("category") == customer_type)]
+
+    def is_active(c):
+        st = c.get("status") or ("active" if c.get("active", True) else "suspended")
+        return st == "active"
+
+    last_by = {r["customer_id"]: r for r in rows if r["customer_id"]}
+
+    def clight(c):
+        lr = last_by.get(c["id"])
+        return {"customer_id": c["id"], "name": c.get("name"), "mobile": c.get("mobile"),
+                "category": c.get("category"), "company": c.get("company_name") or "",
+                "orders": lr["orders"] if lr else 0, "revenue": lr["revenue"] if lr else 0,
+                "recency_days": lr["recency_days"] if lr else None, "last_order": lr["last"] if lr else None}
+
+    active = [clight(c) for c in ctf if is_active(c)]
+    inactive = [clight(c) for c in ctf if not is_active(c)]
+    no_recent = [clight(c) for c in ctf if (last_by.get(c["id"]) is None or (last_by[c["id"]]["recency_days"] or 999999) > days)]
+
+    def geo_list(d):
+        return sorted([{"name": k, "customers": len(v["customers"]), "orders": v["orders"],
+                        "revenue": round(v["revenue"], 2)} for k, v in d.items()], key=lambda x: -x["revenue"])
+
+    total_orders = len(orders)
+    total_revenue = round(sum(r["revenue"] for r in rows), 2)
+    ncust = len(rows) or 1
+    summary = {
+        "total_customers": len(ctf), "customers_with_orders": len(rows),
+        "active_customers": len(active), "inactive_customers": len(inactive),
+        "total_orders": total_orders, "total_revenue": total_revenue,
+        "aov": round(total_revenue / total_orders, 2) if total_orders else 0,
+        "avg_frequency": round(total_orders / ncust, 2),
+        "clv": round(total_revenue / ncust, 2),
+        "repeat_customers": sum(1 for r in rows if r["repeat"]),
+        "first_time_customers": sum(1 for r in rows if r["orders"] == 1),
+        "no_orders_days": days, "no_orders_count": len(no_recent),
+    }
+    by_rev = sorted(rows, key=lambda x: -x["revenue"])
+    return {
+        "summary": summary, "customers": by_rev, "top_customers": by_rev[:10],
+        "repeat_customers": [r for r in by_rev if r["repeat"]],
+        "first_time_customers": [r for r in by_rev if r["orders"] == 1],
+        "active_customers": active, "inactive_customers": inactive,
+        "no_recent": sorted(no_recent, key=lambda x: (x["recency_days"] or 0), reverse=True),
+        "geo_state": geo_list(geo["state"]), "geo_district": geo_list(geo["district"]), "geo_taluk": geo_list(geo["taluk"]),
+    }

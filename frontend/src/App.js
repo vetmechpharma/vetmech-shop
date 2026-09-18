@@ -40,6 +40,7 @@ import AdminPricingSettings from "@/pages/admin/AdminPricingSettings";
 import AdminTransports from "@/pages/admin/AdminTransports";
 import AdminPricingManager from "@/pages/admin/AdminPricingManager";
 import AdminSeoAudit from "@/pages/admin/AdminSeoAudit";
+import AdminCustomerReports from "@/pages/admin/AdminCustomerReports";
 import AdminDispatchList from "@/pages/admin/AdminDispatchList";
 import AdminMessageTemplates from "@/pages/admin/AdminMessageTemplates";
 import Register from "@/pages/Register";
@@ -103,6 +104,7 @@ function App() {
                   <Route path="schemes" element={<AdminSchemes />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="customers" element={<AdminCustomers />} />
+                  <Route path="customers/reports" element={<AdminCustomerReports />} />
                   <Route path="pages" element={<AdminPages />} />
                   <Route path="news" element={<AdminNews />} />
                   <Route path="reviews" element={<AdminReviews />} />

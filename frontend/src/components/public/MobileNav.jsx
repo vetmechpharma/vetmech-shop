@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { useSettings } from "@/hooks/useSettings";
 import SearchModal from "./SearchModal";
-import { Home, Package, Search, ShoppingCart, User, MessageCircle } from "lucide-react";
+import { Home, Package, Search, ShoppingCart, User, Zap } from "lucide-react";
 
 export default function MobileNav() {
   const { pathname } = useLocation();
@@ -37,11 +37,11 @@ export default function MobileNav() {
         {item(null, Search, "Search", 0, () => setSearchOpen(true))}
         {item("/cart", ShoppingCart, "Cart", count)}
         {item("/account", User, "Account")}
-        <a href={`https://wa.me/${company?.whatsapp || "919825000000"}`} target="_blank" rel="noreferrer"
-           className="flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 text-vm-accent" data-testid="mobilenav-whatsapp">
-          <MessageCircle className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Order</span>
-        </a>
+        <Link to="/quick-order"
+           className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 ${pathname === "/quick-order" ? "text-vm-green" : "text-vm-accent"}`} data-testid="mobilenav-quick-order">
+          <Zap className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Quick Order</span>
+        </Link>
       </nav>
       <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
     </>

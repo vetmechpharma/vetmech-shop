@@ -209,3 +209,12 @@ Non-destructive SEO enhancement (existing functionality preserved). Domain: http
 
 ## Social Share Button on Product (2026-06)
 - New reusable component src/components/public/ShareButtons.jsx: WhatsApp, Facebook, X/Twitter, LinkedIn, Copy-link, and native mobile share (navigator.share). Uses the production canonical URL via siteUrl(`/products/{slug}`). Added to ProductDetail.jsx below the price/actions block — visible to guests and logged-in users. testids: share-buttons, share-native, share-whatsapp, share-facebook, share-twitter, share-linkedin, share-copy. Verified rendering via screenshot.
+
+## Customer Reports + Mobile Quick Order (2026-06)
+- **Mobile Quick Order**: MobileNav bottom bar last item changed from WhatsApp "Order" link to a "Quick Order" link → /quick-order (mirrors desktop header), Zap icon. testid mobilenav-quick-order.
+- **Customers → Reports** (new, non-destructive, reuses orders+customers): backend GET /api/admin/reports/customers (require_module reports) params date_from,date_to,customer_type,days. Computes order value = sum(item unit_price*qty). Returns summary KPIs (customers, active/inactive, orders, revenue, AOV, avg frequency, CLV, repeat, first-time, no-orders-in-N) + lists: customers, top_customers, repeat, first_time, active, inactive, no_recent + geo_state/district/taluk (taluk uses address.taluk||line3). Frontend page AdminCustomerReports.jsx at /admin/customers/reports (nav "Customer Reports" under Sales & Pricing): filter bar, KPI cards, recharts bar charts (top customers, revenue by state), tabs (Overview/All/Top/Repeat/First-time/Active/Inactive/No-Orders-N/Geographic), per-table search+sort+pagination+CSV(Excel) export, drill-down row click → /admin/orders?q=mobile. Verified: 24 customers/9 with orders/₹44,530 revenue; page + charts + geo render.
+
+### Deferred (requested, not yet built)
+- P1: Product multi main+subcategory (e.g. Cipromech-TZ in Large Animal + Poultry) + reflect in filters/breadcrumbs/SEO/JSON-LD/sitemap.
+- P1: Admin Order Edit → show "Available Offers" selector per line (like product page) so admin can pick an offer.
+- P1: Social share OG preview (image/title) — buttons already live; correct WhatsApp/FB unfurl needs the VPS nginx crawler-render rule deployed (works via JS on preview). PDF export for reports (CSV/Excel done).
