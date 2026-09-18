@@ -165,6 +165,8 @@ def build_product(body, existing=None):
         "sku": body.get("sku", base.get("sku", "")),
         "category_id": body.get("category_id", base.get("category_id")),
         "subcategory_id": body.get("subcategory_id", base.get("subcategory_id")),
+        "category_ids": body.get("category_ids", base.get("category_ids")) or [x for x in [body.get("category_id", base.get("category_id"))] if x],
+        "subcategory_ids": body.get("subcategory_ids", base.get("subcategory_ids")) or [x for x in [body.get("subcategory_id", base.get("subcategory_id"))] if x],
         "image": body.get("image", base.get("image", "")),
         "images": body.get("images", base.get("images", [])),
         "short_description": body.get("short_description", base.get("short_description", "")),
@@ -221,20 +223,23 @@ async def public_products(
     page: int = 1, limit: int = 12, customer=Depends(optional_customer),
 ):
     query = {"active": True}
+    ands = []
     if category:
         cat = await db.categories.find_one({"slug": category}) or {"id": category}
-        query["category_id"] = cat["id"]
+        ands.append({"$or": [{"category_id": cat["id"]}, {"category_ids": cat["id"]}]})
     if subcategory:
         sc = await db.categories.find_one({"slug": subcategory}) or {"id": subcategory}
-        query["subcategory_id"] = sc["id"]
+        ands.append({"$or": [{"subcategory_id": sc["id"]}, {"subcategory_ids": sc["id"]}]})
     if brand:
         query["brand_id"] = brand
     if badge:
         query[f"badges.{badge}"] = True
     if q:
         rx = {"$regex": re.escape(q), "$options": "i"}
-        query["$or"] = [{"name": rx}, {"brand_name": rx}, {"product_code": rx},
-                        {"sku": rx}, {"composition": rx}]
+        ands.append({"$or": [{"name": rx}, {"brand_name": rx}, {"product_code": rx},
+                             {"sku": rx}, {"composition": rx}]})
+    if ands:
+        query["$and"] = ands
     res = await paginate(db.products, query, page, limit, sort_field="order", sort_dir=1)
     res["items"] = await enrich_products(res["items"], customer)
     if availability:
@@ -278,9 +283,10 @@ async def public_product(slug: str, customer=Depends(optional_customer)):
     await enrich_products([p], customer)
     # Related products: automatic — other active products in the same category
     related = []
-    if p.get("category_id"):
+    cids = list({*(p.get("category_ids") or []), *([p["category_id"]] if p.get("category_id") else [])})
+    if cids:
         rel_docs = await db.products.find(
-            {"category_id": p["category_id"], "active": True, "id": {"$ne": p["id"]}},
+            {"$or": [{"category_id": {"$in": cids}}, {"category_ids": {"$in": cids}}], "active": True, "id": {"$ne": p["id"]}},
             {"_id": 0}).limit(8).to_list(8)
         await enrich_products(rel_docs, customer)
         related = rel_docs
@@ -301,7 +307,7 @@ async def admin_products(q: Optional[str] = None, category: Optional[str] = None
                          page: int = 1, limit: int = 20, admin=Depends(require_module("products"))):
     query = {}
     if category:
-        query["category_id"] = category
+        query["$or"] = [{"category_id": category}, {"category_ids": category}]
     if q:
         rx = {"$regex": re.escape(q), "$options": "i"}
         query["$or"] = [{"name": rx}, {"product_code": rx}, {"sku": rx}]

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Body, Query
+from fastapi import APIRouter, HTTPException, Depends, Body, Query, Response
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from collections import Counter
@@ -332,10 +332,7 @@ async def reports_summary(admin=Depends(require_module("reports"))):
 
 
 # =============== CUSTOMER REPORTS ===============
-@router.get("/reports/customers")
-async def customer_reports(date_from: Optional[str] = None, date_to: Optional[str] = None,
-                           customer_type: Optional[str] = None, days: int = 90,
-                           admin=Depends(require_module("reports"))):
+async def _customer_reports_data(date_from=None, date_to=None, customer_type=None, days=90):
     oq = {}
     if date_from or date_to:
         rng = {}
@@ -436,8 +433,18 @@ async def customer_reports(date_from: Optional[str] = None, date_to: Optional[st
         "first_time_customers": sum(1 for r in rows if r["orders"] == 1),
         "no_orders_days": days, "no_orders_count": len(no_recent),
     }
+    monthly = {}
+    for o in orders:
+        ca = o.get("created_at")
+        if ca:
+            mk = str(ca)[:7]
+            md = monthly.setdefault(mk, {"revenue": 0.0, "orders": 0})
+            md["revenue"] += oval(o)
+            md["orders"] += 1
+    monthly_list = [{"month": k, "revenue": round(v["revenue"], 2), "orders": v["orders"]} for k, v in sorted(monthly.items())]
     by_rev = sorted(rows, key=lambda x: -x["revenue"])
     return {
+        "monthly": monthly_list,
         "summary": summary, "customers": by_rev, "top_customers": by_rev[:10],
         "repeat_customers": [r for r in by_rev if r["repeat"]],
         "first_time_customers": [r for r in by_rev if r["orders"] == 1],
@@ -445,3 +452,55 @@ async def customer_reports(date_from: Optional[str] = None, date_to: Optional[st
         "no_recent": sorted(no_recent, key=lambda x: (x["recency_days"] or 0), reverse=True),
         "geo_state": geo_list(geo["state"]), "geo_district": geo_list(geo["district"]), "geo_taluk": geo_list(geo["taluk"]),
     }
+
+
+@router.get("/reports/customers")
+async def customer_reports(date_from: Optional[str] = None, date_to: Optional[str] = None,
+                           customer_type: Optional[str] = None, days: int = 90,
+                           admin=Depends(require_module("reports"))):
+    return await _customer_reports_data(date_from, date_to, customer_type, days)
+
+
+@router.get("/reports/customers/pdf")
+async def customer_reports_pdf(date_from: Optional[str] = None, date_to: Optional[str] = None,
+                               customer_type: Optional[str] = None, days: int = 90,
+                               admin=Depends(require_module("reports"))):
+    import io
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    data = await _customer_reports_data(date_from, date_to, customer_type, days)
+    company = await db.settings.find_one({"id": "company"}, {"_id": 0}) or {}
+    styles = getSampleStyleSheet()
+    green = colors.HexColor("#0B6E4F")
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=15 * mm, bottomMargin=15 * mm, leftMargin=14 * mm, rightMargin=14 * mm)
+    el = [Paragraph(company.get("name", "VETMECH PHARMACEUTICALS"), ParagraphStyle("t", parent=styles["Title"], textColor=green, fontSize=18)),
+          Paragraph("Customer Report", styles["Heading2"]),
+          Paragraph(f"Range: {date_from or 'All'} to {date_to or 'now'}" + (f" &nbsp; Type: {customer_type}" if customer_type else ""), styles["Normal"]),
+          Spacer(1, 8)]
+    s = data["summary"]
+    kpi = [["Customers", s["total_customers"], "Active", s["active_customers"], "Orders", s["total_orders"]],
+           ["Revenue", f"Rs {s['total_revenue']}", "AOV", f"Rs {s['aov']}", "Est. CLV", f"Rs {s['clv']}"],
+           ["Repeat", s["repeat_customers"], "First-time", s["first_time_customers"], f"No orders {s['no_orders_days']}d", s["no_orders_count"]]]
+    kt = Table(kpi, colWidths=[26 * mm, 27 * mm, 26 * mm, 27 * mm, 32 * mm, 24 * mm])
+    kt.setStyle(TableStyle([("FONTSIZE", (0, 0), (-1, -1), 9), ("TEXTCOLOR", (0, 0), (0, -1), green),
+                            ("TEXTCOLOR", (2, 0), (2, -1), green), ("TEXTCOLOR", (4, 0), (4, -1), green),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 5), ("LINEBELOW", (0, 0), (-1, -1), 0.3, colors.HexColor("#E2E8F0"))]))
+    el += [kt, Spacer(1, 10), Paragraph("Top Customers by Revenue", ParagraphStyle("h", parent=styles["Heading3"], textColor=green))]
+    top = [["Customer", "Type", "Orders", "Revenue", "AOV"]] + [[r["name"] or "-", r.get("category") or "-", r["orders"], f"Rs {r['revenue']}", f"Rs {r['aov']}"] for r in data["top_customers"][:15]]
+    tt = Table(top, colWidths=[62 * mm, 28 * mm, 20 * mm, 30 * mm, 30 * mm])
+    tt.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), green), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                            ("FONTSIZE", (0, 0), (-1, -1), 8), ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#E2E8F0")),
+                            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F6FBF8")])]))
+    el += [tt, Spacer(1, 10), Paragraph("Revenue by State", ParagraphStyle("h2", parent=styles["Heading3"], textColor=green))]
+    st = [["State", "Customers", "Orders", "Revenue"]] + [[g["name"], g["customers"], g["orders"], f"Rs {g['revenue']}"] for g in data["geo_state"][:15]]
+    ts = Table(st, colWidths=[70 * mm, 30 * mm, 30 * mm, 40 * mm])
+    ts.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), green), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                            ("FONTSIZE", (0, 0), (-1, -1), 8), ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#E2E8F0"))]))
+    el.append(ts)
+    doc.build(el)
+    return Response(content=buf.getvalue(), media_type="application/pdf",
+                    headers={"Content-Disposition": "inline; filename=customer-report.pdf"})

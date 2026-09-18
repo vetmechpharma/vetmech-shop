@@ -151,7 +151,9 @@ export default function AdminProducts() {
     setSaving(true);
     try {
       const brand = brands?.find((b) => b.id === form.brand_id);
-      const payload = { ...form, brand_name: brand?.name || form.brand_name || "" };
+      const payload = { ...form, brand_name: brand?.name || form.brand_name || "",
+        category_ids: Array.from(new Set([form.category_id, ...(form.category_ids || [])].filter(Boolean))),
+        subcategory_ids: Array.from(new Set([form.subcategory_id, ...(form.subcategory_ids || [])].filter(Boolean))) };
       const saved = editing
         ? (await api.put(`/admin/products/${editing.id}`, payload)).data
         : (await api.post("/admin/products", payload)).data;
@@ -218,12 +220,33 @@ export default function AdminProducts() {
                   <SelectContent>{(brands || []).map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent></Select>
               </div>
               <div><Label>Category</Label>
-                <Select value={form.category_id || ""} onValueChange={(v) => set("category_id", v)}><SelectTrigger data-testid="pf-category"><SelectValue placeholder="Select" /></SelectTrigger>
+                <Select value={form.category_id || ""} onValueChange={(v) => { set("category_id", v); setForm((f) => ({ ...f, category_ids: Array.from(new Set([v, ...(f.category_ids || [])])) })); }}><SelectTrigger data-testid="pf-category"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>{(cats || []).filter((c) => !c.parent_id).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
               </div>
               <div><Label>Subcategory</Label>
                 <Select value={form.subcategory_id || ""} onValueChange={(v) => set("subcategory_id", v)}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>{(cats || []).filter((c) => c.parent_id === form.category_id).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Also appears in (main categories)</Label>
+                <div className="flex flex-wrap gap-2 mt-1" data-testid="pf-extra-categories">
+                  {(cats || []).filter((c) => !c.parent_id).map((c) => {
+                    const on = (form.category_ids || (form.category_id ? [form.category_id] : [])).includes(c.id);
+                    const primary = c.id === form.category_id;
+                    return <button type="button" key={c.id} disabled={primary} data-testid={`pf-cat-${c.id}`}
+                      onClick={() => setForm((f) => { const cur = new Set(f.category_ids || (f.category_id ? [f.category_id] : [])); cur.has(c.id) ? cur.delete(c.id) : cur.add(c.id); return { ...f, category_ids: Array.from(cur) }; })}
+                      className={`text-xs rounded-full px-2.5 py-1 border ${on ? "bg-vm-green text-white border-vm-green" : "border-[#E2E8F0] text-slate-600"} ${primary ? "opacity-60" : ""}`}>{c.name}{primary ? " (primary)" : ""}</button>;
+                  })}
+                </div>
+                <Label className="mt-3 block">Also in (subcategories)</Label>
+                <div className="flex flex-wrap gap-2 mt-1" data-testid="pf-extra-subcategories">
+                  {(cats || []).filter((c) => c.parent_id && (form.category_ids || (form.category_id ? [form.category_id] : [])).includes(c.parent_id)).map((c) => {
+                    const on = (form.subcategory_ids || (form.subcategory_id ? [form.subcategory_id] : [])).includes(c.id);
+                    return <button type="button" key={c.id} data-testid={`pf-sub-${c.id}`}
+                      onClick={() => setForm((f) => { const cur = new Set(f.subcategory_ids || (f.subcategory_id ? [f.subcategory_id] : [])); cur.has(c.id) ? cur.delete(c.id) : cur.add(c.id); return { ...f, subcategory_ids: Array.from(cur) }; })}
+                      className={`text-xs rounded-full px-2.5 py-1 border ${on ? "bg-vm-accent text-white border-vm-accent" : "border-[#E2E8F0] text-slate-600"}`}>{c.name}</button>;
+                  })}
+                </div>
               </div>
               <div className="sm:col-span-2"><Label>Short Description</Label><Textarea value={form.short_description || ""} onChange={(e) => set("short_description", e.target.value)} /></div>
               <div className="flex items-center justify-between sm:col-span-2 border rounded-md px-3 py-2"><Label>Active (visible on site)</Label><Switch checked={!!form.active} onCheckedChange={(v) => set("active", v)} data-testid="pf-active" /></div>

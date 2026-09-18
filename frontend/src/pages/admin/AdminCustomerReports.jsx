@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CUSTOMER_CATEGORIES } from "@/lib/constants";
 import { Loader2, Download, Search, ArrowUpDown } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const rupee = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 const catLabel = (v) => CUSTOMER_CATEGORIES.find((c) => c.value === v)?.label || v || "—";
@@ -93,6 +93,13 @@ export default function AdminCustomerReports() {
     } })).data,
   });
   const drill = (r) => r.mobile && navigate(`/admin/orders?q=${encodeURIComponent(r.mobile)}`);
+  const downloadPdf = async () => {
+    const res = await api.get("/admin/reports/customers/pdf", { responseType: "blob", params: {
+      date_from: applied.date_from || undefined, date_to: applied.date_to || undefined,
+      customer_type: applied.customer_type === "all" ? undefined : applied.customer_type, days: applied.days || 90,
+    } });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(res.data); a.download = "customer-report.pdf"; a.click();
+  };
 
   if (isLoading) return <div className="py-20 text-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin inline" /></div>;
   const s = data?.summary || {};
@@ -122,7 +129,10 @@ export default function AdminCustomerReports() {
           </Select>
         </div>
         <div><Label className="text-xs">No orders in last N days</Label><Input type="number" value={filters.days} onChange={(e) => setFilters((f) => ({ ...f, days: Number(e.target.value) || 0 }))} data-testid="rep-days" /></div>
-        <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => setApplied(filters)} data-testid="rep-apply">{isFetching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Apply</Button>
+        <div className="flex gap-2">
+          <Button className="bg-vm-green hover:bg-vm-greenhover flex-1" onClick={() => setApplied(filters)} data-testid="rep-apply">{isFetching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Apply</Button>
+          <Button variant="outline" onClick={downloadPdf} data-testid="rep-pdf"><Download className="w-4 h-4 mr-1" /> PDF</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
@@ -167,6 +177,31 @@ export default function AdminCustomerReports() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-25} textAnchor="end" height={60} /><YAxis tick={{ fontSize: 11 }} /><Tooltip formatter={(v) => rupee(v)} /><Bar dataKey="revenue" fill="#E9772B" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="border border-[#E2E8F0] rounded-lg p-4 bg-white lg:col-span-2">
+            <p className="font-semibold text-vm-ink mb-3">Monthly Revenue Trend</p>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={(data?.monthly || []).map((m) => ({ month: m.month, revenue: m.revenue }))}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip formatter={(v) => rupee(v)} /><Line type="monotone" dataKey="revenue" stroke="#0B6E4F" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="border border-[#E2E8F0] rounded-lg p-4 bg-white lg:col-span-2">
+            <p className="font-semibold text-vm-ink mb-3">District-wise Revenue (heat)</p>
+            <div className="space-y-1.5">
+              {(data?.geo_district || []).slice(0, 12).map((d) => {
+                const max = (data?.geo_district?.[0]?.revenue) || 1;
+                const pct = Math.round((d.revenue / max) * 100);
+                return (
+                  <div key={d.name} className="flex items-center gap-2 text-xs">
+                    <span className="w-32 truncate" title={d.name}>{d.name}</span>
+                    <div className="flex-1 bg-slate-100 rounded h-4 overflow-hidden"><div className="h-full rounded" style={{ width: `${pct}%`, background: `rgba(11,110,79,${0.25 + 0.75 * pct / 100})` }} /></div>
+                    <span className="w-24 text-right font-medium text-slate-600">{rupee(d.revenue)}</span>
+                  </div>
+                );
+              })}
+              {(data?.geo_district || []).length === 0 && <p className="text-slate-400 text-sm">No location data yet.</p>}
+            </div>
           </div>
         </TabsContent>
 

@@ -488,6 +488,25 @@ async def apply_last_confirmed(customer_id, lines, admin):
             "variant_id": l["variant_id"], "new_rate": l["unit_price"], "source": "order_confirm"})
 
 
+@router.get("/admin/orders/{oid}/offers")
+async def order_offers(oid: str, admin=Depends(require_module("orders"))):
+    """Available configured offers per line variant for the order's customer category."""
+    from helpers import applicable_schemes
+    from pricing_engine import scheme_desc
+    order = await db.orders.find_one({"id": oid}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    ct = order.get("customer_category") or "other"
+    out = {}
+    for l in order.get("items", []):
+        vid = l.get("variant_id")
+        if not vid or vid in out:
+            continue
+        schemes = await applicable_schemes(db, vid, l.get("product_id"), ct)
+        out[vid] = [scheme_desc(s) for s in schemes]
+    return out
+
+
 @router.put("/admin/orders/{oid}")
 async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_module("orders"))):
     order = await db.orders.find_one({"id": oid})

@@ -164,6 +164,7 @@ function OrderDetail({ id, onClose, onChange }) {
   const [notifyOos, setNotifyOos] = useState(true);
   const [notifyRestock, setNotifyRestock] = useState(true);
   const [prevPricing, setPrevPricing] = useState({});
+  const [offers, setOffers] = useState({});
 
   const setStatus = useMutation({
     mutationFn: async (status) => (await api.patch(`/admin/orders/${id}/status`, { status })).data,
@@ -197,6 +198,7 @@ function OrderDetail({ id, onClose, onChange }) {
     }));
     setUpdatePricing(false);
     setNotifyOos(true);
+    try { setOffers((await api.get(`/admin/orders/${id}/offers`)).data || {}); } catch { setOffers({}); }
     setEditMode(true);
     try {
       const pp = (await api.get(`/admin/orders/${id}/prev-pricing`)).data;
@@ -269,6 +271,18 @@ function OrderDetail({ id, onClose, onChange }) {
                           <div><Label className="text-[10px]">Buy</Label><Input type="number" value={r.buy} onChange={(e) => setRow(i, "buy", e.target.value)} className="h-8" data-testid={`order-buy-${i}`} /></div>
                           <div><Label className="text-[10px]">Free</Label><Input type="number" value={r.free} onChange={(e) => setRow(i, "free", e.target.value)} className="h-8" data-testid={`order-free-${i}`} /></div>
                         </div>
+                        {(offers[r.variant_id] || []).length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5" data-testid={`order-offers-${i}`}>
+                            <span className="text-[10px] text-slate-400">Available offers:</span>
+                            {offers[r.variant_id].map((o) => (
+                              <button type="button" key={o.id} data-testid={`order-offer-${i}-${o.id}`}
+                                onClick={() => setRows((rs) => rs.map((r2, ri) => ri !== i ? r2 : (o.type === "free_qty" ? { ...r2, buy: o.buy, free: o.free } : { ...r2, rate: o.special_price, buy: "", free: "" })))}
+                                className="text-[11px] border border-vm-green/40 text-vm-green rounded-full px-2 py-0.5 hover:bg-vm-green hover:text-white transition-colors">
+                                {o.type === "free_qty" ? `${o.buy}+${o.free} free` : `₹${o.special_price}${o.min ? ` (min ${o.min})` : ""}`}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         {prevPricing[r.variant_id] && <p className="text-[11px] text-vm-accent bg-vm-accent/5 border border-vm-accent/20 rounded px-2 py-1 mt-1" data-testid={`prev-pricing-${i}`}>Previously bought @ ₹{prevPricing[r.variant_id].rate}{prevPricing[r.variant_id].qty ? ` for qty ${prevPricing[r.variant_id].qty}` : ""}{prevPricing[r.variant_id].offer && prevPricing[r.variant_id].offer.free_quantity ? ` · offer ${prevPricing[r.variant_id].offer.buy_quantity}+${prevPricing[r.variant_id].offer.free_quantity} free` : ""}{prevPricing[r.variant_id].qty ? ` (applies only at qty ${prevPricing[r.variant_id].qty})` : ""}</p>}
                       </div>
                     ))}
