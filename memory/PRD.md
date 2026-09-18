@@ -206,3 +206,6 @@ Non-destructive SEO enhancement (existing functionality preserved). Domain: http
   - `POST /api/admin/seo/autofill-all?overwrite=false` → fills only EMPTY seo fields across all active products (won't overwrite manual edits).
   - Admin UI: product editor SEO tab has "Generate from product info" (fills empty fields for review before Save); SEO Health page has "Auto-fill missing SEO" (bulk) button.
 - **Verified**: sitemap image tags present; suggest returns title/meta/focus + 6 FAQs; autofill-all updated 3/3 products → audit now 3/3 OK, 0 issues. No compile/runtime errors.
+
+## Social Share Button on Product (2026-06)
+- New reusable component src/components/public/ShareButtons.jsx: WhatsApp, Facebook, X/Twitter, LinkedIn, Copy-link, and native mobile share (navigator.share). Uses the production canonical URL via siteUrl(`/products/{slug}`). Added to ProductDetail.jsx below the price/actions block — visible to guests and logged-in users. testids: share-buttons, share-native, share-whatsapp, share-facebook, share-twitter, share-linkedin, share-copy. Verified rendering via screenshot.
