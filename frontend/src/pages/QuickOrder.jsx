@@ -13,6 +13,13 @@ import { Zap, Search, Plus, Minus, ShoppingCart, Lock, Loader2 } from "lucide-re
 function gcdN(a, b) { return b ? gcdN(b, a % b) : a; }
 function simplifyRatio(b, f) { if (b > 0 && f > 0) { const g = gcdN(b, f); if (g > 1) return [b / g, f / g]; } return [b, f]; }
 
+function OfferChip({ o }) {
+  const isPrice = o.type === "special_price" || o.type === "case_price";
+  const label = isPrice ? `${o.min}+ @ ₹${o.special_price}` : `${simplifyRatio(o.buy, o.free).join("+")} free`;
+  const cls = isPrice ? "text-orange-700 bg-orange-100 border-orange-200" : "text-green-700 bg-green-100 border-green-200";
+  return <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>;
+}
+
 function Row({ p, v, addItem, loggedIn }) {
   const [qty, setQty] = useState(v.min_order_qty || 1);
   const schemes = v.active_schemes || [];
@@ -23,6 +30,13 @@ function Row({ p, v, addItem, loggedIn }) {
       <div className="flex-1 min-w-0">
         <Link to={`/products/${p.slug}`} className="font-medium text-vm-ink hover:text-vm-green truncate block">{p.name}</Link>
         <p className="text-xs text-slate-500">{v.pack_size} {v.unit}{p.brand_name ? ` · ${p.brand_name}` : ""}</p>
+        {/* Mobile: price + offers inline (hidden on desktop where columns show them) */}
+        <div className="md:hidden mt-1.5 flex flex-wrap items-center gap-1.5" data-testid={`qo-mobile-offers-${v.id}`}>
+          {v.your_price != null ? <span className="text-xs font-semibold text-vm-green">₹{v.your_price}</span>
+            : v.login_required ? <span className="text-xs text-slate-500">MRP ₹{v.mrp}</span>
+              : <span className="text-xs font-semibold text-vm-ink">₹{v.selling_price}</span>}
+          {schemes.map((o, idx) => <OfferChip key={idx} o={o} />)}
+        </div>
       </div>
       <div className="text-right w-24 hidden md:block">
         {v.your_price != null ? <span className="font-semibold text-vm-green">₹{v.your_price}</span>
@@ -32,11 +46,7 @@ function Row({ p, v, addItem, loggedIn }) {
       <div className="w-36 text-center hidden md:block">
         {schemes.length ? (
           <div className="flex flex-wrap gap-1 justify-center" data-testid={`qo-offers-${v.id}`}>
-            {schemes.map((o, idx) => (
-              <span key={idx} className="text-[11px] font-semibold text-vm-accent bg-vm-accent/10 px-2 py-0.5 rounded">
-                {o.type === "special_price" || o.type === "case_price" ? `${o.min}@₹${o.special_price}` : simplifyRatio(o.buy, o.free).join("+")}
-              </span>
-            ))}
+            {schemes.map((o, idx) => <OfferChip key={idx} o={o} />)}
           </div>
         ) : <span className="text-slate-300">—</span>}
       </div>

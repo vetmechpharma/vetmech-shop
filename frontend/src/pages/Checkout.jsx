@@ -84,7 +84,8 @@ export default function Checkout() {
         accept_terms: acceptTerms, cash_discount: cashDiscount, client_meta: clientMeta,
       });
       clear();
-      navigate(`/order-confirmed/${data.id}`, { state: { order: data } });
+      toast.success(`Order ${data.order_number || ""} placed successfully!`);
+      navigate("/account", { state: { order: data, justPlaced: true } });
     } catch (e) { toast.error(apiError(e)); }
     setLoading(false);
   };

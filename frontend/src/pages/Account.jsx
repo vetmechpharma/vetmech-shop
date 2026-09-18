@@ -124,16 +124,22 @@ function Dashboard({ customer, logout }) {
               </div>
               <div className="mt-3 space-y-1">
                 {o.items.map((l) => (
-                  <div key={l.variant_id} className="flex justify-between text-sm text-slate-600 gap-3">
-                    <span className="flex-1">{l.product_name} — {l.pack_size} {l.unit}
-                      {l.scheme_label && <span className="ml-1.5 text-[11px] font-semibold text-vm-accent bg-vm-accent/10 px-1.5 py-0.5 rounded">{l.scheme_label}</span>}
+                  <div key={l.variant_id} className="flex justify-between text-sm text-slate-600 gap-3 border-b border-dashed border-[#EEF2F0] last:border-0 py-1.5" data-testid={`order-line-${l.variant_id}`}>
+                    <span className="flex-1">
+                      <span className="text-vm-ink font-medium">{l.product_name}</span> — {l.pack_size} {l.unit}
+                      {l.scheme_label && <span className="ml-1.5 text-[11px] font-bold text-green-700 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full">{l.scheme_label}</span>}
                     </span>
                     <span className="text-right whitespace-nowrap">
-                      {l.unit_price != null && <span className="text-vm-ink font-medium mr-2">₹{l.unit_price}</span>}
-                      {l.qty}{l.free_qty ? <span className="text-vm-accent"> +{l.free_qty} free</span> : ""}
+                      {l.mrp != null && l.unit_price != null && l.mrp > l.unit_price && <span className="text-slate-400 line-through mr-1.5 text-xs">₹{l.mrp}</span>}
+                      {l.unit_price != null && <span className="text-vm-ink font-semibold mr-2">₹{l.unit_price}</span>}
+                      <span className="text-slate-500">× {l.qty}</span>{l.free_qty ? <span className="text-vm-accent font-medium"> +{l.free_qty} free</span> : ""}
                     </span>
                   </div>
                 ))}
+              </div>
+              <div className="mt-2 pt-2 border-t border-[#E2E8F0] flex justify-between items-center text-sm">
+                <span className="text-slate-500">{o.total_qty || o.items.reduce((a, l) => a + (l.qty || 0), 0)} units{o.total_free ? ` + ${o.total_free} free` : ""}</span>
+                <span className="font-heading font-bold text-vm-ink" data-testid={`order-total-${o.order_number}`}>₹{o.items.reduce((a, l) => a + (l.unit_price || 0) * (l.qty || 0), 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
               </div>
               <div className="mt-3 flex gap-2">
                 <Button size="sm" variant="outline" className="border-vm-green text-vm-green" onClick={() => doReorder(o.id, false)} data-testid={`reorder-${o.order_number}`}><RotateCcw className="w-3.5 h-3.5 mr-1" /> Reorder</Button>

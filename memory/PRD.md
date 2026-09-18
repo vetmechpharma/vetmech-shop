@@ -228,3 +228,9 @@ Non-destructive SEO enhancement (existing functionality preserved). Domain: http
 ## Category SEO Reflect + Win-back WhatsApp (2026-06)
 - **Category SEO reflect**: category crawler-render (/api/seo/render/categories/{slug}) now lists all member products (incl. multi-category via $or category_id/category_ids/subcategory_id/subcategory_ids) as an indexable <ul> of product links + emits ItemList JSON-LD. CategoryPage.jsx also adds ItemList JSON-LD from its product list. So a product in multiple categories strengthens on-page SEO for each of its categories. Verified (h2 + li links + ItemList in render output).
 - **Win-back WhatsApp**: Customer Reports → "No Orders (N days)" tab adds a per-row green WhatsApp button opening wa.me/<normalized mobile> with a prefilled win-back message. testid winback-<mobile>. Verified (15 buttons render).
+
+## Order detail + Quick Order offers polish (2026-06)
+- **Post-checkout redirect**: Checkout now navigates to /account (My Orders) with a success toast instead of /order-confirmed (route still exists, unused).
+- **Account My Orders full detail**: each order line now shows MRP (struck-through) + net unit rate + × qty + free qty + colored scheme badge; added per-order footer with total units (+free) and computed order value. testids order-line-<variant_id>, order-total-<order_number>.
+- **Quick Order offers**: added OfferChip (green for free_qty "b+f free", orange for special/case "min+ @ ₹price"). Desktop offer column now color-highlighted; NEW mobile block (md:hidden) under each product shows price + offer chips (previously price/offer columns were hidden on mobile → offers invisible). testid qo-mobile-offers-<variant_id>.
+- Verified logged-in via OTP (dev_otp): Quick Order colored chips + mobile blocks render; Account shows MRP/rate/qty/scheme + totals across orders.
