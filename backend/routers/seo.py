@@ -171,8 +171,26 @@ async def seo_render(path: str = Query("/")):
                     crumbs.append({"name": par["name"], "path": f"/categories/{par['slug']}"})
             crumbs.append({"name": cat["name"], "path": f"/categories/{slug}"})
             coll = {"@context": "https://schema.org", "@type": "CollectionPage", "name": title, "description": desc, "url": canonical}
-            return _doc(title, desc, canonical, default_img, [_breadcrumb_ld(crumbs), coll],
-                        body=f"<h1>{esc(cat['name'])}</h1><p>{esc(desc)}</p>")
+            # List products (incl. multi-category members) so all their categories get indexable copy.
+            prods = await db.products.find(
+                {"active": True, "$or": [{"category_id": cat["id"]}, {"category_ids": cat["id"]},
+                                         {"subcategory_id": cat["id"]}, {"subcategory_ids": cat["id"]}]},
+                {"_id": 0, "name": 1, "slug": 1, "short_description": 1}).limit(100).to_list(100)
+            item_els = []
+            li_parts = []
+            for i, pr in enumerate(prods):
+                if not pr.get("slug"):
+                    continue
+                purl = site_url("/products/" + pr["slug"])
+                item_els.append({"@type": "ListItem", "position": len(item_els) + 1, "name": pr["name"], "url": purl})
+                sd = (" — " + esc(pr["short_description"])) if pr.get("short_description") else ""
+                li_parts.append("<li><a href=\"" + esc(purl) + "\">" + esc(pr["name"]) + "</a>" + sd + "</li>")
+            item_list = {"@context": "https://schema.org", "@type": "ItemList", "itemListElement": item_els}
+            plist = "".join(li_parts)
+            body = f"<h1>{esc(cat['name'])}</h1><p>{esc(desc)}</p>"
+            if plist:
+                body += f"<h2>Products in {esc(cat['name'])}</h2><ul>{plist}</ul>"
+            return _doc(title, desc, canonical, default_img, [_breadcrumb_ld(crumbs), coll, item_list], body=body)
 
     # ---- News ----
     if p.startswith("/news/") and len(p) > len("/news/"):

@@ -23,7 +23,11 @@ export default function CategoryPage() {
     name: cat.seo?.title || cat.name, description: cat.seo?.meta_description || cat.description,
     url: siteUrl(`/categories/${slug}`),
   } : null;
-  const jsonLd = [breadcrumbLd(crumbs), collectionLd].filter(Boolean);
+  const itemListLd = (data?.items?.length) ? {
+    "@context": "https://schema.org", "@type": "ItemList",
+    itemListElement: data.items.map((p, i) => ({ "@type": "ListItem", position: i + 1, name: p.name, url: siteUrl(`/products/${p.slug}`) })),
+  } : null;
+  const jsonLd = [breadcrumbLd(crumbs), collectionLd, itemListLd].filter(Boolean);
 
   return (
     <div>

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CUSTOMER_CATEGORIES } from "@/lib/constants";
-import { Loader2, Download, Search, ArrowUpDown } from "lucide-react";
+import { Loader2, Download, Search, ArrowUpDown, MessageCircle } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const rupee = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -111,6 +111,17 @@ export default function AdminCustomerReports() {
   const aovCol = { key: "aov", label: "AOV", value: (r) => rupee(r.aov), raw: (r) => r.aov ?? 0 };
   const freqCol = { key: "frequency_per_month", label: "Orders/mo", value: (r) => r.frequency_per_month ?? 0, raw: (r) => r.frequency_per_month ?? 0 };
   const recCol = { key: "recency_days", label: "Recency (days)", value: (r) => r.recency_days ?? "—", raw: (r) => r.recency_days ?? 999999 };
+  const waHref = (r) => {
+    let m = String(r.mobile || "").replace(/\D/g, "");
+    if (m.length === 10) m = "91" + m;
+    const msg = encodeURIComponent(`Hello ${r.name || "there"}, we noticed it's been a while since your last order with VETMECH. We'd love to serve you again — reply here and our team will help you place a quick order.`);
+    return `https://wa.me/${m}?text=${msg}`;
+  };
+  const winbackCol = { key: "winback", label: "Win-back", value: (r) => r.mobile ? (
+    <a href={waHref(r)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} data-testid={`winback-${r.mobile}`}
+       className="inline-flex items-center gap-1 text-[11px] font-medium bg-[#25D366] text-white rounded-full px-2 py-1 hover:opacity-90">
+      <MessageCircle className="w-3 h-3" /> WhatsApp
+    </a>) : "—" };
   const custCols = [nameCol, typeCol, mobileCol, ordersCol, revCol, aovCol, freqCol, recCol];
   const geoCols = [{ key: "name", label: "Location", value: (r) => r.name }, { key: "customers", label: "Customers", value: (r) => r.customers, raw: (r) => r.customers }, { key: "orders", label: "Orders", value: (r) => r.orders, raw: (r) => r.orders }, { key: "revenue", label: "Revenue", value: (r) => rupee(r.revenue), raw: (r) => r.revenue }];
 
@@ -212,8 +223,8 @@ export default function AdminCustomerReports() {
         <TabsContent value="active" className="mt-4"><ReportTable name="active-customers" columns={[nameCol, typeCol, mobileCol, ordersCol, revCol, recCol]} rows={data?.active_customers} onRow={drill} /></TabsContent>
         <TabsContent value="inactive" className="mt-4"><ReportTable name="inactive-customers" columns={[nameCol, typeCol, mobileCol, ordersCol, revCol, recCol]} rows={data?.inactive_customers} onRow={drill} /></TabsContent>
         <TabsContent value="norecent" className="mt-4">
-          <p className="text-sm text-slate-500 mb-3">Customers with no orders in the last <b>{s.no_orders_days}</b> days (change N in the filter above and Apply).</p>
-          <ReportTable name="no-orders-customers" columns={[nameCol, typeCol, mobileCol, ordersCol, revCol, { key: "last_order", label: "Last Order", value: (r) => r.last_order ? String(r.last_order).slice(0, 10) : "Never" }, recCol]} rows={data?.no_recent} onRow={drill} />
+          <p className="text-sm text-slate-500 mb-3">Customers with no orders in the last <b>{s.no_orders_days}</b> days (change N in the filter above and Apply). Tap the WhatsApp button to send a win-back message.</p>
+          <ReportTable name="no-orders-customers" columns={[nameCol, typeCol, mobileCol, ordersCol, revCol, { key: "last_order", label: "Last Order", value: (r) => r.last_order ? String(r.last_order).slice(0, 10) : "Never" }, recCol, winbackCol]} rows={data?.no_recent} onRow={drill} />
         </TabsContent>
         <TabsContent value="geo" className="mt-4 grid lg:grid-cols-3 gap-4">
           <div><p className="font-semibold text-vm-ink mb-2">State-wise</p><ReportTable name="geo-state" columns={geoCols} rows={data?.geo_state} /></div>
