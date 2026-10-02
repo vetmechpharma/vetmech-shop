@@ -2,10 +2,22 @@ import React, { useState } from "react";
 import { Share2, Copy, Check, Facebook, Linkedin, Twitter, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
-// Social share row for products/articles. `url` should be the absolute canonical URL.
+// Resolve any value (relative path, protocol-relative, or absolute) to an absolute URL.
+function absUrl(value) {
+  if (typeof window === "undefined") return value || "";
+  const origin = window.location.origin;
+  if (!value) return window.location.href;
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("//")) return window.location.protocol + value;
+  return origin + (value.startsWith("/") ? value : `/${value}`);
+}
+
+// Social share row for products/articles. `url` may be relative; it is always
+// normalised to an absolute URL at click-time so shared links are never broken.
 export default function ShareButtons({ url, title, className = "" }) {
   const [copied, setCopied] = useState(false);
-  const u = encodeURIComponent(url || (typeof window !== "undefined" ? window.location.href : ""));
+  const absolute = absUrl(url);
+  const u = encodeURIComponent(absolute);
   const t = encodeURIComponent(title || "");
   const links = [
     { key: "whatsapp", label: "WhatsApp", href: `https://wa.me/?text=${t}%20${u}`, Icon: MessageCircle, hover: "hover:bg-[#25D366] hover:text-white hover:border-[#25D366]" },
@@ -16,7 +28,7 @@ export default function ShareButtons({ url, title, className = "" }) {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(absolute);
       setCopied(true);
       toast.success("Link copied");
       setTimeout(() => setCopied(false), 1800);
@@ -27,7 +39,7 @@ export default function ShareButtons({ url, title, className = "" }) {
 
   const nativeShare = async () => {
     if (navigator.share) {
-      try { await navigator.share({ title, url }); } catch { /* user cancelled */ }
+      try { await navigator.share({ title, url: absolute }); } catch { /* user cancelled */ }
     } else {
       copy();
     }
