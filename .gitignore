@@ -93,6 +93,11 @@ frontend/node_modules/.cache/default-development/4.pack
 credentials.json
 *.key
 .credentials
+!.env.example
+!**/.env.example
+backups/
+frontend/build/
+frontend/.build-next/
 frontend/node_modules/.cache/default-development/4.pack_
 frontend/node_modules/.cache/default-development/9.pack
 frontend/node_modules/.cache/default-development/11.pack
