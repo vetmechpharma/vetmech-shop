@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api, apiError } from "@/lib/api";
+import { api, apiError, absoluteApiUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,7 +75,7 @@ export function WhatsAppSettings() {
   });
 
   const live = !!(form.api_key && form.session_id);
-  const webhookUrl = `${process.env.REACT_APP_BACKEND_URL}/api/whatsapp/webhook${form.webhook_token ? `?token=${form.webhook_token}` : ""}`;
+  const webhookUrl = absoluteApiUrl(`/whatsapp/webhook${form.webhook_token ? `?token=${encodeURIComponent(form.webhook_token)}` : ""}`);
   const connected = status?.connected;
   const sendOnly = status?.status === "send_only";
   const dot = status?.status === "error" ? "bg-red-500" : sendOnly ? "bg-sky-500" : connected ? "bg-green-500" : "bg-amber-500";

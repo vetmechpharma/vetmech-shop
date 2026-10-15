@@ -1,7 +1,7 @@
 // Shared SEO / JSON-LD helpers (reused across product, category, news, home).
 import { mediaUrl } from "@/lib/api";
 
-const SITE_URL = (process.env.REACT_APP_SITE_URL || "").replace(/\/$/, "");
+const SITE_URL = (process.env.REACT_APP_SITE_URL || window.location.origin).replace(/\/$/, "");
 export const ORG_NAME = "VETMECH PHARMACEUTICALS PRIVATE LIMITED";
 
 export function siteUrl(path = "") {

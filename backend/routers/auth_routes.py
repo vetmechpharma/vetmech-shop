@@ -1,10 +1,11 @@
-import random
+import secrets
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 from db import db
+from config import dev_otp_enabled
 from security import (hash_password, verify_password, create_token,
                       get_current_admin, get_current_customer, customer_status_label)
 from helpers import new_id, now_iso, log_audit, send_whatsapp, send_email, email_for, normalize_mobile
@@ -165,7 +166,7 @@ async def otp_request(body: OtpRequest):
     if not window_start:
         window_start = now.isoformat()
         count = 0
-    otp = f"{random.randint(100000, 999999)}"
+    otp = str(secrets.randbelow(900000) + 100000)
     expires = (now + timedelta(minutes=10)).isoformat()
     await db.otps.update_one(
         {"mobile": mobile},
@@ -174,12 +175,20 @@ async def otp_request(body: OtpRequest):
                   "created_at": now_iso()}},
         upsert=True,
     )
-    await send_whatsapp(db, mobile, f"Your VETMECH verification code is {otp}. Valid for 10 minutes.", kind="otp")
+    whatsapp = await send_whatsapp(db, mobile, f"Your VETMECH verification code is {otp}. Valid for 10 minutes.", kind="otp")
+    delivered = whatsapp.get("status") == "sent"
     cust = await db.customers.find_one({"$or": [{"normalized_mobile": mobile}, {"mobile": {"$regex": mobile + "$"}}]}, {"_id": 0, "email": 1})
     if cust and cust.get("email"):
         subj, ebody = await email_for(db, "otp", {"otp": otp})
-        await send_email(db, cust["email"], subj, ebody, kind="otp", cc_admin=False)
-    return {"sent": True, "dev_otp": otp, "message": "OTP sent via WhatsApp (simulated)"}
+        email = await send_email(db, cust["email"], subj, ebody, kind="otp", cc_admin=False)
+        delivered = delivered or email.get("status") == "sent"
+    if not delivered and not dev_otp_enabled():
+        await db.otps.update_one({"mobile": mobile, "otp": otp}, {"$set": {"otp": "", "expires": now_iso()}})
+        raise HTTPException(status_code=503, detail="OTP could not be sent. Please use password login or contact support.")
+    result = {"sent": True, "message": "OTP sent. Check WhatsApp or your registered email."}
+    if dev_otp_enabled():
+        result.update(dev_otp=otp, message="Development OTP generated.")
+    return result
 
 
 def _status_of(cust):
@@ -192,6 +201,8 @@ async def otp_verify(body: OtpVerify):
     rec = await db.otps.find_one({"mobile": mobile})
     if not rec:
         raise HTTPException(status_code=400, detail="Please request an OTP first")
+    if rec.get("verified"):
+        raise HTTPException(status_code=400, detail="OTP already used. Please request a new OTP.")
     if rec.get("wrong_attempts", 0) >= 5:
         raise HTTPException(status_code=429, detail="Too many incorrect attempts. Please request a new OTP.")
     if rec.get("otp") != body.otp.strip():
@@ -199,7 +210,13 @@ async def otp_verify(body: OtpVerify):
         raise HTTPException(status_code=400, detail="Invalid OTP")
     if rec.get("expires", "") < now_iso():
         raise HTTPException(status_code=400, detail="OTP expired, request a new one")
-    await db.otps.update_one({"mobile": mobile}, {"$set": {"verified": True, "wrong_attempts": 0}})
+    claimed = await db.otps.find_one_and_update(
+        {"mobile": mobile, "otp": body.otp.strip(), "verified": False,
+         "expires": {"$gt": now_iso()}, "wrong_attempts": {"$lt": 5}},
+        {"$set": {"verified": True, "wrong_attempts": 0}},
+    )
+    if not claimed:
+        raise HTTPException(status_code=400, detail="OTP expired or already used. Please request a new OTP.")
     customer = await db.customers.find_one(
         {"$or": [{"normalized_mobile": mobile}, {"mobile": {"$regex": mobile + "$"}}]}, {"_id": 0})
     if customer:

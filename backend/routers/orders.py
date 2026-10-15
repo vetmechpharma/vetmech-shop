@@ -5,7 +5,7 @@ from typing import Optional, List
 from db import db, paginate
 from security import get_current_customer, optional_customer, require_module, get_current_admin
 from helpers import (new_id, now_iso, next_order_number, log_audit, add_order_activity,
-                     send_whatsapp, send_email, email_for)
+                     send_whatsapp, send_email, email_for, normalize_mobile)
 from pricing_engine import price_line, get_pricing_settings
 
 router = APIRouter(prefix="/api", tags=["orders"])
@@ -113,43 +113,21 @@ class CheckoutBody(BaseModel):
     client_meta: Optional[dict] = None
 
 
-async def get_or_create_customer(body: CheckoutBody):
-    mobile = body.mobile.strip()
-    otp = await db.otps.find_one({"mobile": mobile})
-    if not otp or not otp.get("verified"):
-        raise HTTPException(status_code=403, detail="Mobile number not verified via OTP")
-    cust = await db.customers.find_one({"mobile": mobile})
+async def checkout_customer(body: CheckoutBody, customer):
+    mobile = normalize_mobile(body.mobile)
+    if mobile != normalize_mobile(customer.get("mobile")):
+        raise HTTPException(status_code=403, detail="The order must use your logged-in mobile number")
+    if customer.get("status", "active") != "active":
+        raise HTTPException(status_code=403, detail="Your account must be approved before placing an order")
+    cust = customer
     addr = body.address.model_dump()
     addr["id"] = new_id()
-    if cust:
-        update = {}
-        if body.save_address:
-            addresses = cust.get("addresses", [])
-            addresses.insert(0, addr)
-            update["addresses"] = addresses[:10]
-            update["default_address"] = addr
-        if update:
-            await db.customers.update_one({"id": cust["id"]}, {"$set": update})
-            cust.update(update)
-        return cust, addr
-    doc = {
-        "id": new_id(),
-        "prefix": body.prefix or "Mr.",
-        "name": body.name or "Customer",
-        "mobile": mobile,
-        "whatsapp": body.whatsapp or mobile,
-        "company_name": body.company_name or "",
-        "category": body.category or "other",
-        "addresses": [addr],
-        "default_address": addr,
-        "active": True,
-        "created_at": now_iso(),
-    }
-    await db.customers.insert_one(dict(doc))
-    await send_email(db, "admin", "New Customer Registration",
-                     f"New customer {doc['name']} ({mobile}) registered.", kind="customer_registration")
-    doc.pop("_id", None)
-    return doc, addr
+    if body.save_address:
+        addresses = [addr] + cust.get("addresses", [])
+        update = {"addresses": addresses[:10], "default_address": addr}
+        await db.customers.update_one({"id": cust["id"]}, {"$set": update})
+        cust.update(update)
+    return cust, addr
 
 
 def _parse_ua(ua):
@@ -182,10 +160,10 @@ async def _geo_from_ip(ip):
 
 
 @router.post("/orders")
-async def create_order(body: CheckoutBody, request: Request):
+async def create_order(body: CheckoutBody, request: Request, customer=Depends(get_current_customer)):
     if not body.accept_terms:
         raise HTTPException(status_code=400, detail="Please accept the Terms & Conditions to place your order")
-    cust, addr = await get_or_create_customer(body)
+    cust, addr = await checkout_customer(body, customer)
     lines = await resolve_cart([i.model_dump() for i in body.items], cust)
     if not lines:
         raise HTTPException(status_code=400, detail="Cart is empty")
