@@ -1,4 +1,5 @@
 import axios from "axios";
+import { installDemoAdapter } from "@/demo/adapter";
 
 const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 export const API_BASE = `${BACKEND_URL}/api`;
@@ -8,6 +9,7 @@ export function absoluteApiUrl(path = "") {
 }
 
 export const api = axios.create({ baseURL: API_BASE });
+if (process.env.REACT_APP_DEMO_MODE === "true") installDemoAdapter(api);
 
 api.interceptors.request.use((config) => {
   const url = config.url || "";

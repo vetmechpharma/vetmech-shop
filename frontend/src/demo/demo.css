@@ -1,0 +1,25 @@
+.vm-demo-active body { padding-top: 36px; }
+.vm-demo-active .sticky.top-0 { top: 36px; }
+.vm-demo-active aside.fixed.inset-y-0 { top: 36px; }
+.vm-demo-strip { position: fixed; inset: 0 0 auto; height: 36px; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; background: #0b3026; color: #e5f2ec; font: 600 10px/1.2 'Manrope', sans-serif; letter-spacing: .065em; }
+.vm-demo-strip > span, .vm-demo-strip button { display: inline-flex; align-items: center; gap: 9px; }
+.vm-demo-dot { width: 6px; height: 6px; background: #a2e675; border-radius: 100%; box-shadow: 0 0 0 3px #a2e67522; }
+.vm-demo-strip-detail { color: #b9cfc7; font-weight: 400; letter-spacing: 0; }
+.vm-demo-strip button { border: 0; background: #ffffff12; padding: 5px 10px; border-radius: 5px; color: white; font-size: 10px; cursor: pointer; }
+.vm-demo-studio { position: fixed; bottom: 24px; right: 24px; z-index: 90; width: min(350px, calc(100vw - 28px)); max-height: calc(100dvh - 110px); overflow-y: auto; padding: 22px; background: #fff; border: 1px solid #d8e5dd; border-radius: 18px; box-shadow: 0 22px 75px #062a2536; font-family: 'Manrope', sans-serif; color: #153a30; }
+.vm-demo-studio-head { display: flex; align-items: center; justify-content: space-between; }
+.vm-demo-eyebrow { font-size: 9px; font-weight: 800; letter-spacing: .13em; color: #398156; }
+.vm-demo-studio-head button { border: none; background: #f3f6f4; border-radius: 100%; padding: 6px; cursor: pointer; }
+.vm-demo-studio h2 { margin: 18px 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
+.vm-demo-studio p { font-size: 12px; line-height: 1.7; color: #65796f; margin-bottom: 18px; }
+.vm-demo-primary { border: 0; border-radius: 10px; background: #0b6241; color: white; padding: 14px 12px; width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer; }
+.vm-demo-primary span { flex: 1; font-size: 12px; font-weight: 700; }
+.vm-demo-primary small { display: block; margin-top: 4px; color: #c2dfcc; font-size: 9px; font-weight: 400; }
+.vm-demo-two { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 9px; }
+.vm-demo-two button { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 12px 6px; background: #f4f8f3; border: 1px solid #e0eadf; border-radius: 8px; color: #315746; font-size: 11px; font-weight: 600; cursor: pointer; }
+.vm-demo-text { width: 100%; padding: 13px; display: flex; gap: 6px; justify-content: center; align-items: center; border: none; background: transparent; color: #476657; font-size: 11px; cursor: pointer; }
+.vm-demo-note { font-size: 10px; line-height: 1.7; padding: 10px 12px; background: #f7f7ef; color: #797a55; border-radius: 8px; }
+.vm-demo-footer { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 13px; border-top: 1px solid #edf1ed; }
+.vm-demo-footer button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #6d7d74; font-size: 10px; cursor: pointer; }
+.vm-demo-strip button:focus-visible, .vm-demo-studio button:focus-visible { outline: 3px solid #8dc85c; outline-offset: 3px; }
+@media (max-width: 600px) { .vm-demo-strip { padding: 0 12px; font-size: 9px; } .vm-demo-strip-detail { display: none; } .vm-demo-studio { right: 14px; bottom: 85px; padding: 18px; } }

@@ -119,3 +119,15 @@ The isolated regression suite uses an in-memory MongoDB test double and never
 contacts the live database, WhatsApp or SMTP. The older `backend/tests/test_*.py`
 files are integration suites designed for the original seeded preview. Run
 them only against an isolated deployment with explicitly configured test data.
+
+## Private development demo
+
+A sample-data development demo is available at
+https://vetmech-shop-dev-demo.vetmechpharma.chatgpt.site .
+Use **Demo tools** to enter the admin, doctor or agency workspace. Demo edits
+persist in that browser; the live database is not connected and messaging is
+simulated.
+
+To build the same optional demo from this repository, run `npm run build:demo`
+inside `frontend/`. Normal `npm run build` retains the production API client.
+See [demo development](docs/DEMO.md) for implementation details.
