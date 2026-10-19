@@ -120,10 +120,12 @@ contacts the live database, WhatsApp or SMTP. The older `backend/tests/test_*.py
 files are integration suites designed for the original seeded preview. Run
 them only against an isolated deployment with explicitly configured test data.
 
-## Private development demo
+## Public development demo
 
 A sample-data development demo is available at
 https://vetmech-shop-dev-demo.vetmechpharma.chatgpt.site .
+Anyone with the link can open it without signing in to ChatGPT. Public access
+is configured in the demo host's access settings; it requires no VPS code change.
 Use **Demo tools** to enter the admin, doctor or agency workspace. Demo edits
 persist in that browser; the live database is not connected and messaging is
 simulated.

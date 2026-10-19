@@ -1,6 +1,11 @@
 # Browser development demo
 
-Private demo: https://vetmech-shop-dev-demo.vetmechpharma.chatgpt.site
+Public demo: https://vetmech-shop-dev-demo.vetmechpharma.chatgpt.site
+
+Anyone with the link can open the hosted demo without a ChatGPT account. This
+audience is configured in the demo host's access settings. The source and VPS
+build have no ChatGPT sign-in requirement; production admin and customer logins
+use the application's own authentication.
 
 The demo uses the existing React storefront and admin screens with an optional
 client-side sample API. It does not run or replace the Python/MongoDB backend.
