@@ -10,6 +10,7 @@ import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
 import "@/index.css";
 import App from "@/App";
+import DemoToolbar from "@/demo/DemoToolbar";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 } },
@@ -18,6 +19,7 @@ const queryClient = new QueryClient({
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <QueryClientProvider client={queryClient}>
+    {process.env.REACT_APP_DEMO_MODE === "true" && <DemoToolbar />}
     <App />
   </QueryClientProvider>
 );

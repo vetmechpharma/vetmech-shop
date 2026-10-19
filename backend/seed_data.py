@@ -1,7 +1,7 @@
 import os
-from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from security import hash_password, verify_password
+from security import hash_password
+from config import demo_enabled
 from helpers import new_id, now_iso
 
 IMG = {
@@ -20,8 +20,12 @@ IMG = {
 
 
 async def seed_admin(db):
-    email = os.environ["ADMIN_EMAIL"].lower()
-    password = os.environ["ADMIN_PASSWORD"]
+    email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+    password = os.environ.get("ADMIN_PASSWORD", "")
+    if not email or not password:
+        if await db.admin_users.find_one({"role": "super_admin", "active": True}):
+            return
+        raise RuntimeError("Set ADMIN_EMAIL and ADMIN_PASSWORD to create the first administrator.")
     existing = await db.admin_users.find_one({"email": email})
     if not existing:
         await db.admin_users.insert_one({
@@ -29,14 +33,13 @@ async def seed_admin(db):
             "password_hash": hash_password(password), "role": "super_admin",
             "permissions": ["*"], "active": True, "created_at": now_iso(),
         })
-    elif not verify_password(password, existing.get("password_hash", "")):
-        await db.admin_users.update_one({"email": email},
-                                        {"$set": {"password_hash": hash_password(password)}})
+    # Bootstrap credentials never reset an existing user's chosen password.
 
 
 async def run_seed(db):
     await seed_admin(db)
-    write_test_credentials()
+    if not demo_enabled():
+        return
 
     if await db.settings.count_documents({}) == 0:
         await seed_settings(db)
@@ -61,28 +64,6 @@ async def run_seed(db):
         await seed_gallery(db)
     if await db.careers.count_documents({}) == 0:
         await seed_careers(db)
-
-
-def write_test_credentials():
-    p = Path("/app/memory/test_credentials.md")
-    if not p.parent.exists():
-        return  # Skip on non-Emergent hosts (e.g. self-hosted VPS) where /app/memory doesn't exist
-    p.write_text(
-        "# VETMECH Test Credentials\n\n"
-        "## Admin Panel (login at /admin/login)\n"
-        f"- Email: {os.environ['ADMIN_EMAIL']}\n"
-        f"- Password: {os.environ['ADMIN_PASSWORD']}\n"
-        "- Role: super_admin (full access)\n\n"
-        "## Customer login (WhatsApp OTP, mocked)\n"
-        "- Go to Checkout or Account, enter any 10-digit mobile (e.g. 9876543210)\n"
-        "- Click 'Send OTP' — the OTP is returned in the API response (dev_otp) and shown on screen\n"
-        "- Enter that OTP to verify\n\n"
-        "## Key endpoints\n"
-        "- POST /api/auth/admin/login\n"
-        "- POST /api/auth/otp/request  {mobile}\n"
-        "- POST /api/auth/otp/verify   {mobile, otp}\n"
-        "- POST /api/orders            (checkout)\n"
-    )
 
 
 async def seed_settings(db):

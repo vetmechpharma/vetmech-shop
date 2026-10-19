@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
 const CartContext = createContext(null);
@@ -8,6 +9,8 @@ export const useCart = () => useContext(CartContext);
 const KEY = "vm_cart";
 
 export function CartProvider({ children }) {
+  const { customer } = useAuth();
+  const requestVersion = useRef(0);
   const [items, setItems] = useState(() => {
     try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; }
   });
@@ -17,6 +20,7 @@ export function CartProvider({ children }) {
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(items)); }, [items]);
 
   const recalc = useCallback(async (list) => {
+    const version = ++requestVersion.current;
     const payload = (list || items).filter((i) => i.qty > 0);
     if (payload.length === 0) {
       setCalc({ items: [], total_qty: 0, total_free: 0, total_dispatch: 0, line_count: 0 });
@@ -26,11 +30,11 @@ export function CartProvider({ children }) {
       const { data } = await api.post("/cart/calculate", {
         items: payload.map((i) => ({ variant_id: i.variant_id, qty: i.qty })),
       });
-      setCalc(data);
+      if (version === requestVersion.current) setCalc(data);
     } catch (e) { /* ignore */ }
   }, [items]);
 
-  useEffect(() => { recalc(items); /* eslint-disable-next-line */ }, [items]);
+  useEffect(() => { recalc(items); }, [items, recalc, customer?.id, customer?.status, customer?.category]);
 
   const addItem = (variant_id, qty = 1, meta = {}, replace = false) => {
     setItems((prev) => {

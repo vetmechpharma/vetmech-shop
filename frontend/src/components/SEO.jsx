@@ -50,7 +50,7 @@ export default function SEO({ title, description, keywords, ogImage, seo, jsonLd
     document.title = t ? (t.includes("VETMECH") ? t : `${t} | VETMECH`) : ORG_NAME;
     setMeta("description", d);
     setMeta("keywords", k);
-    setMeta("robots", noindex ? "noindex, nofollow" : (seo?.robots || "index, follow"));
+    setMeta("robots", noindex || process.env.REACT_APP_DEMO_MODE === "true" ? "noindex, nofollow" : (seo?.robots || "index, follow"));
     setMeta("og:site_name", ORG_NAME, "property");
     setMeta("og:title", seo?.og_title || t, "property");
     setMeta("og:description", seo?.og_description || d, "property");

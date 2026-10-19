@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from PIL import Image
 
 from db import db
+from config import demo_enabled
+from backup import export_database, export_uploads, backup_stats as database_backup_stats
 from security import get_current_admin, require_module
 from seed_data import run_seed
 from seed_tickets import run_seed_tickets
@@ -29,13 +31,22 @@ logger = logging.getLogger("vetmech")
 
 app = FastAPI(title="VETMECH Pharmaceuticals API")
 
-UPLOAD_DIR = ROOT_DIR / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", str(ROOT_DIR / "uploads")))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.get("/api/")
 async def root():
     return {"message": "VETMECH Pharmaceuticals API", "status": "ok"}
+
+
+@app.get("/api/health")
+async def health():
+    try:
+        await db.command("ping")
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    return {"status": "ok", "database": "ok"}
 
 
 # --- File upload (images auto-converted to compressed WebP) stored on disk ---
@@ -101,43 +112,29 @@ async def upload_resume(file: UploadFile = File(...)):
 
 
 # --- Backups (Super Admin only) ---
-BACKUP_COLLECTIONS = ["admin_users", "customers", "crm_customers", "products", "categories",
-                      "brands", "units", "schemes", "orders", "tickets", "ticket_notifications",
-                      "news", "gallery", "careers", "applications", "enquiries", "pages",
-                      "settings", "counters", "audit_logs", "notification_logs"]
-
-
 @app.get("/api/admin/backup/database")
 async def backup_database(admin=Depends(require_module("*"))):
-    dump = {}
-    for col in BACKUP_COLLECTIONS:
-        docs = await db[col].find({}, {"_id": 0}).to_list(100000)
-        dump[col] = docs
-    content = json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), "data": dump},
-                         default=str, indent=2).encode("utf-8")
+    content = await export_database(db)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     return Response(content=content, media_type="application/json",
-                    headers={"Content-Disposition": f"attachment; filename=vetmech-db-{ts}.json"})
+                    headers={"Content-Disposition": f"attachment; filename=vetmech-db-{ts}.json",
+                             "Cache-Control": "no-store"})
 
 
 @app.get("/api/admin/backup/images")
 async def backup_images(admin=Depends(require_module("*"))):
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in UPLOAD_DIR.iterdir():
-            if f.is_file():
-                zf.write(f, f.name)
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    return Response(content=buf.getvalue(), media_type="application/zip",
-                    headers={"Content-Disposition": f"attachment; filename=vetmech-images-{ts}.zip"})
+    return Response(content=export_uploads(UPLOAD_DIR), media_type="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename=vetmech-images-{ts}.zip",
+                             "Cache-Control": "no-store"})
 
 
 @app.get("/api/admin/backup/stats")
 async def backup_stats(admin=Depends(require_module("*"))):
-    counts = {c: await db[c].count_documents({}) for c in BACKUP_COLLECTIONS}
+    result = await database_backup_stats(db)
     img_count = sum(1 for f in UPLOAD_DIR.iterdir() if f.is_file())
     img_size = sum(f.stat().st_size for f in UPLOAD_DIR.iterdir() if f.is_file())
-    return {"collections": counts, "total_records": sum(counts.values()),
+    return {**result,
             "image_count": img_count, "image_size_mb": round(img_size / 1024 / 1024, 2)}
 
 
@@ -250,7 +247,9 @@ app.include_router(seo.router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_origins=[origin.strip() for origin in os.environ.get(
+        "CORS_ORIGINS", os.environ.get("SITE_URL", "http://localhost:3000")
+    ).split(",") if origin.strip()],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -266,7 +265,8 @@ async def startup():
     await db.categories.create_index("slug")
     await db.orders.create_index("order_number")
     await run_seed(db)
-    await run_seed_tickets(db)
+    if demo_enabled():
+        await run_seed_tickets(db)
     await migrate_customers(db)
     await pricing.ensure_settings()
 
@@ -286,4 +286,5 @@ async def migrate_customers(db):
 
 @app.on_event("shutdown")
 async def shutdown():
-    pass
+    from db import client
+    client.close()

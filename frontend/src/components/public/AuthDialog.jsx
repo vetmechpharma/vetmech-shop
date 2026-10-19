@@ -42,7 +42,7 @@ export default function AuthDialog({ open, onOpenChange, onLoggedIn }) {
       const { data } = await api.post("/auth/otp/request", { mobile });
       setDevOtp(data.dev_otp || "");
       setStep("otp");
-      toast.success("OTP sent via WhatsApp (simulated)");
+      toast.success(data.message || "OTP sent. Check WhatsApp or your registered email.");
     } catch (e) { toast.error(apiError(e)); }
     setLoading(false);
   };

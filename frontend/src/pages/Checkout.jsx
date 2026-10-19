@@ -51,6 +51,11 @@ export default function Checkout() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const onVerified = (data) => {
+    if (!data.registered || !data.token) {
+      toast.info("Please register your account before placing an order.");
+      navigate("/register", { state: { mobile: data.mobile } });
+      return;
+    }
     setVerified(true);
     setMobile(data.mobile);
     if (data.registered && data.customer) {
@@ -111,7 +116,7 @@ export default function Checkout() {
               <p className="text-sm text-slate-500 mt-2">Mobile <strong>{mobile}</strong> verified. {existing ? "Welcome back!" : "Please complete your details below."}</p>
             ) : (
               <>
-                <p className="text-sm text-slate-500 mt-2">Registration happens only at checkout. Verify your mobile to continue.</p>
+                <p className="text-sm text-slate-500 mt-2">Log in to your registered account to place an order.</p>
                 <Button className="mt-3 bg-vm-green hover:bg-vm-greenhover" onClick={() => setOtpOpen(true)} data-testid="start-verification">Verify with WhatsApp OTP</Button>
               </>
             )}
