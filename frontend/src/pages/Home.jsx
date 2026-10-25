@@ -45,9 +45,9 @@ export default function Home() {
         <div className="absolute inset-0 hero-overlay" />
         <div className="vm-container relative py-20 md:py-32 max-w-2xl vm-fade-up">
           <span className="inline-flex items-center gap-2 text-xs uppercase tracking-widest bg-white/10 border border-white/20 rounded-full px-3 py-1 mb-5">
-            <ShieldCheck className="w-3.5 h-3.5 text-vm-accent" /> WHO-GMP Certified
+            <ShieldCheck className="w-3.5 h-3.5 text-vm-accent" /> {hero.eyebrow || company?.tagline || "The Science of Animal Health"}
           </span>
-          <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
+          <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight whitespace-pre-line">
             {hero.title || "Advancing Animal Health Across India"}
           </h1>
           <p className="mt-5 text-base md:text-lg text-slate-200 leading-relaxed">

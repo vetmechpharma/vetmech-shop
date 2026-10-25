@@ -274,7 +274,8 @@ export function HomepageSettings() {
   return (
     <Wrap title="Homepage Content" subtitle="Edit homepage sections" onSave={save} saving={saving}>
       <h3 className="font-heading font-bold text-vm-ink">Hero Banner</h3>
-      <F label="Hero Title" value={hero.title} onChange={(v) => set("hero", { ...hero, title: v })} />
+      <F label="Banner Label" value={hero.eyebrow} onChange={(v) => set("hero", { ...hero, eyebrow: v })} />
+      <F label="Hero Title" value={hero.title} onChange={(v) => set("hero", { ...hero, title: v })} textarea />
       <F label="Hero Subtitle" value={hero.subtitle} onChange={(v) => set("hero", { ...hero, subtitle: v })} textarea />
       <ImageUpload label="Hero Image" value={hero.image} onChange={(v) => set("hero", { ...hero, image: v })} />
       <div className="grid sm:grid-cols-2 gap-4"><F label="CTA Text" value={hero.cta_text} onChange={(v) => set("hero", { ...hero, cta_text: v })} /><F label="CTA Link" value={hero.cta_link} onChange={(v) => set("hero", { ...hero, cta_link: v })} /></div>
