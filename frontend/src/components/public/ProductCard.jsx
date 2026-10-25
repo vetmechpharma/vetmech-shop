@@ -20,7 +20,7 @@ export default function ProductCard({ product }) {
       className="group bg-white border border-[#E2E8F0] rounded-lg overflow-hidden transition-colors hover:border-vm-accent flex flex-col"
       data-testid={`product-card-${product.slug}`}
     >
-      <Link to={`/products/${product.slug}`} className="block relative aspect-square bg-[#F8FAF9] p-4">
+      <Link to={`/shop/products/${product.slug}`} className="block relative aspect-square bg-[#F8FAF9] p-4">
         <ProductBadges badges={product.badges} className="absolute top-2 left-2 z-10 max-w-[85%]" />
         {product.image ? (
           <img src={mediaUrl(product.image)} alt={product.name} loading="lazy"
@@ -31,7 +31,7 @@ export default function ProductCard({ product }) {
       </Link>
       <div className="p-4 flex flex-col flex-1">
         <p className="text-[11px] uppercase tracking-wider text-vm-accent font-semibold">{product.brand_name}</p>
-        <Link to={`/products/${product.slug}`} className="font-heading font-bold text-vm-ink mt-0.5 hover:text-vm-green line-clamp-1">
+        <Link to={`/shop/products/${product.slug}`} className="font-heading font-bold text-vm-ink mt-0.5 hover:text-vm-green line-clamp-1">
           {product.name}
         </Link>
         <p className="text-sm text-slate-500 mt-1 line-clamp-2 flex-1">{product.short_description}</p>
@@ -56,7 +56,7 @@ export default function ProductCard({ product }) {
           {customer ? (
             <>
               <Button variant="outline" size="sm" className="flex-1 border-vm-green text-vm-green hover:bg-vm-bg"
-                      onClick={() => navigate(`/products/${product.slug}`)} data-testid={`view-product-${product.slug}`}>
+                      onClick={() => navigate(`/shop/products/${product.slug}`)} data-testid={`view-product-${product.slug}`}>
                 <Eye className="w-4 h-4 mr-1" /> View
               </Button>
               <Button size="sm" disabled={outOfStock} className="flex-1 bg-vm-green hover:bg-vm-greenhover"
@@ -67,7 +67,7 @@ export default function ProductCard({ product }) {
             </>
           ) : (
             <Button size="sm" className="flex-1 bg-vm-green hover:bg-vm-greenhover"
-                    onClick={() => navigate(`/products/${product.slug}`)} data-testid={`view-product-${product.slug}`}>
+                    onClick={() => navigate(`/shop/products/${product.slug}`)} data-testid={`view-product-${product.slug}`}>
               <Eye className="w-4 h-4 mr-1" /> View
             </Button>
           )}

@@ -1,5 +1,5 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ScrollToTop from "@/components/ScrollToTop";
 import { Toaster } from "sonner";
 
@@ -8,7 +8,11 @@ import { CartProvider } from "@/context/CartContext";
 import { AdminAuthProvider } from "@/context/AdminAuthContext";
 
 import PublicLayout from "@/components/public/PublicLayout";
-import Home from "@/pages/Home";
+import Home from "@/pages/corporate/Home";
+import Portfolio from "@/pages/corporate/Portfolio";
+import ProductProfile from "@/pages/corporate/ProductProfile";
+import CorporateScience from "@/pages/corporate/Science";
+import ShopLayout from "@/components/corporate/ShopLayout";
 import Products from "@/pages/Products";
 import ProductDetail from "@/pages/ProductDetail";
 import CategoryPage from "@/pages/CategoryPage";
@@ -18,11 +22,11 @@ import OrderConfirmation from "@/pages/OrderConfirmation";
 import Account from "@/pages/Account";
 import CmsPage from "@/pages/CmsPage";
 import QuickOrder from "@/pages/QuickOrder";
-import About from "@/pages/About";
+import About from "@/pages/corporate/About";
 import { NewsList, NewsArticle } from "@/pages/News";
 import Gallery from "@/pages/Gallery";
 import Careers from "@/pages/Careers";
-import Contact from "@/pages/Contact";
+import Contact from "@/pages/corporate/Contact";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -71,19 +75,13 @@ function App() {
                 {/* Public site */}
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<Home />} />
-                  <Route path="/products" element={<Products />} />
-                  <Route path="/quick-order" element={<QuickOrder />} />
-                  <Route path="/products/:slug" element={<ProductDetail />} />
-                  <Route path="/categories/:slug" element={<CategoryPage />} />
-                  <Route path="/cart" element={<Cart />} />
-                  <Route path="/checkout" element={<Checkout />} />
-                  <Route path="/order-confirmed/:id" element={<OrderConfirmation />} />
-                  <Route path="/account" element={<Account />} />
-                  <Route path="/register" element={<Register />} />
+                  <Route path="/products" element={<Portfolio />} />
+                  <Route path="/products/:slug" element={<ProductProfile />} />
+                  <Route path="/categories/:slug" element={<Portfolio />} />
                   <Route path="/about" element={<About />} />
-                  <Route path="/quality" element={<CmsPage slug="quality" />} />
-                  <Route path="/infrastructure" element={<CmsPage slug="infrastructure" />} />
-                  <Route path="/research" element={<CmsPage slug="research" />} />
+                  <Route path="/quality" element={<CorporateScience kind="quality" />} />
+                  <Route path="/infrastructure" element={<CorporateScience kind="infrastructure" />} />
+                  <Route path="/research" element={<CorporateScience />} />
                   <Route path="/privacy" element={<CmsPage slug="privacy" />} />
                   <Route path="/terms" element={<CmsPage slug="terms" />} />
                   <Route path="/news" element={<NewsList />} />
@@ -91,7 +89,21 @@ function App() {
                   <Route path="/gallery" element={<Gallery />} />
                   <Route path="/careers" element={<Careers />} />
                   <Route path="/contact" element={<Contact />} />
+                  <Route path="*" element={<div className="corp-container corp-section"><h1>Page not found.</h1><p>The page may have moved. <a href="/">Return to VETMECH</a></p></div>} />
                 </Route>
+
+                <Route element={<ShopLayout />}>
+                  <Route path="/shop" element={<Products />} />
+                  <Route path="/shop/products/:slug" element={<ProductDetail />} />
+                  <Route path="/shop/categories/:slug" element={<CategoryPage />} />
+                  <Route path="/shop/quick-order" element={<QuickOrder />} />
+                  <Route path="/cart" element={<Cart />} />
+                  <Route path="/checkout" element={<Checkout />} />
+                  <Route path="/order-confirmed/:id" element={<OrderConfirmation />} />
+                  <Route path="/account" element={<Account />} />
+                  <Route path="/register" element={<Register />} />
+                </Route>
+                <Route path="/quick-order" element={<Navigate to="/shop/quick-order" replace />} />
 
                 {/* Admin */}
                 <Route path="/admin/login" element={<AdminLogin />} />

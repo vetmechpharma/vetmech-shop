@@ -1,3 +1,4 @@
+import { corporateContent } from "@/components/corporate/content";
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, apiError, absoluteApiUrl } from "@/lib/api";
@@ -269,39 +270,29 @@ export function SeoSettings() {
 export function HomepageSettings() {
   const { form, set, save, saving } = useSettingForm("homepage");
   const { data: prods } = useQuery({ queryKey: ["hp-products"], queryFn: async () => (await api.get("/admin/products", { params: { limit: 200 } })).data });
-  const hero = form.hero || {}, intro = form.intro || {}, quality = form.quality || {}, cta = form.cta || {};
+  const content = corporateContent(form);
+  const setSection = (section, key, value) => set("corporate", { ...form.corporate, [section]: { ...content[section], [key]: value } });
   const featIds = form.featured_product_ids || [];
-  return (
-    <Wrap title="Homepage Content" subtitle="Edit homepage sections" onSave={save} saving={saving}>
-      <h3 className="font-heading font-bold text-vm-ink">Hero Banner</h3>
-      <F label="Banner Label" value={hero.eyebrow} onChange={(v) => set("hero", { ...hero, eyebrow: v })} />
-      <F label="Hero Title" value={hero.title} onChange={(v) => set("hero", { ...hero, title: v })} textarea />
-      <F label="Hero Subtitle" value={hero.subtitle} onChange={(v) => set("hero", { ...hero, subtitle: v })} textarea />
-      <ImageUpload label="Hero Image" value={hero.image} onChange={(v) => set("hero", { ...hero, image: v })} />
-      <div className="grid sm:grid-cols-2 gap-4"><F label="CTA Text" value={hero.cta_text} onChange={(v) => set("hero", { ...hero, cta_text: v })} /><F label="CTA Link" value={hero.cta_link} onChange={(v) => set("hero", { ...hero, cta_link: v })} /></div>
-      <hr /><h3 className="font-heading font-bold text-vm-ink">Introduction</h3>
-      <F label="Intro Title" value={intro.title} onChange={(v) => set("intro", { ...intro, title: v })} />
-      <F label="Intro Text" value={intro.text} onChange={(v) => set("intro", { ...intro, text: v })} textarea rows={4} />
-      <hr /><h3 className="font-heading font-bold text-vm-ink">Quality Section</h3>
-      <F label="Quality Title" value={quality.title} onChange={(v) => set("quality", { ...quality, title: v })} />
-      <F label="Quality Text" value={quality.text} onChange={(v) => set("quality", { ...quality, text: v })} textarea />
-      <ImageUpload label="Quality Image" value={quality.image} onChange={(v) => set("quality", { ...quality, image: v })} />
-      <hr /><h3 className="font-heading font-bold text-vm-ink">Featured Products (Homepage)</h3>
-      <p className="text-xs text-slate-400 -mt-2">Select products to feature. If none selected, products with the FEATURED badge are shown.</p>
-      <div className="grid sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto border rounded-md p-2">
-        {(prods?.items || []).map((p) => (
-          <label key={p.id} className="flex items-center gap-2 text-sm py-0.5">
-            <input type="checkbox" checked={featIds.includes(p.id)} data-testid={`feat-${p.id}`}
-              onChange={(e) => set("featured_product_ids", e.target.checked ? [...featIds, p.id] : featIds.filter((x) => x !== p.id))} />
-            {p.name}
-          </label>
-        ))}
-      </div>
-      <hr /><h3 className="font-heading font-bold text-vm-ink">Bottom CTA</h3>
-      <F label="CTA Title" value={cta.title} onChange={(v) => set("cta", { ...cta, title: v })} />
-      <F label="CTA Text" value={cta.text} onChange={(v) => set("cta", { ...cta, text: v })} textarea />
-    </Wrap>
-  );
+  return <Wrap title="Corporate Homepage" subtitle="Edit the public corporate website" onSave={save} saving={saving}>
+    <h3 className="font-heading font-bold text-vm-ink">Hero Banner</h3>
+    <F label="Banner Label" value={content.hero.eyebrow} onChange={v => setSection("hero", "eyebrow", v)} />
+    <F label="Hero Title" value={content.hero.title} onChange={v => setSection("hero", "title", v)} textarea />
+    <F label="Hero Description" value={content.hero.text} onChange={v => setSection("hero", "text", v)} textarea />
+    <ImageUpload label="Hero Image" value={content.hero.image} onChange={v => setSection("hero", "image", v)} />
+    <hr/><h3 className="font-heading font-bold text-vm-ink">Company Introduction</h3>
+    <F label="Section Label" value={content.intro.eyebrow} onChange={v => setSection("intro", "eyebrow", v)} />
+    <F label="Introduction Title" value={content.intro.title} onChange={v => setSection("intro", "title", v)} textarea />
+    <F label="Introduction Text" value={content.intro.text} onChange={v => setSection("intro", "text", v)} textarea />
+    <hr/><h3 className="font-heading font-bold text-vm-ink">Our Approach</h3>
+    <F label="Approach Title" value={content.science.title} onChange={v => setSection("science", "title", v)} textarea />
+    <F label="Approach Text" value={content.science.text} onChange={v => setSection("science", "text", v)} textarea />
+    <ImageUpload label="Approach Image" value={content.science.image} onChange={v => setSection("science", "image", v)} />
+    <hr/><h3 className="font-heading font-bold text-vm-ink">Featured Portfolio Products</h3>
+    <p className="text-xs text-slate-500">Choose the products shown on the corporate homepage. The portfolio displays product information and pack sizes.</p>
+    <div className="grid sm:grid-cols-2 gap-1 max-h-52 overflow-y-auto border rounded-md p-2">
+      {(prods?.items || []).map(p => <label key={p.id} className="flex items-center gap-2 text-sm py-0.5"><input type="checkbox" checked={featIds.includes(p.id)} data-testid={`feat-${p.id}`} onChange={e => set("featured_product_ids", e.target.checked ? [...featIds, p.id] : featIds.filter(x => x !== p.id))}/>{p.name}</label>)}
+    </div>
+  </Wrap>;
 }
 
 export function WebsiteSettings() {

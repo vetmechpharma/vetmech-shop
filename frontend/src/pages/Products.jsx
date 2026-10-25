@@ -81,9 +81,9 @@ export default function Products() {
 
   return (
     <div className="vm-container py-10">
-      <SEO title="All Products" description="Browse the complete VETMECH veterinary product catalog." />
-      <h1 className="font-heading text-3xl md:text-4xl font-bold text-vm-ink tracking-tight">All Products</h1>
-      <p className="text-slate-500 mt-1">Search and filter our complete veterinary range</p>
+      <SEO title="Partner Shop" description="VETMECH partner ordering workspace." noindex />
+      <h1 className="font-heading text-3xl md:text-4xl font-bold text-vm-ink tracking-tight">Partner Shop</h1>
+      <p className="text-slate-500 mt-1">Your product ordering workspace. Sign in for your approved account pricing.</p>
 
       <div className="mt-6 flex gap-8">
         <aside className="hidden lg:block w-64 shrink-0"><div className="sticky top-24 bg-white border border-vm-border rounded-xl p-4"><FilterRail {...railProps} /></div></aside>

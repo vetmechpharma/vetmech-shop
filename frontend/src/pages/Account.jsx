@@ -145,7 +145,7 @@ function Dashboard({ customer, logout }) {
                 <Button size="sm" variant="outline" className="border-vm-green text-vm-green" onClick={() => doReorder(o.id, false)} data-testid={`reorder-${o.order_number}`}><RotateCcw className="w-3.5 h-3.5 mr-1" /> Reorder</Button>
               </div>
             </div>
-          )) : <p className="text-slate-400 py-10 text-center">No orders yet. <Link to="/products" className="text-vm-green underline">Start ordering</Link></p>}
+          )) : <p className="text-slate-400 py-10 text-center">No orders yet. <Link to="/shop" className="text-vm-green underline">Start ordering</Link></p>}
         </TabsContent>
 
         <TabsContent value="profile" className="mt-4">

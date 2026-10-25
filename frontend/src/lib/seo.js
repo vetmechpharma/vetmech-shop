@@ -50,7 +50,7 @@ export function articleLd({ title, description, image, datePublished, dateModifi
     datePublished,
     dateModified: dateModified || datePublished,
     author: { "@type": author ? "Person" : "Organization", name: author || ORG_NAME },
-    publisher: { "@type": "Organization", name: ORG_NAME, logo: { "@type": "ImageObject", url: siteUrl("/logo.png") } },
+    publisher: { "@type": "Organization", name: ORG_NAME, logo: { "@type": "ImageObject", url: siteUrl("/corporate/brand.svg") } },
     mainEntityOfPage: siteUrl(path),
   };
   if (image) ld.image = [mediaUrl(image)];
@@ -64,7 +64,7 @@ export function organizationLd(company, extra = {}) {
     "@type": "Organization",
     name: company?.name || ORG_NAME,
     url: SITE_URL || undefined,
-    logo: company?.logo ? mediaUrl(company.logo) : siteUrl("/logo.png"),
+    logo: company?.logo ? mediaUrl(company.logo) : siteUrl("/corporate/brand.svg"),
     ...(company?.phone ? { telephone: company.phone } : {}),
     ...(company?.email ? { email: company.email } : {}),
     ...(company?.address ? { address: { "@type": "PostalAddress", streetAddress: company.address } } : {}),

@@ -46,7 +46,7 @@ export function createDemoEngine(storage) {
     const p = copy(product);
     p.category = state.categories.find(c => c.id === p.category_id);
     p.subcategory = state.categories.find(c => c.id === p.subcategory_id);
-    p.variants = p.variants.map(v => ({ ...v, your_price: customer?.status === "active" ? baseRate(v, customer).rate : null, login_required: customer?.status !== "active", price_source: baseRate(v, customer).source, selling_price: customer ? v.selling_price : null, active_schemes: offerList({ ...v, product_id: p.id }, customer) }));
+    p.variants = p.variants.map(v => ({ ...v, your_price: customer?.status === "active" ? baseRate(v, customer).rate : null, login_required: customer?.status !== "active", price_source: baseRate(v, customer).source, selling_price: customer ? v.selling_price : null, active_schemes: offerList({ ...v, product_id: p.id }, customer).map(s => ({ ...s, type: s.type || s.scheme_type, buy: s.buy ?? s.buy_quantity, free: s.free ?? s.free_quantity, min: s.min ?? s.min_quantity, max: s.max ?? s.max_quantity })) }));
     return p;
   };
   const linesFor = (items, customer, manual = false) => items.map(item => {

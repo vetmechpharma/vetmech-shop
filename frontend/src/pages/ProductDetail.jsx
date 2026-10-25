@@ -71,7 +71,7 @@ export default function ProductDetail() {
   const [activeImg, setActiveImg] = useState(0);
 
   if (isLoading) return <div className="vm-container py-10 grid md:grid-cols-2 gap-8"><Skeleton className="h-96 rounded-lg" /><div className="space-y-4"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-24" /></div></div>;
-  if (!p) return <div className="vm-container py-20 text-center text-slate-400">Product not found. <Link to="/products" className="text-vm-green underline">Back to products</Link></div>;
+  if (!p) return <div className="vm-container py-20 text-center text-slate-400">Product not found. <Link to="/shop" className="text-vm-green underline">Back to shop</Link></div>;
 
   const variants = p.variants || [];
   const variant = variants.find((v) => v.id === variantId) || variants[0] || {};
@@ -101,21 +101,19 @@ export default function ProductDetail() {
     sku: variant.sku || p.product_code || "", mpn: variant.sku || p.product_code || "",
     brand: { "@type": "Brand", name: p.brand_name || "VETMECH" },
     category: p.category?.name || undefined,
-    offers: { "@type": "Offer", priceCurrency: "INR", price: variant.mrp || 0, url: siteUrl(`/products/${slug}`),
-      availability: outOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock" },
     ...(reviewLd ? { aggregateRating: reviewLd } : {}),
   };
-  const crumbs = [{ name: "Home", path: "/" }, { name: "Products", path: "/products" }];
-  if (p.category?.slug) crumbs.push({ name: p.category.name, path: `/categories/${p.category.slug}` });
-  crumbs.push({ name: p.name, path: `/products/${slug}` });
+  const crumbs = [{ name: "Partner Shop", path: "/shop" }];
+  if (p.category?.slug) crumbs.push({ name: p.category.name, path: `/shop/categories/${p.category.slug}` });
+  crumbs.push({ name: p.name, path: `/shop/products/${slug}` });
   const faqs = p.seo?.faqs || [];
   const jsonLd = [productLd, breadcrumbLd(crumbs), faqLd(faqs)].filter(Boolean);
 
   return (
     <div className="vm-container py-8">
-      <SEO title={p.name} description={p.short_description} ogImage={p.image} seo={p.seo} jsonLd={jsonLd} ogType="product" canonical={siteUrl(`/products/${slug}`)} />
+      <SEO title={`${p.name} | Partner Shop`} description={p.short_description} ogImage={p.image} jsonLd={jsonLd} noindex canonical={siteUrl(`/products/${slug}`)} />
       <nav className="text-xs text-slate-400 mb-5">
-        <Link to="/" className="hover:text-vm-green">Home</Link> / <Link to="/products" className="hover:text-vm-green">Products</Link> / <span className="text-vm-ink">{p.name}</span>
+        <Link to="/shop" className="hover:text-vm-green">Partner Shop</Link> / <span className="text-vm-ink">{p.name}</span>
       </nav>
 
       <div className="grid md:grid-cols-2 gap-10">
@@ -207,9 +205,9 @@ export default function ProductDetail() {
               <p className="text-sm text-slate-600 mt-1">Your special B2B rates, quantity offers and ordering are available only to registered partners. It's quick — create your account and start ordering.</p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Button size="lg" className="bg-vm-green hover:bg-vm-greenhover" data-testid="detail-register-btn"
-                        onClick={() => navigate(`/register?redirect=${encodeURIComponent(`/products/${slug}`)}`)}>Create Account</Button>
+                        onClick={() => navigate(`/register?redirect=${encodeURIComponent(`/shop/products/${slug}`)}`)}>Create Account</Button>
                 <Button size="lg" variant="outline" className="border-vm-green text-vm-green" data-testid="detail-login-btn"
-                        onClick={() => navigate(`/account?redirect=${encodeURIComponent(`/products/${slug}`)}`)}>Login</Button>
+                        onClick={() => navigate(`/account?redirect=${encodeURIComponent(`/shop/products/${slug}`)}`)}>Login</Button>
               </div>
             </div>
           ) : (

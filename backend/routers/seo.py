@@ -131,7 +131,6 @@ async def seo_render(path: str = Query("/")):
             s = prod.get("seo") or {}
             v0 = (prod.get("variants") or [{}])[0]
             img = media_abs((prod.get("images") or [prod.get("image")])[0] if (prod.get("images") or prod.get("image")) else "")
-            oos = bool((prod.get("badges") or {}).get("out_of_stock") or v0.get("stock_status") == "out_of_stock")
             title = _title(s.get("title") or prod["name"])
             desc = s.get("meta_description") or prod.get("short_description") or prod.get("full_description") or prod["name"]
             canonical = s.get("canonical") or site_url(f"/products/{slug}")
@@ -143,13 +142,11 @@ async def seo_render(path: str = Query("/")):
             product_ld = {"@context": "https://schema.org", "@type": "Product", "name": prod["name"],
                           "image": img or default_img, "description": desc,
                           "sku": v0.get("sku") or prod.get("product_code") or "",
-                          "brand": {"@type": "Brand", "name": prod.get("brand_name") or "VETMECH"},
-                          "offers": {"@type": "Offer", "priceCurrency": "INR", "price": v0.get("mrp") or 0, "url": canonical,
-                                     "availability": "https://schema.org/OutOfStock" if oos else "https://schema.org/InStock"}}
+                          "brand": {"@type": "Brand", "name": prod.get("brand_name") or "VETMECH"}}
             extra = "".join(f"<h2>{esc(l)}</h2><p>{esc(prod.get(k))}</p>" for l, k in
                             [("Composition", "composition"), ("Indications", "indications"), ("Dosage", "dosage")] if prod.get(k))
             body = (f"<h1>{esc(prod['name'])}</h1><p>{esc(desc)}</p>"
-                    f"<p>Brand: {esc(prod.get('brand_name') or 'VETMECH')} | MRP: Rs.{esc(v0.get('mrp'))} / {esc(v0.get('pack_size'))}</p>"
+                    f"<p>Brand: {esc(prod.get('brand_name') or 'VETMECH')} | Pack: {esc(v0.get('pack_size'))}</p>"
                     f"{('<p>'+esc(prod.get('full_description'))+'</p>') if prod.get('full_description') else ''}{extra}")
             return _doc(title, desc, canonical, img or default_img,
                         [product_ld, _breadcrumb_ld(crumbs), _faq_ld(s.get("faqs"))],

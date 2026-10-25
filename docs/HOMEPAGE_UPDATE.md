@@ -1,4 +1,8 @@
-# Apply the connected homepage presentation to the live shop
+# Legacy green homepage presentation
+
+The current black-and-red corporate website uses its own homepage defaults and
+`homepage.corporate` fields. Use a normal deployment for that theme; the preset
+below applies only to the earlier green homepage. See [corporate design](CORPORATE_DESIGN.md).
 
 The browser demo has its own sample settings. A normal code deployment retains
 the live MongoDB homepage, which is why the original banner can remain after
