@@ -92,6 +92,16 @@ Overrides: `VETMECH_APP_DIR`, `VETMECH_SERVICE`, `VETMECH_HEALTH_URL` and
 `VETMECH_BACKUP_DIR`. It preserves existing `.env` files. It does not create DNS,
 certificates, a systemd service or a first-time host reverse proxy.
 
+To apply the connected homepage presentation as well as deploying code, run:
+
+```bash
+cd /opt/vetmech-shop && git pull --ff-only origin main && sudo bash deploy-vps.sh --refresh-homepage
+```
+
+This explicitly updates the stored homepage text and artwork once, saves a
+rollback snapshot and retains the live catalogue, prices and business records.
+See [the homepage update guide](docs/HOMEPAGE_UPDATE.md) for preview and rollback.
+
 ## Integrations
 
 Configure WhatsApp API URL/key/session and SMTP credentials in Admin. Production
