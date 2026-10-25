@@ -5,6 +5,17 @@ This repository contains the React frontend, FastAPI backend, tracked media and
 the original Git history exported from Emergent. Development can continue here
 without an Emergent subscription or private build packages.
 
+## Corporate website and Partner Shop
+
+The public website has a black-and-red corporate identity. Its product portfolio
+shows product information, composition and pack sizes. Ordering and account
+pricing live in the separate **Partner Shop** at `/shop`; public portfolio pages
+show no MRP, prices or cart controls, including for signed-in customers.
+
+The new corporate theme appears after a normal code deployment and retains the
+live database. Admin → Homepage controls its hero, introduction, approach and
+featured products. See [corporate design and deployment](docs/CORPORATE_DESIGN.md).
+
 ## Existing modules
 
 - Public website, product catalogue, categories, product SEO and social previews.
@@ -92,15 +103,9 @@ Overrides: `VETMECH_APP_DIR`, `VETMECH_SERVICE`, `VETMECH_HEALTH_URL` and
 `VETMECH_BACKUP_DIR`. It preserves existing `.env` files. It does not create DNS,
 certificates, a systemd service or a first-time host reverse proxy.
 
-To apply the connected homepage presentation as well as deploying code, run:
-
-```bash
-cd /opt/vetmech-shop && git pull --ff-only origin main && sudo bash deploy-vps.sh --refresh-homepage
-```
-
-This explicitly updates the stored homepage text and artwork once, saves a
-rollback snapshot and retains the live catalogue, prices and business records.
-See [the homepage update guide](docs/HOMEPAGE_UPDATE.md) for preview and rollback.
+The current corporate website uses its dedicated homepage settings and does not
+require a database preset. The earlier green homepage content preset and its
+rollback tooling remain documented in [the legacy guide](docs/HOMEPAGE_UPDATE.md).
 
 ## Integrations
 

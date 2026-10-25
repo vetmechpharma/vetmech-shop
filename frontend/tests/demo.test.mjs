@@ -17,6 +17,8 @@ test("public catalogue hides B2B prices while customer category prices differ", 
   const agency = await call("GET", "/products", {}, "demo-customer:c2");
   assert.equal(doctor.items[0].variants[0].your_price, 650);
   assert.equal(agency.items[0].variants[0].your_price, 585);
+  const offer = doctor.items[0].variants[0].active_schemes[0];
+  assert.deepEqual({ type: offer.type, buy: offer.buy, free: offer.free }, { type: "free_qty", buy: 10, free: 2 });
 });
 
 test("sample customer orders persist across a fresh engine instance", async () => {

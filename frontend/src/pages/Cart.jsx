@@ -36,7 +36,7 @@ export default function Cart() {
         <ShoppingCart className="w-14 h-14 mx-auto text-slate-300 mb-4" />
         <h1 className="font-heading text-2xl font-bold text-vm-ink">Your cart is empty</h1>
         <p className="text-slate-500 mt-2">Browse our catalog and add products to order.</p>
-        <Link to="/products"><Button className="mt-6 bg-vm-green hover:bg-vm-greenhover">Browse Products</Button></Link>
+        <Link to="/shop"><Button className="mt-6 bg-vm-green hover:bg-vm-greenhover">Browse Products</Button></Link>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export default function Cart() {
                       {l.image && <img src={mediaUrl(l.image)} alt={l.product_name} className="w-full h-full object-contain" />}
                     </div>
                     <div>
-                      <Link to={`/products/${l.slug}`} className="font-medium text-vm-ink hover:text-vm-green">{l.product_name}</Link>
+                      <Link to={`/shop/products/${l.slug}`} className="font-medium text-vm-ink hover:text-vm-green">{l.product_name}</Link>
                       <p className="text-xs text-slate-400">{l.brand_name}</p>
                     </div>
                   </div>

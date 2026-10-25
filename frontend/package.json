@@ -71,7 +71,8 @@
     "test:smoke": "node --test tests/*.test.cjs",
     "start:local": "REACT_APP_BACKEND_URL=http://localhost:8010 craco start",
     "build:demo": "node scripts/build-demo.cjs",
-    "test:demo": "node --test tests/demo*.test.mjs"
+    "test:demo": "node --test tests/demo*.test.mjs",
+    "start:demo": "node scripts/start-demo.cjs"
   },
   "browserslist": {
     "production": [

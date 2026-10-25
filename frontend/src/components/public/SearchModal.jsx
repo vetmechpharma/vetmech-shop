@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, mediaUrl } from "@/lib/api";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
 
-export default function SearchModal({ open, onOpenChange }) {
+export default function SearchModal({ open, onOpenChange, commerce = false }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -27,18 +27,19 @@ export default function SearchModal({ open, onOpenChange }) {
   const go = (slug) => {
     onOpenChange(false);
     setQ("");
-    navigate(`/products/${slug}`);
+    navigate(`${commerce ? "/shop/products" : "/products"}/${slug}`);
   };
 
   const submitAll = (e) => {
     e.preventDefault();
     onOpenChange(false);
-    navigate(`/products?q=${encodeURIComponent(q)}`);
+    navigate(`${commerce ? "/shop" : "/products"}?q=${encodeURIComponent(q)}`);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl p-0 gap-0 top-[15%] translate-y-0" data-testid="search-modal">
+        <DialogTitle className="sr-only">{commerce ? "Search Partner Shop" : "Search our product portfolio"}</DialogTitle>
         <form onSubmit={submitAll} className="flex items-center gap-2 border-b px-4 py-3">
           <Search className="w-5 h-5 text-slate-400" />
           <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)}
@@ -60,11 +61,11 @@ export default function SearchModal({ open, onOpenChange }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-vm-ink text-sm truncate">{r.name}</p>
-                <p className="text-xs text-slate-400">{r.brand_name} · {r.pack_size}</p>
+                <p className="text-xs text-slate-400">{r.brand_name}{(r.pack_size || r.variants?.[0]?.pack_size) ? ` · ${r.pack_size || r.variants[0].pack_size}` : ""}</p>
               </div>
-              <span className={`text-[10px] px-2 py-0.5 rounded ${r.stock_status === "out_of_stock" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+              {commerce && <span className={`text-[10px] px-2 py-0.5 rounded ${r.stock_status === "out_of_stock" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
                 {r.stock_status === "out_of_stock" ? "Out" : "In stock"}
-              </span>
+              </span>}
             </button>
           ))}
         </div>

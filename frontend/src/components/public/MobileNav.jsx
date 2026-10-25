@@ -32,18 +32,18 @@ export default function MobileNav() {
   return (
     <>
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-md bg-white/95 border-t border-[#E2E8F0] flex items-stretch px-1 pb-[env(safe-area-inset-bottom)]">
-        {item("/", Home, "Home")}
-        {item("/products", Package, "Products")}
+        {item("/", Home, "Website")}
+        {item("/shop", Package, "Shop")}
         {item(null, Search, "Search", 0, () => setSearchOpen(true))}
         {item("/cart", ShoppingCart, "Cart", count)}
         {item("/account", User, "Account")}
-        <Link to="/quick-order"
-           className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 ${pathname === "/quick-order" ? "text-vm-green" : "text-vm-accent"}`} data-testid="mobilenav-quick-order">
+        <Link to="/shop/quick-order"
+           className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 ${pathname === "/shop/quick-order" ? "text-vm-green" : "text-vm-accent"}`} data-testid="mobilenav-quick-order">
           <Zap className="w-5 h-5" />
           <span className="text-[10px] font-medium">Quick Order</span>
         </Link>
       </nav>
-      <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
+      <SearchModal commerce open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );
 }

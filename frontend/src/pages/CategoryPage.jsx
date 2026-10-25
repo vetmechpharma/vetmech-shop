@@ -15,7 +15,7 @@ export default function CategoryPage() {
     queryFn: async () => (await api.get("/products", { params: { category: slug, limit: 24 } })).data,
   });
 
-  const crumbs = [{ name: "Home", path: "/" }, { name: "Products", path: "/products" }];
+  const crumbs = [{ name: "Partner Shop", path: "/shop" }];
   if (cat?.parent?.slug) crumbs.push({ name: cat.parent.name, path: `/categories/${cat.parent.slug}` });
   if (cat?.name) crumbs.push({ name: cat.name, path: `/categories/${slug}` });
   const collectionLd = cat ? {
@@ -31,12 +31,12 @@ export default function CategoryPage() {
 
   return (
     <div>
-      <SEO title={cat?.name} description={cat?.description} seo={cat?.seo} jsonLd={jsonLd} canonical={siteUrl(`/categories/${slug}`)} />
+      <SEO title={cat?.name} description={cat?.description} jsonLd={jsonLd} noindex canonical={siteUrl(`/categories/${slug}`)} />
       <section className="bg-vm-ink text-white">
         <div className="vm-container py-14">
           <nav className="text-xs uppercase tracking-widest text-vm-accent" aria-label="Breadcrumb">
-            <Link to="/products" className="hover:underline">Products</Link>
-            {cat?.parent?.slug && <> / <Link to={`/categories/${cat.parent.slug}`} className="hover:underline">{cat.parent.name}</Link></>}
+            <Link to="/shop" className="hover:underline">Partner Shop</Link>
+            {cat?.parent?.slug && <> / <Link to={`/shop/categories/${cat.parent.slug}`} className="hover:underline">{cat.parent.name}</Link></>}
             {" "}/ {cat?.name}
           </nav>
           <h1 className="font-heading text-4xl font-bold mt-2 tracking-tight">{cat?.name || "Category"}</h1>

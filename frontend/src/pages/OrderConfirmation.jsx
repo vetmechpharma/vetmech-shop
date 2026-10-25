@@ -62,7 +62,7 @@ export default function OrderConfirmation() {
 
       <div className="flex flex-wrap gap-3 mt-8 justify-center">
         <Link to="/account"><Button variant="outline" className="border-vm-green text-vm-green">View My Orders</Button></Link>
-        <Link to="/products"><Button className="bg-vm-green hover:bg-vm-greenhover">Continue Shopping</Button></Link>
+        <Link to="/shop"><Button className="bg-vm-green hover:bg-vm-greenhover">Continue Shopping</Button></Link>
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ function Row({ p, v, addItem, loggedIn }) {
     <div className="flex items-center gap-3 py-3 px-3 md:px-4 border-b border-vm-border hover:bg-vm-bg/60 transition-colors" data-testid={`qo-row-${v.id}`}>
       <img src={p.image || "/placeholder.png"} alt={p.name} className="w-12 h-12 rounded-lg object-cover bg-slate-100 shrink-0 hidden sm:block" />
       <div className="flex-1 min-w-0">
-        <Link to={`/products/${p.slug}`} className="font-medium text-vm-ink hover:text-vm-green truncate block">{p.name}</Link>
+        <Link to={`/shop/products/${p.slug}`} className="font-medium text-vm-ink hover:text-vm-green truncate block">{p.name}</Link>
         <p className="text-xs text-slate-500">{v.pack_size} {v.unit}{p.brand_name ? ` · ${p.brand_name}` : ""}</p>
         {/* Mobile: price + offers inline (hidden on desktop where columns show them) */}
         <div className="md:hidden mt-1.5 flex flex-wrap items-center gap-1.5" data-testid={`qo-mobile-offers-${v.id}`}>
