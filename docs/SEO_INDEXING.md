@@ -29,6 +29,13 @@ medical content or overwrite the live database.
 - Sitemap entries exclude inactive/noindex products, categories and articles.
   Ordering/account pages remain outside the sitemap. Product audit warnings
   identify copied canonical URLs, noindex settings and mismatched titles.
+- Product links under `/shop/products/` provide the product's title, description
+  and absolute image URL to social/WhatsApp crawlers, while keeping `noindex`
+  and the corresponding `/products/` canonical. Custom Open Graph fields are
+  honored; missing custom images fall back to available product/variant images.
+  Uploaded WebP pictures receive a public JPEG preview URL for sharing, with
+  transparency flattened against white. Original uploads remain untouched;
+  external image URLs are not fetched or converted by this endpoint.
 - Native nginx routing is installed separately from the application update;
   the Docker configuration already routes root sitemap/robots requests and now
   excludes static assets from crawler rendering.

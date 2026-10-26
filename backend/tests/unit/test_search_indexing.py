@@ -29,7 +29,7 @@ async def test_product_canonical_copy_and_visible_seo_content(client, database):
     assert "987654" not in result.text
 
 
-@pytest.mark.parametrize("path", ["/products/missing", "/categories/missing", "/news/missing", "/unknown"])
+@pytest.mark.parametrize("path", ["/products/missing", "/shop/products/missing", "/categories/missing", "/news/missing", "/unknown"])
 def test_missing_landing_pages_are_real_404s(client, path):
     result = client.get("/api/seo/render", params={"path": path})
     assert result.status_code == 404
@@ -38,12 +38,79 @@ def test_missing_landing_pages_are_real_404s(client, path):
 
 
 @pytest.mark.parametrize("path", ["/shop", "/shop/products/real-product", "/account", "/register", "/cart"])
-def test_ordering_routes_do_not_become_duplicate_search_pages(client, path):
+@pytest.mark.asyncio
+async def test_ordering_routes_do_not_become_duplicate_search_pages(client, database, path):
+    await database.products.insert_one({"id": "real", "name": "Real product", "slug": "real-product", "active": True})
     result = client.get("/api/seo/render", params={"path": path})
     assert result.status_code == 200
     assert 'content="noindex, follow"' in result.text
     if path.startswith("/shop/products/"):
         assert 'rel="canonical" href="https://vetmechpharma.in/products/real-product"' in result.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("prefix", ["/products/", "/shop/products/"])
+async def test_product_social_previews_include_name_copy_and_absolute_image(client, database, prefix):
+    await database.products.insert_one({
+        "id": "social", "name": "PROSTAMEG ADV Bolus", "slug": "prostameg-adv", "active": True,
+        "short_description": "Veterinary product information", "image": "/api/uploads/product.webp",
+        "variants": [{"pack_size": "1 bolus", "mrp": 987654, "selling_price": 876543}],
+        "seo": {"title": "PROSTAMEG ADV Product Information", "og_title": "PROSTAMEG ADV | VETMECH",
+                "og_description": "Product-specific sharing description", "og_image": "/api/uploads/share-image.webp",
+                "robots": "index, follow"},
+    })
+    response = client.get("/api/seo/render", params={"path": prefix + "prostameg-adv?share=test"}, headers={"User-Agent": "WhatsApp/2.24"})
+    assert response.status_code == 200
+    assert '<meta property="og:title" content="PROSTAMEG ADV | VETMECH"' in response.text
+    assert '<meta property="og:description" content="Product-specific sharing description"' in response.text
+    assert '<meta property="og:image" content="https://vetmechpharma.in/api/uploads/share-image.webp"' in response.text
+    assert '<meta name="twitter:image" content="https://vetmechpharma.in/api/uploads/share-image.webp"' in response.text
+    assert 'rel="canonical" href="https://vetmechpharma.in/products/prostameg-adv"' in response.text
+    assert '<h1>PROSTAMEG ADV Bolus</h1>' in response.text
+    assert '<meta name="robots" content="noindex, follow"' in response.text if prefix.startswith("/shop") else '<meta name="robots" content="index, follow"' in response.text
+    assert "987654" not in response.text and "876543" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_shop_preview_falls_back_to_an_available_product_image(client, database):
+    await database.products.insert_one({"id": "fallback", "name": "Product with an image", "active": True,
+                                       "slug": "image-fallback", "images": ["", None],
+                                       "variants": [{"images": ["/api/uploads/variant.webp"]}]})
+    response = client.get("/api/seo/render", params={"path": "/shop/products/image-fallback"})
+    assert '<meta property="og:image" content="https://vetmechpharma.in/api/uploads/variant.webp"' in response.text
+    assert '<meta property="og:title" content="Product with an image | VETMECH"' in response.text
+
+
+@pytest.mark.asyncio
+async def test_uploaded_webp_has_a_public_jpeg_sharing_image(client, database, monkeypatch, tmp_path):
+    import io
+    from PIL import Image
+
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    original = tmp_path / "product.webp"
+    Image.new("RGBA", (1500, 900), (255, 0, 0, 0)).save(original, "WEBP")
+    original_bytes = original.read_bytes()
+    await database.products.insert_one({"id": "jpeg", "name": "Product image", "slug": "jpeg-product", "active": True,
+                                       "image": "/api/uploads/product.webp"})
+    page = client.get("/api/seo/render", params={"path": "/shop/products/jpeg-product"})
+    assert '<meta property="og:image" content="https://vetmechpharma.in/api/seo/image/product.webp.jpg"' in page.text
+    preview = client.get("/api/seo/image/product.webp.jpg", headers={"User-Agent": "WhatsApp/2.24"})
+    assert preview.status_code == 200 and preview.headers["content-type"] == "image/jpeg"
+    with Image.open(io.BytesIO(preview.content)) as image:
+        assert image.format == "JPEG" and image.size == (1200, 720)
+        assert image.getpixel((0, 0)) == (255, 255, 255)
+    assert original.read_bytes() == original_bytes
+
+
+def test_sharing_image_endpoint_only_reads_valid_uploaded_images(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    (tmp_path / "broken.webp").write_text("not an image")
+    (tmp_path / "private.env").write_text("private")
+    outside = tmp_path.parent / "outside.webp"
+    outside.write_text("outside")
+    (tmp_path / "linked.webp").symlink_to(outside)
+    for name in ["missing.webp", "broken.webp", "private.env", "linked.webp"]:
+        assert client.get(f"/api/seo/image/{name}.jpg").status_code == 404
 
 
 @pytest.mark.asyncio
