@@ -8,8 +8,11 @@ import html as _html
 import json
 import re
 from urllib.parse import urlsplit
+import io
+from pathlib import Path
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import HTMLResponse, Response
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from db import db
 from security import require_module
@@ -43,6 +46,47 @@ def media_abs(u):
         return u
     base = _base()
     return site_url(str(u))
+
+
+def _upload_image(name):
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.(?:webp|png|jpe?g)", name, re.I):
+        return None
+    root = Path(os.environ.get("UPLOAD_DIR", str(Path(__file__).resolve().parents[1] / "uploads"))).resolve()
+    source = (root / name).resolve()
+    return source if source.parent == root and source.is_file() else None
+
+
+def share_image(url):
+    """Give uploaded WebP images a JPEG URL; never fetch arbitrary remote URLs."""
+    parsed = urlsplit(str(url or ""))
+    origin = urlsplit(_base()).hostname
+    if parsed.hostname and parsed.hostname not in {origin, "www." + origin if origin else None}:
+        return url
+    if parsed.path.startswith("/api/uploads/") and parsed.path.lower().endswith(".webp"):
+        name = parsed.path.removeprefix("/api/uploads/")
+        if _upload_image(name):
+            return site_url("/api/seo/image/" + name + ".jpg")
+    return url
+
+
+@router.get("/seo/image/{name}.jpg", include_in_schema=False)
+async def social_image(name: str):
+    source = _upload_image(name)
+    if not source:
+        return Response(status_code=404)
+    try:
+        with Image.open(source) as opened:
+            if opened.width * opened.height > 25_000_000:
+                return Response(status_code=404)
+            image = ImageOps.exif_transpose(opened).convert("RGBA")
+            image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+            background = Image.new("RGB", image.size, "white")
+            background.paste(image, mask=image.getchannel("A"))
+            data = io.BytesIO()
+            background.save(data, format="JPEG", quality=90, optimize=True)
+        return Response(data.getvalue(), media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+    except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError):
+        return Response(status_code=404)
 
 
 def _org_ld(company):
@@ -80,7 +124,8 @@ def _faq_ld(faqs):
             "mainEntity": [{"@type": "Question", "name": f["q"], "acceptedAnswer": {"@type": "Answer", "text": f["a"]}} for f in lst]}
 
 
-def _doc(title, description, canonical, og_image, jsonld, robots="index, follow", og_type="website", body="", status_code=200):
+def _doc(title, description, canonical, og_image, jsonld, robots="index, follow", og_type="website", body="", status_code=200,
+         og_title=None, og_description=None):
     m = [
         f"<title>{esc(title)}</title>",
         f'<meta name="description" content="{esc(description)}"/>',
@@ -88,12 +133,12 @@ def _doc(title, description, canonical, og_image, jsonld, robots="index, follow"
         f'<link rel="canonical" href="{esc(canonical)}"/>',
         f'<meta property="og:site_name" content="{esc(ORG_NAME)}"/>',
         f'<meta property="og:type" content="{esc(og_type)}"/>',
-        f'<meta property="og:title" content="{esc(title)}"/>',
-        f'<meta property="og:description" content="{esc(description)}"/>',
+        f'<meta property="og:title" content="{esc(og_title or title)}"/>',
+        f'<meta property="og:description" content="{esc(og_description or description)}"/>',
         f'<meta property="og:url" content="{esc(canonical)}"/>',
         '<meta name="twitter:card" content="summary_large_image"/>',
-        f'<meta name="twitter:title" content="{esc(title)}"/>',
-        f'<meta name="twitter:description" content="{esc(description)}"/>',
+        f'<meta name="twitter:title" content="{esc(og_title or title)}"/>',
+        f'<meta name="twitter:description" content="{esc(og_description or description)}"/>',
     ]
     if og_image:
         m.append(f'<meta property="og:image" content="{esc(og_image)}"/>')
@@ -143,8 +188,12 @@ async def seo_render(path: str = Query("/")):
     default_img = media_abs(seo.get("default_og_image"))
     org, website = _org_ld(company), _website_ld()
 
-    # Ordering/account URLs are not separate public search landing pages.
-    if p == "/shop" or p.startswith("/shop/") or p.split("/")[1] in {
+    # Product ordering links still need product-specific social previews.
+    # Their public canonical and noindex directive are independent of Open Graph.
+    shop_product = p.startswith("/shop/products/") and len(p) > len("/shop/products/")
+    product_path = p.removeprefix("/shop") if shop_product else p
+    # Other ordering/account URLs are not separate public search landing pages.
+    if ((p == "/shop" or p.startswith("/shop/")) and not shop_product) or p.split("/")[1] in {
         "cart", "checkout", "account", "register", "quick-order", "order-confirmed", "admin"
     }:
         canonical = site_url(p.replace("/shop/products/", "/products/", 1) if p.startswith("/shop/products/") else p)
@@ -152,13 +201,15 @@ async def seo_render(path: str = Query("/")):
                     robots="noindex, follow", body='<h1>VETMECH Partner Shop</h1><a href="/products">Public product portfolio</a>')
 
     # ---- Product ----
-    if p.startswith("/products/") and len(p) > len("/products/"):
-        slug = p[len("/products/"):]
+    if product_path.startswith("/products/") and len(product_path) > len("/products/"):
+        slug = product_path[len("/products/"):]
         prod = await db.products.find_one({"slug": slug, "active": True}, {"_id": 0})
         if prod:
             s = prod.get("seo") or {}
             v0 = (prod.get("variants") or [{}])[0]
-            img = media_abs((prod.get("images") or [prod.get("image")])[0] if (prod.get("images") or prod.get("image")) else "")
+            image_candidates = [s.get("og_image"), *(prod.get("images") or []), prod.get("image")]
+            image_candidates += [image for variant in (prod.get("variants") or []) for image in (variant.get("images") or [])]
+            img = next((media_abs(image) for image in image_candidates if image and str(image).strip()), "")
             title = _title(s.get("title") or prod["name"])
             desc = text(s.get("meta_description") or prod.get("short_description") or prod.get("full_description") or prod["name"])
             canonical = site_url(f"/products/{slug}")
@@ -183,9 +234,11 @@ async def seo_render(path: str = Query("/")):
             body = (f"<h1>{esc(prod['name'])}</h1><p>{esc(desc)}</p>"
                     f"<p>Brand: {esc(prod.get('brand_name') or 'VETMECH')} | Pack: {esc(v0.get('pack_size'))}</p>"
                     f"{('<p>'+esc(text(prod.get('full_description')) )+'</p>') if prod.get('full_description') else ''}{extra}")
-            return _doc(title, desc, canonical, img or default_img,
+            return _doc(title, desc, canonical, share_image(img or default_img),
                         [product_ld, _breadcrumb_ld(crumbs), _faq_ld(s.get("faqs"))],
-                        robots=s.get("robots", "index, follow"), og_type="product", body=body)
+                        robots="noindex, follow" if shop_product else s.get("robots", "index, follow"),
+                        og_type="product", body=body,
+                        og_title=text(s.get("og_title")), og_description=text(s.get("og_description")))
         return _not_found(p, "Product")
 
     # ---- Category ----
