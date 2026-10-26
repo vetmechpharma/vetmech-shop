@@ -21,7 +21,7 @@ const STOCK = [{ value: "in_stock", label: "In Stock" }, { value: "out_of_stock"
 const GST = [0, 5, 12, 18];
 const PRICING_CATS = ["doctor", "agency", "medical_shop", "distributor", "farm", "other"];
 const catLabel = (v) => CUSTOMER_CATEGORIES.find((c) => c.value === v)?.label || v;
-const emptyVariant = () => ({ pack_size: "", unit: "Bottle", mrp: 0, selling_price: 0, gst_percent: 12, gst_inclusive: true, stock_status: "in_stock", min_order_qty: 1, max_order_qty: 0, units_per_case: 0, images: [], category_prices: {}, offers: [] });
+const emptyVariant = () => ({ pack_size: "", unit: "Bottle", mrp: 0, gst_percent: 12, gst_inclusive: true, stock_status: "in_stock", min_order_qty: 1, max_order_qty: 0, units_per_case: 0, images: [], category_prices: {}, offers: [] });
 const newOffer = () => ({ scheme_type: "free_qty", buy_quantity: "", free_quantity: "", special_price: "", min_quantity: "", customer_type: "all", name: "" });
 
 function offerLabel(o) {
@@ -270,7 +270,6 @@ export default function AdminProducts() {
                       <Select value={v.stock_status} onValueChange={(val) => setVariant(i, "stock_status", val)}><SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>{STOCK.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
                     <div><Label className="text-xs">MRP</Label><Input type="number" value={v.mrp} onChange={(e) => setVariant(i, "mrp", Number(e.target.value))} /></div>
-                    <div><Label className="text-xs">Selling Price</Label><Input type="number" value={v.selling_price} onChange={(e) => setVariant(i, "selling_price", Number(e.target.value))} data-testid={`vf-price-${i}`} /></div>
                     <div><Label className="text-xs">GST %</Label>
                       <Select value={String(v.gst_percent)} onValueChange={(val) => setVariant(i, "gst_percent", Number(val))}><SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>{GST.map((g) => <SelectItem key={g} value={String(g)}>{g}%</SelectItem>)}</SelectContent></Select></div>
@@ -296,10 +295,10 @@ export default function AdminProducts() {
             </TabsContent>
 
             <TabsContent value="pricing" className="space-y-5 mt-4">
-              <p className="text-xs text-slate-500 flex items-center gap-1.5"><IndianRupee className="w-3.5 h-3.5 text-vm-green" /> Set category-wise rates and offers per variant. Leave a rate blank to fall back to the public selling price. Saved together with the product.</p>
+              <p className="text-xs text-slate-500 flex items-center gap-1.5"><IndianRupee className="w-3.5 h-3.5 text-vm-green" /> Set category-wise rates and offers per variant. Customer-specific rates can be managed in Pricing Manager. Saved together with the product.</p>
               {(form.variants || []).map((v, i) => (
                 <div key={i} className="border border-[#E2E8F0] rounded-lg p-4" data-testid={`pricing-variant-${i}`}>
-                  <p className="font-heading font-semibold text-vm-ink text-sm mb-1">{v.pack_size || "Variant " + (i + 1)} {v.unit} <span className="text-slate-400 font-normal">· MRP ₹{v.mrp || 0} · Public ₹{v.selling_price || 0}</span></p>
+                  <p className="font-heading font-semibold text-vm-ink text-sm mb-1">{v.pack_size || "Variant " + (i + 1)} {v.unit} <span className="text-slate-400 font-normal">· MRP ₹{v.mrp || 0}</span></p>
 
                   <Label className="text-xs mt-3 block mb-1.5 text-slate-500">Category Rates</Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -381,8 +380,6 @@ export default function AdminProducts() {
                 </div>
                 <ImageUpload label="" value="" square onChange={(v) => v && set("images", [...(form.images || []), v])} />
               </div>
-              <ImageUpload label="Brochure (PDF)" value={form.brochure_url} onChange={(v) => set("brochure_url", v)} isPdf accept="application/pdf" />
-              <ImageUpload label="Visual Aid (PDF)" value={form.visual_aid_url} onChange={(v) => set("visual_aid_url", v)} isPdf accept="application/pdf" />
               <p className="text-xs text-slate-400 border-t pt-3">Related products are shown automatically based on the product's category — no manual selection needed.</p>
             </TabsContent>
 

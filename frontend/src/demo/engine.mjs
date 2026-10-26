@@ -49,7 +49,7 @@ export function createDemoEngine(storage) {
     const cp = state.customer_prices.find(c => c.customer_id === customer.id && c.variant_id === variant.id && c.active !== false && (c.source !== "last_confirmed" || !c.qty || c.qty === qty));
     if (cp && cp.rate != null) return { rate: cp.rate, source: "customer_specific", offer: cp.offer };
     const category = state.category_prices.find(c => c.variant_id === variant.id && c.category === customer.category && c.active !== false);
-    return { rate: category?.rate ?? variant.selling_price ?? variant.mrp, source: category ? "category" : "public" };
+    return { rate: category?.rate ?? variant.selling_price, source: category ? "category" : "public" };
   };
   const enrich = (product, customer) => {
     const p = copy(product);
@@ -80,9 +80,10 @@ export function createDemoEngine(storage) {
         candidateLabel = `${b}+${f}`;
       }
       const candidateNet = candidate * qty / (qty + extra);
-      if (candidateNet < net) { price = candidate; free = extra; net = candidateNet; label = candidateLabel; chosen = s.id; }
+      if (candidate != null && (net == null || candidateNet < net)) { price = candidate; free = extra; net = candidateNet; label = candidateLabel; chosen = s.id; }
     }
     if (manual && item.unit_price != null) { price = Number(item.unit_price); free = Number(item.free_qty || 0); net = price * qty / (qty + free); label = item.scheme_label || null; }
+    if (price == null) throw new DemoError(400, "A rate has not been assigned for this product. Please contact VETMECH before ordering.");
     return { product_id: product.id, product_name: product.name, brand_name: product.brand_name, image: product.image, slug: product.slug, variant_id: variant.id, pack_size: variant.pack_size, unit: variant.unit, units_per_case: variant.units_per_case, sku: variant.sku, mrp: variant.mrp, selling_price: price, unit_price: money(price), net_rate: money(net), price_source: rate.source, offer_source: "demo", gst_percent: variant.gst_percent, gst_inclusive: variant.gst_inclusive, stock_status: variant.stock_status, qty, free_qty: free, dispatch_qty: qty + free, scheme_id: chosen, scheme_label: label, out_of_stock: !!item.out_of_stock };
   });
   const makeOrder = (body, customer, manual = false) => {

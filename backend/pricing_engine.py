@@ -1,10 +1,11 @@
 """Central pricing resolution engine (user-wise pricing).
 
-Priority (rate): customer-specific (manual / last_confirmed) -> category -> public -> mrp
+Priority (rate): customer-specific (manual / last_confirmed) -> category -> legacy public rate
 Priority (offer): customer-specific offer -> category offer -> public offer (no auto-stacking)
 Security: only the applicable price for the given customer is ever computed here.
 """
 from helpers import applicable_schemes, compute_scheme, _simplify
+from fastapi import HTTPException
 
 
 def is_active_customer(c):
@@ -141,8 +142,12 @@ async def price_line(db, product, variant, qty, customer, settings=None):
         offer_schemes = pick_offer_schemes(schemes, ct)
         offer_source = "category" if (ct and any(
             s.get("customer_type") == ct for s in offer_schemes)) else "public"
+    if pr["rate"] is None:
+        offer_schemes = [s for s in offer_schemes if s.get("scheme_type") in ("special_price", "case_price")]
     sc = compute_scheme(qty, offer_schemes, pr["rate"])
     unit_price = sc["special_price"] if sc["special_price"] is not None else pr["rate"]
+    if unit_price is None:
+        raise HTTPException(status_code=400, detail="A rate has not been assigned for this product. Please contact VETMECH before ordering.")
     free_qty = sc["free_qty"]
     denom = qty + free_qty
     net_rate = round(unit_price * qty / denom, 2) if denom else unit_price

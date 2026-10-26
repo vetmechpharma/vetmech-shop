@@ -20,6 +20,8 @@ Composition text with dotted quantity leaders is presented as formulation rows, 
 
 The product editor and both product page layouts omit Product Code, product/variant SKU, Benefits, Precautions, Storage and Additional Information. The Details tab retains Full Description, Composition, Indications and Dosage. Crawler HTML and product JSON-LD follow the same reduced field set, and SEO drafts no longer add a Storage question. Existing database records and order snapshots are not purged; variants continue to use their stable internal IDs for pricing and ordering.
 
+Variants no longer have a Selling Price input or an automatic zero selling price. Rates are entered through Pricing & Offers or Pricing Manager; assigned customer/category rates and explicit price offers continue to determine ordering prices. A new pack with no applicable rate shows an enquiry message and cannot produce a zero-priced order. Brochure and Visual Aid PDF inputs and their public download links have been removed from both page layouts. Previously uploaded files are not deleted.
+
 The isolated browser demo includes a QUINOTAZ snapshot and the product's published pack images, so `/products/quino-taz-cefquinome-tazobactam-injection-562-5mg` can be reviewed directly. This sample is added once to older demo data without replacing edits. It is not imported into the production database. `frontend/tests/product-formatting.test.cjs` covers content preservation and safe rich-text formatting; demo tests cover the additive sample update.
 
 ## Content and deployment

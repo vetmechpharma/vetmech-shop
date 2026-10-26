@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Package, FileDown, Expand, ChevronDown } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Package, Expand, ChevronDown } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import { portfolioProduct, portfolioJsonLd, portfolioText } from "@/lib/portfolio.mjs";
-import { productImages, safeContentUrl } from "@/lib/productFormatting.mjs";
+import { productImages } from "@/lib/productFormatting.mjs";
 import SEO from "@/components/SEO";
 import ShareButtons from "@/components/public/ShareButtons";
 import { siteUrl, breadcrumbLd, faqLd } from "@/lib/seo";
@@ -35,7 +35,6 @@ export default function ProductProfile() {
   const image = images[imageIndex] || images[0];
   const faqs = (p.seo?.faqs || []).filter(faq => faq?.q && faq.a);
   const publicUrl = siteUrl(`/products/${slug}`);
-  const literature = safeContentUrl(mediaUrl(p.brochure_url || p.pdf_url || ""));
   const summary = portfolioText(p.short_description);
   const generic = portfolioText(p.generic_name);
   const packLabel = [variant.pack_size, variant.unit].filter(Boolean).join(" · ");
@@ -66,7 +65,7 @@ export default function ProductProfile() {
           {navigation.length > 0 && <a className="pp-overview-link" href={`#${navigation[0].id}`}>Explore product information<ChevronDown size={17}/></a>}
           <dl className="pp-facts"><div><dt>BRAND</dt><dd>{p.brand_name || "VETMECH"}</dd></div>{packLabel && <div><dt>{p.variants.length > 1 ? "SELECTED PACK" : "PACK SIZE"}</dt><dd>{packLabel}</dd></div>}</dl>
           {p.variants.length > 1 && <div className="pp-pack-selector"><span>AVAILABLE PACK SIZES</span><div>{p.variants.map(value => <button key={value.id} aria-pressed={value.id === variant.id} onClick={() => { setVariantId(value.id); setImageIndex(0); }}>{[value.pack_size, value.unit].filter(Boolean).join(" · ") || "Standard pack"}</button>)}</div></div>}
-          <div className="pp-actions"><ActionLink to={`/contact?product=${encodeURIComponent(p.name)}`}>Product enquiry</ActionLink>{literature && <a href={literature} className="pp-literature" target="_blank" rel="noopener noreferrer"><FileDown size={18}/>Product literature</a>}</div>
+          <div className="pp-actions"><ActionLink to={`/contact?product=${encodeURIComponent(p.name)}`}>Product enquiry</ActionLink></div>
           <Link className="pp-shop-link" to={`/shop/products/${p.slug}`}>Order through Partner Shop<ArrowUpRight size={16}/></Link>
           <ShareButtons url={publicUrl} title={p.name} className="pp-share"/>
           </div>

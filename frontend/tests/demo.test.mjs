@@ -64,6 +64,27 @@ test("product edits and a new sample variant can be read back", async () => {
   assert.equal((await call("GET", `/admin/products/${created.id}`)).short_description, "Edited demo description");
 });
 
+test("new packs use separately assigned rates without a variant selling price or SKU", async () => {
+  const { call } = setup();
+  const product = await call("POST", "/admin/products", { name: "Separate rate sample", variants: [{ pack_size: "100 ml", mrp: 500 }] });
+  const variant_id = product.variants[0].id;
+  assert.equal(product.variants[0].selling_price, undefined);
+  assert.equal(product.variants[0].sku, undefined);
+  await call("PUT", `/admin/pricing/product/${product.id}`, { prices: [{ variant_id, category: "doctor", rate: 300 }] });
+  const cart = await call("POST", "/cart/calculate", { items: [{ variant_id, qty: 2 }] }, customer);
+  assert.equal(cart.items[0].unit_price, 300);
+  assert.equal(cart.items[0].price_source, "category");
+});
+
+test("a new pack without a rate is blocked until a rate or explicit price offer is assigned", async () => {
+  const { call } = setup();
+  const product = await call("POST", "/admin/products", { name: "Unpriced sample", variants: [{ pack_size: "100 ml", mrp: 500 }] });
+  const variant_id = product.variants[0].id, body = { items: [{ variant_id, qty: 2 }] };
+  await assert.rejects(call("POST", "/cart/calculate", body, customer), error => error.status === 400 && /rate has not been assigned/.test(error.message));
+  await call("POST", "/admin/pricing/offers", { variant_id, product_id: product.id, active: true, scheme_type: "special_price", special_price: 220, min_quantity: 2, customer_type: "all" });
+  assert.equal((await call("POST", "/cart/calculate", body, customer)).items[0].unit_price, 220);
+});
+
 test("approval workflow enables a pending sample customer", async () => {
   const { call } = setup();
   await call("POST", "/admin/customers/c3/approve", {});
