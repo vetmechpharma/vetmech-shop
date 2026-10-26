@@ -411,7 +411,7 @@ export default function AdminProducts() {
                 <div><Label>Focus Keyword</Label><Input value={form.seo?.focus_keyword || ""} onChange={(e) => set("seo", { ...form.seo, focus_keyword: e.target.value })} data-testid="seo-focus-keyword" /></div>
                 <div><Label>Secondary Keywords</Label><Input value={form.seo?.meta_keywords || ""} onChange={(e) => set("seo", { ...form.seo, meta_keywords: e.target.value })} placeholder="comma separated" data-testid="seo-keywords" /></div>
               </div>
-              <div><Label>Canonical URL (optional)</Label><Input value={form.seo?.canonical || ""} onChange={(e) => set("seo", { ...form.seo, canonical: e.target.value })} placeholder="leave blank to auto-generate" data-testid="seo-canonical" /></div>
+              <div><Label>Canonical URL (optional)</Label><Input value={form.seo?.canonical || ""} onChange={(e) => set("seo", { ...form.seo, canonical: e.target.value })} placeholder="leave blank to auto-generate" data-testid="seo-canonical" /><p className="text-xs text-slate-500 mt-1">Leave blank for the current /products/ URL. Public product pages use their actual portfolio URL; copied or outdated canonical paths are not applied.</p></div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div><Label>OG Title</Label><Input value={form.seo?.og_title || ""} onChange={(e) => set("seo", { ...form.seo, og_title: e.target.value })} data-testid="seo-og-title" /></div>
                 <div><Label>OG Description</Label><Input value={form.seo?.og_description || ""} onChange={(e) => set("seo", { ...form.seo, og_description: e.target.value })} data-testid="seo-og-description" /></div>

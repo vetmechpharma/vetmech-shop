@@ -1,35 +1,17 @@
-# =============================================================================
-# VETMECH — nginx SEO rules (OPTIONAL enhancement). Backend port = 8010.
+# VETMECH native VPS SEO routing
 #
-# You do NOT need this for Google to index the site. Without it:
-#   - submit the sitemap in Search Console as:  https://vetmechpharma.in/api/sitemap.xml
-#   - Google still renders your pages (JS) and indexes them fine.
+# Use the checked installer rather than replacing a whole virtual host:
+#   sudo python3 scripts/install_nginx_seo.py          # inspect target only
+#   sudo python3 scripts/install_nginx_seo.py --apply  # backup, nginx -t, reload
 #
-# Add this ONLY if you want (a) pretty root /sitemap.xml & /robots.txt, and
-# (b) correct WhatsApp / Facebook / LinkedIn link-share previews (dynamic
-# rendering for social bots). Nothing here needs editing — ports are set.
-# After editing: sudo nginx -t && sudo systemctl reload nginx
-# =============================================================================
-
-# ---- (1) Put this at http{} level (OUTSIDE server{}). Tip: save it as
-#          /etc/nginx/conf.d/vetmech-seo-map.conf and it is auto-included. ----
-map $http_user_agent $vm_is_bot {
-    default 0;
-    "~*(googlebot|bingbot|yandex|duckduckbot|baiduspider|facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|slackbot|telegrambot|discordbot|embedly|pinterest|redditbot|applebot|petalbot|ia_archiver|semrushbot)" 1;
-}
-
-# ---- (2) Put these INSIDE your existing server { } block. ----
-
-# Root SEO files -> backend (exact-match, safe: does not affect other routes)
-location = /sitemap.xml { proxy_pass http://127.0.0.1:8010/api/sitemap.xml; }
-location = /robots.txt  { proxy_pass http://127.0.0.1:8010/api/robots.txt; }
-
-# Social/crawler previews: serve bots the server-rendered SEO HTML.
-# Merge this `if` INTO your existing `location / { ... }` (keep your try_files).
-location / {
-    root /opt/vetmech-shop/frontend/build;   # <-- keep your existing root
-    if ($vm_is_bot) {
-        proxy_pass http://127.0.0.1:8010/api/seo/render?path=$request_uri;
-    }
-    try_files $uri /index.html;              # <-- keep your existing fallback
-}
+# The installer renders deploy/nginx-seo-locations.conf.template for the current
+# checkout, backend port 8010 and vetmechpharma.in. It changes only the existing
+# HTTPS content host with that domain and frontend root. Redirect-only hosts,
+# TLS certificates and unrelated applications are retained. Unsupported or
+# ambiguous existing configurations are refused instead of guessed.
+#
+# The generated include provides real /robots.txt and /sitemap.xml endpoints,
+# current public /products/ redirects and server-rendered titles/content for
+# search and social crawlers. Static JS/CSS/images never enter crawler rendering.
+#
+# See docs/SEO_INDEXING.md for deployment, verification and Search Console steps.

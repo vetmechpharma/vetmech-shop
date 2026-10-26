@@ -16,6 +16,10 @@ The new corporate theme appears after a normal code deployment and retains the
 live database. Admin → Homepage controls its hero, introduction, approach and
 featured products. See [corporate design and deployment](docs/CORPORATE_DESIGN.md).
 
+For public product/article indexing, root sitemap/robots routing and Google
+Search Console verification, see [search indexing and titles](docs/SEO_INDEXING.md).
+Existing native installations also need the checked nginx SEO routing installer.
+
 ## Existing modules
 
 - Public website, product catalogue, categories, product SEO and social previews.
