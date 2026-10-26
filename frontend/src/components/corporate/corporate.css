@@ -290,3 +290,115 @@
 .vm-demo-active .corp-mobile-sheet{top:36px;height:calc(100% - 36px)}
 
 .corp-uploaded-brand>img{max-width:190px;height:43px;object-fit:contain}@media(max-width:720px){.corp-uploaded-brand>img{max-width:145px;height:34px}}
+
+/* Readable desktop typography; keep the established compact/mobile layouts. */
+@media(min-width:1001px){
+  .corp-site,.shop-site{font-size:18px;line-height:1.65}
+  .corp-site .corp-eyebrow{font-size:12px!important;letter-spacing:.14em!important}
+  .corp-site .corp-button,.shop-site .corp-button{font-size:16px;min-height:56px;padding:16px 24px}
+  .corp-site .corp-text-link,.shop-site .corp-text-link{font-size:16px}
+  .corp-utility{font-size:11px;letter-spacing:.1em}
+  .corp-utility>.corp-container{height:36px}
+  .corp-utility a{font-size:12px}
+  .corp-header-inner{height:92px}
+  .corp-desktop-nav{gap:24px}
+  .corp-desktop-nav>a{font-size:16px}
+  .corp-desktop-nav>a::after{bottom:24px}
+  .corp-shop-link{font-size:15px;padding:13px 18px}
+  .corp-hero-content>p:not(.corp-eyebrow){font-size:18px;line-height:1.8;max-width:470px}
+  .corp-hero-secondary{font-size:16px}
+  .corp-hero-buttons{gap:28px;margin-top:34px}
+  .corp-scroll-hint{font-size:11px}
+  .corp-hero-caption{font-size:11px}
+  .corp-hero-caption strong{font-size:15px}
+  .corp-species-strip a{gap:16px;padding:24px 20px;min-height:124px}
+  .corp-species-strip a:first-child{padding-left:0}
+  .corp-species-strip a span{font-size:10px;line-height:1.6;color:#65676f}
+  .corp-species-strip a strong{font-size:16px;line-height:1.45}
+  .corp-purpose-copy>p{font-size:20px;line-height:1.8;max-width:550px;color:#5f6169}
+  .corp-purpose-note>span{font-size:12px;max-width:100px;color:#676971}
+  .corp-purpose-note>strong{font-size:18px}
+  .corp-section-heading>p{font-size:18px;line-height:1.75;max-width:330px;color:#62646c}
+  .corp-segment-card{min-height:350px}
+  .corp-segment-top>span{font-size:14px;color:#72747c}
+  .corp-segment-card h3{font-size:25px}
+  .corp-segment-card>p{font-size:17px;line-height:1.75;color:#62646c}
+  .corp-segment-action{font-size:14px;gap:12px}
+  .corp-segment-action svg{flex-shrink:0}
+  .corp-science-copy>p:not(.corp-eyebrow){font-size:18px;line-height:1.8;color:#c0c1c8}
+  .corp-science-copy li{font-size:16px;padding:12px 0;align-items:start}
+  .corp-science-copy li svg{flex-shrink:0;margin-top:4px}
+  .corp-product-type{font-size:12px;color:#676971}
+  .corp-product-copy h3{font-size:23px;line-height:1.35}
+  .corp-product-description{font-size:16px;line-height:1.75;color:#62646c}
+  .corp-product-pack{font-size:14px;color:#676971}
+  .corp-product-detail-link{font-size:14px}
+  .corp-partner-note h2{font-size:36px}
+  .corp-partner-note p:not(.corp-eyebrow){font-size:18px;line-height:1.75;color:#62646c;max-width:660px}
+  .corp-footer-top{grid-template-columns:1.15fr .9fr .9fr 1.3fr;gap:40px}
+  .corp-footer-top>div:first-child>p,.corp-footer-top>div:first-child>p.corp-footer-purpose{font-size:16px;line-height:1.8;color:#b9bac1}
+  .corp-footer h3{font-size:17px;margin-bottom:24px}
+  .corp-footer-top>div:not(:first-child)>a{font-size:16px;line-height:1.65;color:#b9bac1;overflow-wrap:anywhere}
+  .corp-footer-top>div:not(:first-child)>a svg{flex-shrink:0}
+  .corp-footer-contact>p{font-size:16px;line-height:1.8;color:#b9bac1;max-width:280px}
+  .corp-footer-bottom{font-size:12px;color:#a6a7af}
+  .corp-breadcrumb{font-size:14px;color:#b5b6be}
+  .corp-page-description{font-size:20px;line-height:1.8;color:#c0c1c8;max-width:660px}
+  .corp-portfolio-tools{grid-template-columns:1fr 340px}
+  .corp-portfolio-tools input{font-size:17px}
+  .corp-portfolio-tools label>span{font-size:11px;color:#676971}
+  .corp-portfolio-tools select{font-size:16px;min-height:66px;padding-top:16px}
+  .corp-portfolio-tools form{min-height:66px}
+  .corp-active-filter{font-size:16px}
+  .corp-active-filter button{font-size:15px}
+  .corp-results-heading{font-size:12px;color:#676971}
+  .corp-results-heading>p{font-size:15px}
+  .corp-empty>p{font-size:18px}
+  .corp-pagination,.corp-pagination button{font-size:16px}
+  .corp-about-photo>span{font-size:12px}
+  .corp-about-grid>div:last-child>p:not(.corp-eyebrow){font-size:18px;line-height:1.8;color:#62646c}
+  .corp-about-grid>div:last-child>p.corp-lead{font-size:22px;color:#424349}
+  .corp-value-grid article>span{font-size:14px}
+  .corp-value-grid article h3{font-size:28px;max-width:none;line-height:1.3}
+  .corp-value-grid article p{font-size:18px;line-height:1.8;color:#62646c;max-width:none}
+  .corp-cms-copy h3{font-size:28px}
+  .corp-cms-copy p{font-size:18px;line-height:1.85;color:#62646c;max-width:960px}
+  .corp-science-intro>p:not(.corp-eyebrow){font-size:20px;line-height:1.8;color:#62646c}
+  .corp-science-wide>span{font-size:12px}
+  .corp-approach-links>a{font-size:16px;padding:28px 23px}
+  .corp-approach-links>a svg{flex-shrink:0}
+  .corp-contact-intro{font-size:18px;line-height:1.8;color:#62646c;max-width:440px}
+  .corp-contact-details span{font-size:12px;color:#676971}
+  .corp-contact-details p,.corp-contact-details a{font-size:18px;overflow-wrap:anywhere}
+  .corp-contact-form h3{font-size:28px}
+  .corp-contact-form label{font-size:16px}
+  .corp-contact-form input,.corp-contact-form textarea{font-size:17px;line-height:1.6}
+  .corp-form-note{font-size:14px;color:#676971}
+  .corp-form-status{font-size:16px}
+  .corp-back-link{font-size:15px;color:#676971}
+  .corp-profile-generic{font-size:22px;color:#62646c}
+  .corp-composition-highlight>span,.corp-profile-packs>span{font-size:12px;color:#676971}
+  .corp-composition-highlight p{font-size:18px;line-height:1.8}
+  .corp-profile-packs button{font-size:16px}
+  .corp-profile-shop{font-size:16px;color:#676971}
+  .corp-product-information>div:first-child>p:not(.corp-eyebrow){font-size:18px;line-height:1.8;color:#62646c;max-width:390px}
+  .corp-product-information summary{font-size:19px;padding:24px 0}
+  .corp-product-information details>p{font-size:18px;line-height:1.85;color:#62646c}
+  .corp-shop-utility{font-size:14px}
+  .corp-shop-utility span{font-size:12px}
+  .corp-shop-utility>.corp-container{height:40px}
+  .corp-shop-header nav{font-size:16px}
+  .corp-shop-actions>a,.corp-shop-actions>button{font-size:16px}
+  .corp-site .text-xs,.shop-site .text-xs{font-size:14px;line-height:1.6}
+  .corp-site .text-sm,.shop-site .text-sm{font-size:16px;line-height:1.65}
+  .corp-site .text-base,.shop-site .text-base{font-size:18px;line-height:1.7}
+  .corp-site .prose-vm{font-size:18px;line-height:1.85}
+}
+@media(min-width:1001px) and (max-width:1200px){
+  .corp-desktop-nav{display:none}
+  .corp-menu-button{display:grid}
+  .corp-species-strip a{padding-inline:15px;gap:12px}
+  .corp-species-strip a>svg:last-child{display:none}
+  .corp-species-strip a strong{font-size:15px}
+  .corp-footer-top{gap:28px}
+}
