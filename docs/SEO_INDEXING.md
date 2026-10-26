@@ -36,6 +36,8 @@ medical content or overwrite the live database.
   Uploaded WebP pictures receive a public JPEG preview URL for sharing, with
   transparency flattened against white. Original uploads remain untouched;
   external image URLs are not fetched or converted by this endpoint.
+  Re-run the native routing installer after this update so its image API prefix
+  takes priority over any existing generic static JPEG locations.
 - Native nginx routing is installed separately from the application update;
   the Docker configuration already routes root sitemap/robots requests and now
   excludes static assets from crawler rendering.
