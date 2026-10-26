@@ -5,7 +5,7 @@ import { siteUrl, ORG_NAME } from "@/lib/seo";
 function setMeta(name, content, attr = "name") {
   let el = document.querySelector(`meta[${attr}="${name}"]`);
   if (!content) {
-    if (el && el.dataset.vm === "1") el.remove();
+    if (el) el.remove();
     return;
   }
   if (!el) {
@@ -50,18 +50,19 @@ export default function SEO({ title, description, keywords, ogImage, seo, jsonLd
     document.title = t ? (t.includes("VETMECH") ? t : `${t} | VETMECH`) : ORG_NAME;
     setMeta("description", d);
     setMeta("keywords", k);
-    setMeta("robots", noindex || process.env.REACT_APP_DEMO_MODE === "true" ? "noindex, nofollow" : (seo?.robots || "index, follow"));
+    setMeta("robots", process.env.REACT_APP_DEMO_MODE === "true" ? "noindex, nofollow" : noindex ? "noindex, follow" : (seo?.robots || "index, follow"));
     setMeta("og:site_name", ORG_NAME, "property");
-    setMeta("og:title", seo?.og_title || t, "property");
+    setMeta("og:title", seo?.og_title || document.title, "property");
     setMeta("og:description", seo?.og_description || d, "property");
     setMeta("og:type", ogType, "property");
-    if (img) setMeta("og:image", mediaUrl(img), "property");
+    setMeta("og:image", img ? mediaUrl(img) : null, "property");
     setMeta("twitter:card", "summary_large_image");
-    setMeta("twitter:title", seo?.og_title || t);
+    setMeta("twitter:title", seo?.og_title || document.title);
     setMeta("twitter:description", seo?.og_description || d);
-    if (img) setMeta("twitter:image", mediaUrl(img));
+    setMeta("twitter:image", img ? mediaUrl(img) : null);
     const path = typeof window !== "undefined" ? window.location.pathname : "";
-    const canon = seo?.canonical || canonical || siteUrl(path);
+    // A route's known public URL takes priority over copied CMS canonical values.
+    const canon = canonical || seo?.canonical || siteUrl(path);
     setCanonical(canon);
     setMeta("og:url", canon, "property");
     setJsonLd("vm-jsonld", jsonLd);

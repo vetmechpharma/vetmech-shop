@@ -6,6 +6,8 @@
 import os
 import html as _html
 import json
+import re
+from urllib.parse import urlsplit
 from fastapi import APIRouter, Depends, Query, Body
 from fastapi.responses import HTMLResponse, Response
 
@@ -40,15 +42,13 @@ def media_abs(u):
     if str(u).startswith("http"):
         return u
     base = _base()
-    if str(u).startswith("/api/"):
-        return base + u
-    return u
+    return site_url(str(u))
 
 
 def _org_ld(company):
     social = [v for v in (company.get("social") or {}).values() if v and v != "#"]
     ld = {"@context": "https://schema.org", "@type": "Organization", "name": company.get("name") or ORG_NAME,
-          "url": _base() or None, "logo": media_abs(company.get("logo")) or site_url("/logo.png")}
+          "url": _base() or None, "logo": media_abs(company.get("logo")) or site_url("/corporate/brand.svg")}
     if company.get("phone"):
         ld["telephone"] = company["phone"]
     if company.get("email"):
@@ -80,7 +80,7 @@ def _faq_ld(faqs):
             "mainEntity": [{"@type": "Question", "name": f["q"], "acceptedAnswer": {"@type": "Answer", "text": f["a"]}} for f in lst]}
 
 
-def _doc(title, description, canonical, og_image, jsonld, robots="index, follow", og_type="website", body=""):
+def _doc(title, description, canonical, og_image, jsonld, robots="index, follow", og_type="website", body="", status_code=200):
     m = [
         f"<title>{esc(title)}</title>",
         f'<meta name="description" content="{esc(description)}"/>',
@@ -100,28 +100,56 @@ def _doc(title, description, canonical, og_image, jsonld, robots="index, follow"
         m.append(f'<meta name="twitter:image" content="{esc(og_image)}"/>')
     for ld in (jsonld or []):
         if ld:
-            m.append('<script type="application/ld+json">' + json.dumps(ld, ensure_ascii=False) + "</script>")
+            # Product/CMS text must not be able to close the JSON-LD script tag.
+            m.append('<script type="application/ld+json">' + json.dumps(ld, ensure_ascii=False).replace("<", "\\u003c") + "</script>")
     return HTMLResponse(
         '<!doctype html><html lang="en"><head><meta charset="utf-8"/>'
         '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
-        + "".join(m) + f'</head><body>{body}</body></html>')
+        + "".join(m) + f'</head><body>{body}</body></html>', status_code=status_code,
+        headers={"Vary": "User-Agent", "Cache-Control": "no-cache"})
 
 
 def _title(t):
     if not t:
         return ORG_NAME
-    return t if "VETMECH" in t else f"{t} | VETMECH"
+    return t if "vetmech" in t.lower() else f"{t} | VETMECH"
+
+
+def text(value):
+    """Plain text matching the public product information view."""
+    value = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", "", str(value or ""), flags=re.I | re.S)
+    value = re.sub(r"<br\s*/?\s*>|</(?:p|li)>", "\n", value, flags=re.I)
+    return _html.unescape(re.sub(r"<[^>]*>", "", value)).strip()
+
+
+def indexable(item):
+    return not re.search(r"\b(?:noindex|none)\b", str((item.get("seo") or {}).get("robots") or ""), re.I)
+
+
+def _not_found(path, label):
+    return _doc(_title(f"{label} not found"), f"This {label.lower()} is unavailable.", site_url(path), "", [],
+                robots="noindex, follow", body=f"<h1>{esc(label)} not found</h1>", status_code=404)
 
 
 @router.get("/seo/render", response_class=HTMLResponse)
 async def seo_render(path: str = Query("/")):
-    p = (path or "/").split("?")[0]
+    p = urlsplit(path or "/").path or "/"
+    if not p.startswith("/") or p.startswith("//"):
+        return _not_found("/", "Page")
     if len(p) > 1:
         p = p.rstrip("/") or "/"
     seo = await db.settings.find_one({"id": "seo"}, {"_id": 0}) or {}
     company = await db.settings.find_one({"id": "company"}, {"_id": 0}) or {}
     default_img = media_abs(seo.get("default_og_image"))
     org, website = _org_ld(company), _website_ld()
+
+    # Ordering/account URLs are not separate public search landing pages.
+    if p == "/shop" or p.startswith("/shop/") or p.split("/")[1] in {
+        "cart", "checkout", "account", "register", "quick-order", "order-confirmed", "admin"
+    }:
+        canonical = site_url(p.replace("/shop/products/", "/products/", 1) if p.startswith("/shop/products/") else p)
+        return _doc(_title("Partner Shop"), "VETMECH partner ordering and account access.", canonical, "", [],
+                    robots="noindex, follow", body='<h1>VETMECH Partner Shop</h1><a href="/products">Public product portfolio</a>')
 
     # ---- Product ----
     if p.startswith("/products/") and len(p) > len("/products/"):
@@ -132,8 +160,8 @@ async def seo_render(path: str = Query("/")):
             v0 = (prod.get("variants") or [{}])[0]
             img = media_abs((prod.get("images") or [prod.get("image")])[0] if (prod.get("images") or prod.get("image")) else "")
             title = _title(s.get("title") or prod["name"])
-            desc = s.get("meta_description") or prod.get("short_description") or prod.get("full_description") or prod["name"]
-            canonical = s.get("canonical") or site_url(f"/products/{slug}")
+            desc = text(s.get("meta_description") or prod.get("short_description") or prod.get("full_description") or prod["name"])
+            canonical = site_url(f"/products/{slug}")
             cat = await db.categories.find_one({"id": prod.get("category_id")}, {"_id": 0, "name": 1, "slug": 1}) if prod.get("category_id") else None
             crumbs = [{"name": "Home", "path": "/"}, {"name": "Products", "path": "/products"}]
             if cat:
@@ -143,14 +171,22 @@ async def seo_render(path: str = Query("/")):
                           "image": img or default_img, "description": desc,
                           "sku": v0.get("sku") or prod.get("product_code") or "",
                           "brand": {"@type": "Brand", "name": prod.get("brand_name") or "VETMECH"}}
-            extra = "".join(f"<h2>{esc(l)}</h2><p>{esc(prod.get(k))}</p>" for l, k in
-                            [("Composition", "composition"), ("Indications", "indications"), ("Dosage", "dosage")] if prod.get(k))
+            extra = "".join(f"<h2>{esc(l)}</h2><p>{esc(text(prod.get(k)))}</p>" for l, k in
+                            [("Composition", "composition"), ("Indications", "indications"), ("Dosage", "dosage"),
+                             ("Benefits", "benefits"), ("Precautions", "precautions"), ("Storage", "storage"),
+                             ("Additional information", "additional_info")] if prod.get(k))
+            seo_copy = text(s.get("seo_content") or s.get("extra_content"))
+            if seo_copy:
+                extra += f"<h2>More product information</h2><p>{esc(seo_copy)}</p>"
+            extra += "".join(f"<h2>{esc(f['q'])}</h2><p>{esc(text(f['a']))}</p>" for f in (s.get("faqs") or [])
+                             if f and f.get("q") and f.get("a"))
             body = (f"<h1>{esc(prod['name'])}</h1><p>{esc(desc)}</p>"
                     f"<p>Brand: {esc(prod.get('brand_name') or 'VETMECH')} | Pack: {esc(v0.get('pack_size'))}</p>"
-                    f"{('<p>'+esc(prod.get('full_description'))+'</p>') if prod.get('full_description') else ''}{extra}")
+                    f"{('<p>'+esc(text(prod.get('full_description')) )+'</p>') if prod.get('full_description') else ''}{extra}")
             return _doc(title, desc, canonical, img or default_img,
                         [product_ld, _breadcrumb_ld(crumbs), _faq_ld(s.get("faqs"))],
                         robots=s.get("robots", "index, follow"), og_type="product", body=body)
+        return _not_found(p, "Product")
 
     # ---- Category ----
     if p.startswith("/categories/") and len(p) > len("/categories/"):
@@ -160,7 +196,7 @@ async def seo_render(path: str = Query("/")):
             s = cat.get("seo") or {}
             title = _title(s.get("title") or cat["name"])
             desc = s.get("meta_description") or s.get("intro") or cat.get("description") or cat["name"]
-            canonical = s.get("canonical") or site_url(f"/categories/{slug}")
+            canonical = site_url(f"/categories/{slug}")
             crumbs = [{"name": "Home", "path": "/"}, {"name": "Products", "path": "/products"}]
             if cat.get("parent_id"):
                 par = await db.categories.find_one({"id": cat["parent_id"]}, {"_id": 0, "name": 1, "slug": 1})
@@ -187,7 +223,9 @@ async def seo_render(path: str = Query("/")):
             body = f"<h1>{esc(cat['name'])}</h1><p>{esc(desc)}</p>"
             if plist:
                 body += f"<h2>Products in {esc(cat['name'])}</h2><ul>{plist}</ul>"
-            return _doc(title, desc, canonical, default_img, [_breadcrumb_ld(crumbs), coll, item_list], body=body)
+            return _doc(title, desc, canonical, default_img, [_breadcrumb_ld(crumbs), coll, item_list],
+                        robots=s.get("robots", "index, follow"), body=body)
+        return _not_found(p, "Category")
 
     # ---- News ----
     if p.startswith("/news/") and len(p) > len("/news/"):
@@ -198,31 +236,47 @@ async def seo_render(path: str = Query("/")):
             img = media_abs(art.get("featured_image")) or default_img
             title = _title(s.get("title") or art["title"])
             desc = s.get("meta_description") or art.get("excerpt") or art["title"]
-            canonical = s.get("canonical") or site_url(f"/news/{slug}")
+            canonical = site_url(f"/news/{slug}")
             article_ld = {"@context": "https://schema.org", "@type": "BlogPosting", "headline": art["title"],
                           "description": desc, "datePublished": art.get("publish_date"),
                           "dateModified": art.get("updated_at") or art.get("publish_date"),
                           "author": {"@type": "Person" if art.get("author") else "Organization", "name": art.get("author") or ORG_NAME},
-                          "publisher": {"@type": "Organization", "name": ORG_NAME, "logo": {"@type": "ImageObject", "url": site_url("/logo.png")}},
+                          "publisher": {"@type": "Organization", "name": ORG_NAME, "logo": {"@type": "ImageObject", "url": site_url("/corporate/brand.svg")}},
                           "mainEntityOfPage": canonical}
             if img:
                 article_ld["image"] = [img]
             crumbs = [{"name": "Home", "path": "/"}, {"name": "News", "path": "/news"}, {"name": art["title"], "path": f"/news/{slug}"}]
-            return _doc(title, desc, canonical, img, [article_ld, _breadcrumb_ld(crumbs)], og_type="article",
+            return _doc(title, desc, canonical, img, [article_ld, _breadcrumb_ld(crumbs)], og_type="article", robots=s.get("robots", "index, follow"),
                         body=f"<h1>{esc(art['title'])}</h1><p>{esc(desc)}</p>{art.get('content') or ''}")
+        return _not_found(p, "Article")
 
     # ---- Home + static fallback ----
     static_titles = {
         "/": seo.get("default_title") or _title("Veterinary Medicines India"),
         "/products": "Veterinary Products", "/about": "About Us", "/quality": "Quality Assurance",
         "/infrastructure": "Infrastructure", "/research": "Research & Development", "/news": "News & Articles",
-        "/gallery": "Gallery", "/careers": "Careers", "/contact": "Contact Us",
+        "/gallery": "Gallery", "/careers": "Careers", "/contact": "Contact Us", "/privacy": "Privacy Policy", "/terms": "Terms & Conditions",
     }
-    title = _title(static_titles.get(p, static_titles["/"]))
-    desc = seo.get("default_description") or "Premium veterinary pharmaceuticals for large animals, small animals and poultry."
+    if p not in static_titles:
+        return _not_found(p, "Page")
+    page = await db.pages.find_one({"slug": p.lstrip("/")}, {"_id": 0}) or {}
+    s = page.get("seo") or {}
+    heading = page.get("title") or static_titles[p]
+    title = _title(s.get("title") or heading)
+    desc = text(s.get("meta_description") or page.get("subtitle") or seo.get("default_description")
+                or "Veterinary pharmaceutical products, company information and professional partnerships.")
     canonical = site_url(p if p != "/" else "/")
-    return _doc(title, desc, canonical, default_img, [org, website],
-                body=f"<h1>{esc(company.get('name') or ORG_NAME)}</h1><p>{esc(desc)}</p>")
+    body = f"<h1>{esc(heading)}</h1><p>{esc(desc)}</p>"
+    if page.get("content"):
+        body += f"<p>{esc(text(page['content']))}</p>"
+    if p in {"/", "/products", "/news"}:
+        coll = db.news if p == "/news" else db.products
+        prefix = "/news/" if p == "/news" else "/products/"
+        items = await coll.find({"active": True}, {"_id": 0}).limit(5000).to_list(5000)
+        body += "<ul>" + "".join(f'<li><a href="{esc(site_url(prefix + item["slug"]))}">{esc(item.get("name") or item.get("title"))}</a></li>'
+                                for item in items if item.get("slug") and indexable(item)) + "</ul>"
+    return _doc(title, desc, canonical, default_img, [org, website] if p == "/" else [org],
+                robots=s.get("robots", "index, follow"), body=body)
 
 
 @router.get("/feed/google.xml")
@@ -342,7 +396,7 @@ async def seo_autofill_all(overwrite: bool = False, admin=Depends(require_module
 async def seo_audit(admin=Depends(require_module("products"))):
     products = await db.products.find({"active": True}, {"_id": 0}).to_list(5000)
     title_map, desc_map, prod_issues = {}, {}, []
-    CHECKS = 7
+    CHECKS = 10
     for prod in products:
         s = prod.get("seo") or {}
         issues = []
@@ -360,6 +414,15 @@ async def seo_audit(admin=Depends(require_module("products"))):
             issues.append("Missing focus keyword")
         if not [f for f in (s.get("faqs") or []) if f and f.get("q") and f.get("a")]:
             issues.append("No FAQ")
+        expected = site_url("/products/" + prod["slug"]) if prod.get("slug") else None
+        if s.get("canonical") and expected and s["canonical"].rstrip("/") != expected.rstrip("/"):
+            issues.append("Saved canonical differs from the public product URL; the public URL is used")
+        if not indexable(prod):
+            issues.append("Product has a noindex directive and is excluded from the sitemap")
+        name_token = re.sub(r"[^a-z0-9]", "", (prod.get("name") or "").split(" ")[0].lower())
+        title_token = re.sub(r"[^a-z0-9]", "", (s.get("title") or "").lower())
+        if name_token and title_token and name_token not in title_token:
+            issues.append("SEO title does not mention the current product name; review copied or outdated text")
         t = (s.get("title") or prod.get("name") or "").strip().lower()
         d = (s.get("meta_description") or "").strip().lower()
         if t:

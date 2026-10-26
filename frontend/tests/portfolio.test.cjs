@@ -18,6 +18,8 @@ test("corporate product projection omits commercial data even when the API retur
   for(const value of ["mrp","selling_price","your_price","active_schemes","special_price","987654.32","765432.1","offers"]){assert.equal(serialized.includes(value),false,value);}
   assert.equal(result.variants[0].pack_size,"100 ml");
   assert.equal(result.composition,"Composition 100 mg/ml");
+  assert.deepEqual(portfolioProduct({seo:{seo_content:"Approved information",robots:"noindex, follow"}}).seo,
+    {seo_content:"Approved information",robots:"noindex, follow"});
   assert.equal(priced.variants[0].mrp,987654.32);
 });
 

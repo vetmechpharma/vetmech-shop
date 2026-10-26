@@ -1,6 +1,6 @@
 // Corporate views receive an information-only projection, including for signed-in customers.
 const PRODUCT_FIELDS = ["id", "name", "slug", "product_code", "generic_name", "brand_name", "category_id", "subcategory_id", "category_ids", "subcategory_ids", "image", "images", "short_description", "full_description", "composition", "indications", "dosage", "benefits", "precautions", "storage", "additional_info", "brochure_url", "pdf_url"];
-const SEO_FIELDS = ["title", "meta_description", "meta_keywords", "og_title", "og_description", "og_image", "faqs", "intro", "extra_content"];
+const SEO_FIELDS = ["title", "meta_description", "meta_keywords", "og_title", "og_description", "og_image", "robots", "faqs", "intro", "extra_content", "seo_content"];
 const select = (object, keys) => Object.fromEntries(keys.filter(key => object?.[key] !== undefined).map(key => [key, object[key]]));
 
 export function portfolioProduct(product = {}) {
