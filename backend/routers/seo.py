@@ -220,12 +220,9 @@ async def seo_render(path: str = Query("/")):
             crumbs.append({"name": prod["name"], "path": f"/products/{slug}"})
             product_ld = {"@context": "https://schema.org", "@type": "Product", "name": prod["name"],
                           "image": img or default_img, "description": desc,
-                          "sku": v0.get("sku") or prod.get("product_code") or "",
                           "brand": {"@type": "Brand", "name": prod.get("brand_name") or "VETMECH"}}
             extra = "".join(f"<h2>{esc(l)}</h2><p>{esc(text(prod.get(k)))}</p>" for l, k in
-                            [("Composition", "composition"), ("Indications", "indications"), ("Dosage", "dosage"),
-                             ("Benefits", "benefits"), ("Precautions", "precautions"), ("Storage", "storage"),
-                             ("Additional information", "additional_info")] if prod.get(k))
+                            [("Composition", "composition"), ("Indications", "indications"), ("Dosage", "dosage")] if prod.get(k))
             seo_copy = text(s.get("seo_content") or s.get("extra_content"))
             if seo_copy:
                 extra += f"<h2>More product information</h2><p>{esc(seo_copy)}</p>"
@@ -385,7 +382,6 @@ def generate_seo(prod):
     comp = prod.get("composition") or ""
     ind = prod.get("indications") or ""
     dose = prod.get("dosage") or ""
-    storage = prod.get("storage") or ""
     full = prod.get("full_description") or ""
     variants = prod.get("variants") or []
     packs = ", ".join(f"{v.get('pack_size', '')} {v.get('unit', '')}".strip() for v in variants if v.get("pack_size"))
@@ -411,8 +407,6 @@ def generate_seo(prod):
         faqs.append({"q": f"What is the recommended dosage of {name}?", "a": _trim(dose, 300)})
     if packs:
         faqs.append({"q": f"What pack sizes is {name} available in?", "a": f"{name} is available in: {packs}."})
-    if storage:
-        faqs.append({"q": f"How should {name} be stored?", "a": _trim(storage, 300)})
     return {"title": title, "meta_description": meta_description, "focus_keyword": name.lower(), "faqs": faqs}
 
 

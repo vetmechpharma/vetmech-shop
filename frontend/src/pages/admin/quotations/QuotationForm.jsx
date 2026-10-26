@@ -40,7 +40,7 @@ function ProductPicker({ products, onPick }) {
             <CommandEmpty>No products.</CommandEmpty>
             <CommandGroup>
               {(products || []).flatMap((p) => (p.variants || [{}]).map((v) => (
-                <CommandItem key={`${p.id}-${v.id || "0"}`} value={`${p.name} ${v.pack_size || ""} ${v.sku || ""}`}
+                <CommandItem key={`${p.id}-${v.id || "0"}`} value={`${p.name} ${v.pack_size || ""}`}
                   onSelect={() => { onPick(p, v); setOpen(false); }}>
                   <div><div className="text-sm text-vm-ink">{p.name}</div><div className="text-xs text-slate-500">{v.pack_size} {v.unit} · ₹{v.selling_price ?? v.mrp}</div></div>
                 </CommandItem>

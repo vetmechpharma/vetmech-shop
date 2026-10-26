@@ -13,13 +13,13 @@ function QtyCell({ line, setQty }) {
   const commit = () => { const n = Math.max(1, parseInt(val, 10) || 1); setQty(line.variant_id, n); setVal(String(n)); };
   return (
     <div className="flex items-center border border-[#E2E8F0] rounded-md w-fit mx-auto">
-      <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(line.variant_id, Math.max(1, line.qty - 1))} data-testid={`cart-minus-${line.sku}`}><Minus className="w-3.5 h-3.5" /></button>
+      <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(line.variant_id, Math.max(1, line.qty - 1))} data-testid={`cart-minus-${line.sku || line.variant_id}`}><Minus className="w-3.5 h-3.5" /></button>
       <input inputMode="numeric" value={val}
         onChange={(e) => setVal(e.target.value.replace(/[^0-9]/g, ""))}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-        className="w-12 text-center text-sm outline-none bg-transparent" data-testid={`cart-qty-${line.sku}`} />
-      <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(line.variant_id, line.qty + 1)} data-testid={`cart-plus-${line.sku}`}><Plus className="w-3.5 h-3.5" /></button>
+        className="w-12 text-center text-sm outline-none bg-transparent" data-testid={`cart-qty-${line.sku || line.variant_id}`} />
+      <button className="px-2 py-1.5 text-slate-500" onClick={() => setQty(line.variant_id, line.qty + 1)} data-testid={`cart-plus-${line.sku || line.variant_id}`}><Plus className="w-3.5 h-3.5" /></button>
     </div>
   );
 }
@@ -65,7 +65,7 @@ export default function Cart() {
           </TableHeader>
           <TableBody>
             {lines.map((l) => (
-              <TableRow key={l.variant_id} data-testid={`cart-row-${l.sku}`}>
+              <TableRow key={l.variant_id} data-testid={`cart-row-${l.sku || l.variant_id}`}>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-[#F8FAF9] rounded p-1 flex-shrink-0">
@@ -83,16 +83,16 @@ export default function Cart() {
                 </TableCell>
                 <TableCell className="text-center text-sm">
                   {l.scheme_label ? <span className="text-vm-accent font-medium">{l.scheme_label}</span> : <span className="text-slate-300">—</span>}
-                  {l.upsell && <span className="block text-[11px] text-vm-green mt-1" data-testid={`cart-upsell-${l.sku}`}>{l.upsell.message}</span>}
-                  {l.case_suggestion && <span className="block text-[11px] text-vm-accent mt-0.5" data-testid={`cart-case-${l.sku}`}>{l.case_suggestion.message}</span>}
+                  {l.upsell && <span className="block text-[11px] text-vm-green mt-1" data-testid={`cart-upsell-${l.sku || l.variant_id}`}>{l.upsell.message}</span>}
+                  {l.case_suggestion && <span className="block text-[11px] text-vm-accent mt-0.5" data-testid={`cart-case-${l.sku || l.variant_id}`}>{l.case_suggestion.message}</span>}
                 </TableCell>
-                <TableCell className="text-center text-sm" data-testid={`cart-netrate-${l.sku}`}>
+                <TableCell className="text-center text-sm" data-testid={`cart-netrate-${l.sku || l.variant_id}`}>
                   {l.net_rate != null ? <span className="font-semibold text-vm-ink">₹{l.net_rate}{l.gst_percent ? <span className="block text-[10px] font-normal text-slate-400">+{l.gst_percent}% GST</span> : null}</span> : <span className="text-slate-300">—</span>}
                 </TableCell>
-                <TableCell className="text-center font-medium text-vm-accent" data-testid={`cart-free-${l.sku}`}>{l.free_qty || 0}</TableCell>
+                <TableCell className="text-center font-medium text-vm-accent" data-testid={`cart-free-${l.sku || l.variant_id}`}>{l.free_qty || 0}</TableCell>
                 <TableCell className="text-center font-semibold text-vm-ink">{l.dispatch_qty}</TableCell>
                 <TableCell>
-                  <button onClick={() => removeItem(l.variant_id)} className="text-slate-400 hover:text-red-500" data-testid={`cart-remove-${l.sku}`}><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => removeItem(l.variant_id)} className="text-slate-400 hover:text-red-500" data-testid={`cart-remove-${l.sku || l.variant_id}`}><Trash2 className="w-4 h-4" /></button>
                 </TableCell>
               </TableRow>
             ))}

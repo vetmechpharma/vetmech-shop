@@ -21,17 +21,15 @@ export function seedDemo() {
     ["vetkclor", "VETKCLOR", "Potassium Chloride Oral Solution", "Potassium chloride oral preparation. Refer to the approved product label for strength.", "100 ml", 260, 170, "metabolic"],
   ];
   const products = specs.map(([slug, name, generic, composition, pack, mrp, price, subcategory_id], i) => ({
-    id: `p${i + 1}`, name, slug, product_code: `DEMO-${i + 1}`, generic_name: generic,
+    id: `p${i + 1}`, name, slug, generic_name: generic,
     brand_id: "vetmech", brand_name: "VETMECH", category_id: "large-animal", subcategory_id,
     category_ids: ["large-animal"], subcategory_ids: [subcategory_id],
     image: `/demo/product-${i + 1}.svg`, images: [`/demo/product-${i + 1}.svg`],
     short_description: generic, full_description: `<p>${generic}. This is a development catalogue entry. Prices and transactions are sample data.</p>`,
     composition, indications: "Refer to the approved product label.", dosage: "As directed by the attending veterinarian and the approved label.",
-    benefits: "", precautions: "Development demo — do not use this catalogue as prescribing guidance.",
-    storage: "Refer to the approved product label.", additional_info: "Sample prices are for interface testing only.",
     seo: { title: `${name} | Development Demo`, meta_description: generic, focus_keyword: generic, faqs: [] },
     badges: { featured: true, new: i === 1, best_seller: i === 0, offer: i === 0 },
-    variants: [{ id: `v${i + 1}`, pack_size: pack, unit: "Bottle", sku: `DEMO-SKU-${i + 1}`, mrp, selling_price: price, gst_percent: 12, gst_inclusive: false, stock_status: "in_stock", units_per_case: 24, min_order_qty: 1, max_order_qty: 0 }],
+    variants: [{ id: `v${i + 1}`, pack_size: pack, unit: "Bottle", mrp, selling_price: price, gst_percent: 12, gst_inclusive: false, stock_status: "in_stock", units_per_case: 24, min_order_qty: 1, max_order_qty: 0 }],
     active: true, is_demo: true, created_at: date(20), order: i,
   }));
   products.push(JSON.parse(JSON.stringify({ ...productProfileExample, created_at: date(20) })));

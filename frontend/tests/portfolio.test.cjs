@@ -8,6 +8,7 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 const priced = { id:"p1",name:"VETMECH Product",slug:"vetmech-product",composition:"Composition 100 mg/ml",short_description:"Veterinary formulation",image:"/product.png",product_code:"VM1",
+  benefits:"Legacy benefits",precautions:"Legacy precautions",storage:"Legacy storage",additional_info:"Legacy additional information",
   mrp:987654.32,selling_price:876543.21,your_price:765432.10,badges:{offer:true},category:{name:"Large Animal",slug:"large-animal",price:9999},
   variants:[{id:"v1",pack_size:"100 ml",sku:"VM-100",mrp:987654.32,your_price:765432.10,selling_price:876543.21,active_schemes:[{special_price:1234}]}],
   seo:{title:"Veterinary product",meta_description:"Composition information",faqs:[{q:"Packing?",a:"100 ml"}],offers:{price:1234}} };
@@ -15,7 +16,7 @@ const priced = { id:"p1",name:"VETMECH Product",slug:"vetmech-product",compositi
 test("corporate product projection omits commercial data even when the API returns signed-in prices",async()=>{
   const { portfolioProduct } = await import("../src/lib/portfolio.mjs");
   const result = portfolioProduct(priced), serialized=JSON.stringify(result);
-  for(const value of ["mrp","selling_price","your_price","active_schemes","special_price","987654.32","765432.1","offers"]){assert.equal(serialized.includes(value),false,value);}
+  for(const value of ["mrp","selling_price","your_price","active_schemes","special_price","987654.32","765432.1","offers","product_code","sku","benefits","precautions","storage","additional_info","VM1","VM-100"]){assert.equal(serialized.includes(value),false,value);}
   assert.equal(result.variants[0].pack_size,"100 ml");
   assert.equal(result.composition,"Composition 100 mg/ml");
   assert.deepEqual(portfolioProduct({seo:{seo_content:"Approved information",robots:"noindex, follow"}}).seo,
@@ -29,6 +30,7 @@ test("public product structured data contains product information without offers
   assert.equal(result.name,priced.name);
   assert.equal(result.url,"https://example.com/products/vetmech-product");
   assert.equal("offers" in result,false);
+  assert.equal("sku" in result,false);
   assert.equal(JSON.stringify(result).includes("987654.32"),false);
 });
 

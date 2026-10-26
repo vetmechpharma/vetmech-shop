@@ -25,10 +25,6 @@ export default function ProductProfile() {
     { id: "overview", title: "Product overview", note: "About this formulation", value: p.full_description },
     { id: "indications", title: "Indications", note: "Product uses", value: p.indications },
     { id: "dosage", title: "Dosage & administration", note: "Directions for use", value: p.dosage },
-    { id: "benefits", title: "Benefits", value: p.benefits },
-    { id: "precautions", title: "Precautions", value: p.precautions },
-    { id: "storage", title: "Storage", value: p.storage },
-    { id: "additional", title: "Additional information", value: p.additional_info },
     { id: "product-notes", title: "More product information", value: p.seo?.seo_content || p.seo?.extra_content },
   ].filter(section => portfolioText(section.value)) : [], [p]);
 
@@ -68,7 +64,7 @@ export default function ProductProfile() {
           </div><div className="pp-summary-actions">
           {summary && summary !== generic && <p className="pp-summary">{summary}</p>}
           {navigation.length > 0 && <a className="pp-overview-link" href={`#${navigation[0].id}`}>Explore product information<ChevronDown size={17}/></a>}
-          <dl className="pp-facts"><div><dt>BRAND</dt><dd>{p.brand_name || "VETMECH"}</dd></div>{packLabel && <div><dt>{p.variants.length > 1 ? "SELECTED PACK" : "PACK SIZE"}</dt><dd>{packLabel}</dd></div>}{p.product_code && !p.product_code.startsWith("DEMO-") && <div><dt>PRODUCT CODE</dt><dd>{p.product_code}</dd></div>}</dl>
+          <dl className="pp-facts"><div><dt>BRAND</dt><dd>{p.brand_name || "VETMECH"}</dd></div>{packLabel && <div><dt>{p.variants.length > 1 ? "SELECTED PACK" : "PACK SIZE"}</dt><dd>{packLabel}</dd></div>}</dl>
           {p.variants.length > 1 && <div className="pp-pack-selector"><span>AVAILABLE PACK SIZES</span><div>{p.variants.map(value => <button key={value.id} aria-pressed={value.id === variant.id} onClick={() => { setVariantId(value.id); setImageIndex(0); }}>{[value.pack_size, value.unit].filter(Boolean).join(" · ") || "Standard pack"}</button>)}</div></div>}
           <div className="pp-actions"><ActionLink to={`/contact?product=${encodeURIComponent(p.name)}`}>Product enquiry</ActionLink>{literature && <a href={literature} className="pp-literature" target="_blank" rel="noopener noreferrer"><FileDown size={18}/>Product literature</a>}</div>
           <Link className="pp-shop-link" to={`/shop/products/${p.slug}`}>Order through Partner Shop<ArrowUpRight size={16}/></Link>

@@ -21,7 +21,7 @@ const STOCK = [{ value: "in_stock", label: "In Stock" }, { value: "out_of_stock"
 const GST = [0, 5, 12, 18];
 const PRICING_CATS = ["doctor", "agency", "medical_shop", "distributor", "farm", "other"];
 const catLabel = (v) => CUSTOMER_CATEGORIES.find((c) => c.value === v)?.label || v;
-const emptyVariant = () => ({ pack_size: "", unit: "Bottle", sku: "", mrp: 0, selling_price: 0, gst_percent: 12, gst_inclusive: true, stock_status: "in_stock", min_order_qty: 1, max_order_qty: 0, units_per_case: 0, images: [], category_prices: {}, offers: [] });
+const emptyVariant = () => ({ pack_size: "", unit: "Bottle", mrp: 0, selling_price: 0, gst_percent: 12, gst_inclusive: true, stock_status: "in_stock", min_order_qty: 1, max_order_qty: 0, units_per_case: 0, images: [], category_prices: {}, offers: [] });
 const newOffer = () => ({ scheme_type: "free_qty", buy_quantity: "", free_quantity: "", special_price: "", min_quantity: "", customer_type: "all", name: "" });
 
 function offerLabel(o) {
@@ -185,7 +185,7 @@ export default function AdminProducts() {
               : (list?.items || []).map((p) => (
                 <TableRow key={p.id} data-testid={`product-row-${p.id}`}>
                   <TableCell>{p.image ? <img src={mediaUrl(p.image)} alt="" className="w-10 h-10 object-contain bg-[#F8FAF9] rounded" /> : "—"}</TableCell>
-                  <TableCell><span className="font-medium text-vm-ink">{p.name}</span><br /><span className="text-xs text-slate-400">{p.product_code}</span></TableCell>
+                  <TableCell><span className="font-medium text-vm-ink">{p.name}</span></TableCell>
                   <TableCell className="text-sm">{catName(p.category_id)}</TableCell>
                   <TableCell className="text-sm">{p.variants?.length || 0}</TableCell>
                   <TableCell><Switch checked={!!p.active} onCheckedChange={() => toggleActive.mutate(p)} data-testid={`toggle-active-${p.id}`} /></TableCell>
@@ -213,8 +213,6 @@ export default function AdminProducts() {
 
             <TabsContent value="basic" className="grid sm:grid-cols-2 gap-4 mt-4">
               <div className="sm:col-span-2"><Label>Product Name</Label><Input value={form.name || ""} onChange={(e) => set("name", e.target.value)} data-testid="pf-name" /></div>
-              <div><Label>Product Code</Label><Input value={form.product_code || ""} onChange={(e) => set("product_code", e.target.value)} /></div>
-              <div><Label>SKU</Label><Input value={form.sku || ""} onChange={(e) => set("sku", e.target.value)} /></div>
               <div><Label>Brand</Label>
                 <Select value={form.brand_id || ""} onValueChange={(v) => set("brand_id", v)}><SelectTrigger data-testid="pf-brand"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>{(brands || []).map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent></Select>
@@ -254,7 +252,7 @@ export default function AdminProducts() {
 
             <TabsContent value="details" className="space-y-3 mt-4">
               <p className="text-xs text-slate-400">Empty sections are automatically hidden on the product page.</p>
-              {[["full_description", "Full Description"], ["composition", "Composition"], ["indications", "Indications"], ["dosage", "Dosage"], ["benefits", "Benefits"], ["precautions", "Precautions"], ["storage", "Storage"], ["additional_info", "Additional Information"]].map(([k, l]) => (
+              {[["full_description", "Full Description"], ["composition", "Composition"], ["indications", "Indications"], ["dosage", "Dosage"]].map(([k, l]) => (
                 <div key={k}><Label>{l}</Label><Textarea value={form[k] || ""} onChange={(e) => set(k, e.target.value)} /></div>
               ))}
             </TabsContent>
@@ -268,7 +266,6 @@ export default function AdminProducts() {
                     <div><Label className="text-xs">Unit</Label>
                       <Select value={v.unit} onValueChange={(val) => setVariant(i, "unit", val)}><SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>{(units || []).map((u) => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}</SelectContent></Select></div>
-                    <div><Label className="text-xs">SKU</Label><Input value={v.sku} onChange={(e) => setVariant(i, "sku", e.target.value)} /></div>
                     <div><Label className="text-xs">Stock</Label>
                       <Select value={v.stock_status} onValueChange={(val) => setVariant(i, "stock_status", val)}><SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>{STOCK.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
@@ -395,7 +392,7 @@ export default function AdminProducts() {
                 <Button type="button" size="sm" variant="outline" data-testid="seo-autofill-btn"
                   onClick={async () => {
                     try {
-                      const { data } = await api.post("/admin/seo/suggest", { name: form.name, brand_name: form.brand_name, short_description: form.short_description, full_description: form.full_description, composition: form.composition, indications: form.indications, dosage: form.dosage, storage: form.storage, variants: form.variants });
+                      const { data } = await api.post("/admin/seo/suggest", { name: form.name, brand_name: form.brand_name, short_description: form.short_description, full_description: form.full_description, composition: form.composition, indications: form.indications, dosage: form.dosage, variants: form.variants });
                       const cur = form.seo || {};
                       set("seo", { ...cur, title: cur.title || data.title, meta_description: cur.meta_description || data.meta_description, focus_keyword: cur.focus_keyword || data.focus_keyword, faqs: (cur.faqs && cur.faqs.length) ? cur.faqs : data.faqs });
                       toast.success("SEO draft filled from product info — review & Save");
