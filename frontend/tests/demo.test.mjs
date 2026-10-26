@@ -117,8 +117,24 @@ test("reset removes only demo edits", async () => {
   storage.setItem("unrelated", "preserve me");
   await call("POST", "/admin/products", { name: "Temporary sample", variants: [] });
   engine.reset();
-  assert.equal(engine.snapshot().products.length, 4);
+  assert.equal(engine.snapshot().products.length, 5);
   assert.equal(storage.getItem("unrelated"), "preserve me");
+});
+
+test("the product-page sample is added to older demos without overwriting edits or restoring later deletions", async () => {
+  const { engine, storage } = setup();
+  const old = engine.snapshot();
+  old.products = old.products.filter(product => product.id !== "demo-quino-taz-profile");
+  old.products[0].name = "My edited sample";
+  delete old.product_profile_demo_v2;
+  storage.setItem(DEMO_KEY, JSON.stringify(old));
+  const updated = createDemoEngine(storage);
+  assert.equal(updated.snapshot().products[0].name, "My edited sample");
+  assert.equal(updated.snapshot().products.filter(product => product.id === "demo-quino-taz-profile").length, 1);
+  await updated.handle({ method: "DELETE", path: "/admin/products/demo-quino-taz-profile", token: "demo-admin" });
+  const reopened = createDemoEngine(storage);
+  assert.equal(reopened.snapshot().products.some(product => product.id === "demo-quino-taz-profile"), false);
+  assert.equal(reopened.snapshot().products[0].name, "My edited sample");
 });
 
 test("detail screens receive their required nested data contracts", async () => {

@@ -1,3 +1,5 @@
+import { productProfileExample } from "./productProfileExample.mjs";
+
 export const DEMO_SCHEMA = 1;
 export const DEMO_KEY = "vetmech_shop_development_v1";
 export const DEMO_PASSWORD = "Demo@123";
@@ -32,6 +34,7 @@ export function seedDemo() {
     variants: [{ id: `v${i + 1}`, pack_size: pack, unit: "Bottle", sku: `DEMO-SKU-${i + 1}`, mrp, selling_price: price, gst_percent: 12, gst_inclusive: false, stock_status: "in_stock", units_per_case: 24, min_order_qty: 1, max_order_qty: 0 }],
     active: true, is_demo: true, created_at: date(20), order: i,
   }));
+  products.push(JSON.parse(JSON.stringify({ ...productProfileExample, created_at: date(20) })));
   const customers = [
     { id: "c1", prefix: "Dr.", name: "Demo Veterinarian", company_name: "Sample Veterinary Clinic", mobile: "0000000001", email: "clinic@example.com", category: "doctor", status: "active" },
     { id: "c2", prefix: "Mr.", name: "Demo Distributor", company_name: "Sample Veterinary Agency", mobile: "0000000002", email: "agency@example.com", category: "agency", status: "active" },
@@ -47,7 +50,7 @@ export function seedDemo() {
   const tickets = ["open", "in_progress", "closed"].map((status, i) => ({ id: `t${i + 1}`, ticket_number: `DEMO-T-${101 + i}`, title: ["Product availability enquiry", "Sample dispatch follow-up", "Quotation clarification"][i], description: "Sample follow-up for testing the support workflow.", type: "Enquiry", priority: ["medium", "high", "low"][i], status, effective_status: status, is_overdue: false, days_overdue: 0, customer_id: customers[i].id, customer_name: customers[i].name, customer_phone: customers[i].mobile, customer_email: customers[i].email, company_name: customers[i].company_name, assignee_id: admin.id, assignee_name: admin.name, due_date: date(-3), created_at: date(i + 1), updated_at: date(0), activity: [], updates: [], attachments: [] }));
   const company = { id: "company", name: "VETMECH PHARMACEUTICALS PRIVATE LIMITED", tagline: "The Science of Animal Health", logo: "/demo/logo.svg", favicon: "/demo/logo.svg", address: "Uthukuli, Tirupur, Tamil Nadu — development demo", phone: "", whatsapp: "", email: "demo@example.com", gst_number: "", social: {}, business_hours: "Development demo" };
   return {
-    schema: DEMO_SCHEMA, created_at: date(0), products, customers, orders, crm_customers, tickets,
+    schema: DEMO_SCHEMA, product_profile_demo_v2: true, created_at: date(0), products, customers, orders, crm_customers, tickets,
     admin_users: [admin], categories, brands: [{ id: "vetmech", name: "VETMECH", active: true }],
     units: ["Bottle", "Vial", "Pack", "Box", "Pcs"].map((name, i) => ({ id: `unit${i}`, name })),
     schemes: [{ id: "offer1", name: "Sample 10+2 offer", scheme_type: "free_qty", product_id: "p1", variant_id: "v1", buy_quantity: 10, free_quantity: 2, min_quantity: 1, customer_type: "all", active: true }],

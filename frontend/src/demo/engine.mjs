@@ -1,4 +1,5 @@
 import { DEMO_KEY, DEMO_SCHEMA, DEMO_PASSWORD, DEMO_OTP, seedDemo } from "./seed.mjs";
+import { productProfileExample } from "./productProfileExample.mjs";
 
 export class DemoError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -19,6 +20,14 @@ export function createDemoEngine(storage) {
   let state;
   try { state = JSON.parse(storage.getItem(DEMO_KEY) || "null"); } catch { state = null; }
   if (!state || state.schema !== DEMO_SCHEMA) state = seedDemo();
+  // Add the product-page example without resetting existing browser-demo edits.
+  if (!state.product_profile_demo_v2) {
+    state.products = state.products || [];
+    if (!state.products.some(product => product.id === productProfileExample.id || product.slug === productProfileExample.slug)) {
+      state.products.push(copy(productProfileExample));
+    }
+    state.product_profile_demo_v2 = true;
+  }
   const persist = () => { try { storage.setItem(DEMO_KEY, JSON.stringify(state)); } catch { throw new DemoError(507, "Demo storage is full. Export or reset the demo to continue."); } };
   const get = (collection, id, field = "id") => {
     const value = (state[collection] || []).find(row => row[field] === id);

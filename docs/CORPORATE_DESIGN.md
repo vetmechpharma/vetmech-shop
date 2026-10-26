@@ -12,6 +12,14 @@ The public website uses an original black, white and red visual identity, Manrop
 
 Product enquiries prefill the contact form subject. Customer pricing, approvals, cart calculations and order APIs retain their existing business rules. All demo requests continue to use the browser-local adapter; messaging is simulated there.
 
+## Product information layout
+
+Public product pages use a large image gallery with thumbnails and an accessible enlargement dialog, a clear product title and pack summary, an enquiry action, and section navigation. The section index stays beside the content on desktop and becomes a horizontal strip on phones. Empty information sections are omitted.
+
+Composition text with dotted quantity leaders is presented as formulation rows, with separate vial panels when those labels exist in the source. Colon-labelled dosage lines become readable definition rows. Paragraphs, lists, emphasis and tables retain their structure; rich HTML is rebuilt from an allowlist without scripts, event handlers or unsafe links. The presentation preserves the supplied clinical wording, quantities and routes. Content still comes from the existing product record.
+
+The isolated browser demo includes a QUINOTAZ snapshot and the product's published pack images, so `/products/quino-taz-cefquinome-tazobactam-injection-562-5mg` can be reviewed directly. This sample is added once to older demo data without replacing edits. It is not imported into the production database. `frontend/tests/product-formatting.test.cjs` covers content preservation and safe rich-text formatting; demo tests cover the additive sample update.
+
 ## Content and deployment
 
 The corporate defaults are shipped with the frontend, so this redesign appears after a normal deployment without replacing live MongoDB content. Existing product records, prices and transactions are retained. Admin → Homepage edits `homepage.corporate.hero`, `intro` and `science`, plus the selected featured products. Company contact details still use Admin → Company settings. CMS page body content can continue to be edited under Website Pages.
