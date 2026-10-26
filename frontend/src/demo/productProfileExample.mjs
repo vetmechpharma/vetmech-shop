@@ -17,6 +17,7 @@ export const productProfileExample = {
   "seo": {
     "title": "QUINO-TAZ 562.5 mg | Cefquinome + Tazobactam Vet Injection",
     "meta_description": "QUINO-TAZ 562.5 mg veterinary injection contains Cefquinome 500 mg + Tazobactam 62.5 mg with 20 mL solvent for susceptible bacterial infections.",
+    "og_image": "/demo/quino-taz-share.jpg",
     "seo_content": "QUINO-TAZ 562.5 mg is a cefquinome and tazobactam veterinary injection for susceptible bacterial infections in livestock, supplied with sodium bicarbonate solvent for reconstitution.",
     "faqs": [
       {
