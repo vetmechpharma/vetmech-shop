@@ -12,6 +12,8 @@ The public website uses an original black, white and red visual identity, Manrop
 
 Product enquiries prefill the contact form subject. Customer pricing, approvals, cart calculations and order APIs retain their existing business rules. All demo requests continue to use the browser-local adapter; messaging is simulated there.
 
+Shop product cards have a single View link for every visitor, including signed-in partners. Listings, category pages, homepage product rows and related-product cards no longer add the first variant directly to the cart. Customers open the individual product page, select the pack size and add that selected variant there. Quick Order continues to use its dedicated variant selector.
+
 ## Product information layout
 
 Public product pages use a large image gallery with thumbnails and an accessible enlargement dialog, a clear product title and pack summary, an enquiry action, and section navigation. The section index stays beside the content on desktop and becomes a horizontal strip on phones. Empty information sections are omitted.

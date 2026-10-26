@@ -92,7 +92,7 @@ export default function Products() {
           <div className="flex gap-3 mb-6">
             <form onSubmit={submit} className="flex-1 relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products, composition, SKU..." className="pl-9" data-testid="products-search-input" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products, composition..." className="pl-9" data-testid="products-search-input" />
             </form>
             <Sheet>
               <SheetTrigger asChild><Button variant="outline" className="lg:hidden" data-testid="mobile-filter-btn"><SlidersHorizontal className="w-4 h-4 mr-2" /> Filters</Button></SheetTrigger>
