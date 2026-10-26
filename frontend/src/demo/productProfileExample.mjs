@@ -10,10 +10,6 @@ export const productProfileExample = {
   "composition": "Vial A — QUINO-TAZ™ 562.5 mg\nEach vial contains:\nCefquinome Sulphate\nequivalent to Cefquinome ........ 500 mg\nTazobactam ......................... 62.5 mg\nVial B — Solvent\nSodium Bicarbonate Solvent ........ 20 mL",
   "indications": "Clinical and subclinical mastitis\nBacterial respiratory infections and pneumonia\nMetritis, endometritis and bacterial reproductive-tract infections\nCalf scour and susceptible bacterial gastrointestinal infections\nDigital dermatitis, interdigital necrobacillosis and foot rot\nBacterial urinary-tract infections\nBacterial septicaemia\nSusceptible bacterial infections in cattle, buffaloes, horses, sheep, goats and pigs as specified on the approved product label",
   "dosage": "Cattle, Buffalo & Horse: 1 mg Cefquinome/kg body weight IM /IV\nSheep, Goat & Pig:2 mg Cefquinome/kg body weight  IM /IV",
-  "benefits": "",
-  "precautions": "",
-  "storage": "",
-  "additional_info": "",
   "seo": {
     "title": "QUINO-TAZ 562.5 mg | Cefquinome + Tazobactam Vet Injection",
     "meta_description": "QUINO-TAZ 562.5 mg veterinary injection contains Cefquinome 500 mg + Tazobactam 62.5 mg with 20 mL solvent for susceptible bacterial infections.",
@@ -43,7 +39,6 @@ export const productProfileExample = {
     ]
   },
   "id": "demo-quino-taz-profile",
-  "product_code": "DEMO-QUINO-TAZ",
   "brand_id": "vetmech",
   "category_id": "large-animal",
   "category_ids": [
@@ -67,7 +62,6 @@ export const productProfileExample = {
       "id": "demo-quino-taz-v1",
       "pack_size": "562.5mg",
       "unit": "Pcs",
-      "sku": "DEMO-QUINO-TAZ",
       "images": [
         "/demo/quino-taz-1.webp"
       ],

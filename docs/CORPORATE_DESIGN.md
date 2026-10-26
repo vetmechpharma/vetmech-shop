@@ -18,6 +18,8 @@ Public product pages use a large image gallery with thumbnails and an accessible
 
 Composition text with dotted quantity leaders is presented as formulation rows, with separate vial panels when those labels exist in the source. Colon-labelled dosage lines become readable definition rows. Paragraphs, lists, emphasis and tables retain their structure; rich HTML is rebuilt from an allowlist without scripts, event handlers or unsafe links. The presentation preserves the supplied clinical wording, quantities and routes. Content still comes from the existing product record.
 
+The product editor and both product page layouts omit Product Code, product/variant SKU, Benefits, Precautions, Storage and Additional Information. The Details tab retains Full Description, Composition, Indications and Dosage. Crawler HTML and product JSON-LD follow the same reduced field set, and SEO drafts no longer add a Storage question. Existing database records and order snapshots are not purged; variants continue to use their stable internal IDs for pricing and ordering.
+
 The isolated browser demo includes a QUINOTAZ snapshot and the product's published pack images, so `/products/quino-taz-cefquinome-tazobactam-injection-562-5mg` can be reviewed directly. This sample is added once to older demo data without replacing edits. It is not imported into the production database. `frontend/tests/product-formatting.test.cjs` covers content preservation and safe rich-text formatting; demo tests cover the additive sample update.
 
 ## Content and deployment

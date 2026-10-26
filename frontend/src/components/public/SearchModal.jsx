@@ -43,7 +43,7 @@ export default function SearchModal({ open, onOpenChange, commerce = false }) {
         <form onSubmit={submitAll} className="flex items-center gap-2 border-b px-4 py-3">
           <Search className="w-5 h-5 text-slate-400" />
           <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)}
-                 placeholder="Search products, brands, composition, SKU..."
+                 placeholder="Search products, brands, composition..."
                  className="border-0 focus-visible:ring-0 shadow-none px-0"
                  data-testid="search-input" />
         </form>

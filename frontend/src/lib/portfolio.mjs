@@ -1,5 +1,5 @@
 // Corporate views receive an information-only projection, including for signed-in customers.
-const PRODUCT_FIELDS = ["id", "name", "slug", "product_code", "generic_name", "brand_name", "category_id", "subcategory_id", "category_ids", "subcategory_ids", "image", "images", "short_description", "full_description", "composition", "indications", "dosage", "benefits", "precautions", "storage", "additional_info", "brochure_url", "pdf_url"];
+const PRODUCT_FIELDS = ["id", "name", "slug", "generic_name", "brand_name", "category_id", "subcategory_id", "category_ids", "subcategory_ids", "image", "images", "short_description", "full_description", "composition", "indications", "dosage", "brochure_url", "pdf_url"];
 const SEO_FIELDS = ["title", "meta_description", "meta_keywords", "og_title", "og_description", "og_image", "robots", "faqs", "intro", "extra_content", "seo_content"];
 const select = (object, keys) => Object.fromEntries(keys.filter(key => object?.[key] !== undefined).map(key => [key, object[key]]));
 
@@ -7,7 +7,7 @@ export function portfolioProduct(product = {}) {
   return {
     ...select(product, PRODUCT_FIELDS),
     category: product.category ? select(product.category, ["id", "name", "slug"]) : undefined,
-    variants: (product.variants || []).map(variant => select(variant, ["id", "pack_size", "unit", "sku", "images"])),
+    variants: (product.variants || []).map(variant => select(variant, ["id", "pack_size", "unit", "images"])),
     seo: select(product.seo || {}, SEO_FIELDS),
   };
 }
@@ -21,7 +21,7 @@ export function portfolioText(value) {
 export function portfolioJsonLd(product, url, image) {
   const p = portfolioProduct(product);
   return { "@context": "https://schema.org", "@type": "Product", name: p.name, description: portfolioText(p.short_description || p.composition),
-    image, url, brand: { "@type": "Brand", name: p.brand_name || "VETMECH" }, sku: p.product_code || p.variants[0]?.sku || undefined };
+    image, url, brand: { "@type": "Brand", name: p.brand_name || "VETMECH" } };
 }
 
 export function speciesCategory(species, categories = []) {

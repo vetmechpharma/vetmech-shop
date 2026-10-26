@@ -82,8 +82,6 @@ export default function ProductDetail() {
 
   const optional = [
     ["Composition", p.composition], ["Indications", p.indications], ["Dosage & Administration", p.dosage],
-    ["Benefits", p.benefits], ["Precautions", p.precautions], ["Storage", p.storage],
-    ["Additional Information", p.additional_info],
   ].filter(([, v]) => v && v.trim());
 
   const baseRate = variant.your_price;
@@ -98,7 +96,6 @@ export default function ProductDetail() {
   const productLd = {
     "@context": "https://schema.org", "@type": "Product",
     name: p.name, image: mediaUrl(images[0] || p.image), description: p.short_description || p.full_description || p.name,
-    sku: variant.sku || p.product_code || "", mpn: variant.sku || p.product_code || "",
     brand: { "@type": "Brand", name: p.brand_name || "VETMECH" },
     category: p.category?.name || undefined,
     ...(reviewLd ? { aggregateRating: reviewLd } : {}),
@@ -134,7 +131,7 @@ export default function ProductDetail() {
         </div>
 
         <div>
-          <p className="text-xs uppercase tracking-widest text-vm-accent font-semibold">{p.brand_name}{p.product_code && ` · ${p.product_code}`}</p>
+          <p className="text-xs uppercase tracking-widest text-vm-accent font-semibold">{p.brand_name}</p>
           <h1 className="font-heading text-3xl font-bold text-vm-ink mt-1 tracking-tight" data-testid="product-title">{p.name}</h1>
           <p className="text-slate-600 mt-3">{p.short_description}</p>
 
@@ -169,7 +166,7 @@ export default function ProductDetail() {
               {variants.map((v) => (
                 <button key={v.id} onClick={() => { setVariantId(v.id); setActiveImg(0); }}
                         className={`px-4 py-2 rounded-md border text-sm font-medium ${v.id === variant.id ? "border-vm-green bg-vm-green text-white" : "border-[#E2E8F0] text-slate-700 hover:border-vm-accent"}`}
-                        data-testid={`variant-${v.sku}`}>
+                        data-testid={`variant-${v.sku || v.id}`}>
                   {v.pack_size} {v.unit}
                 </button>
               ))}
