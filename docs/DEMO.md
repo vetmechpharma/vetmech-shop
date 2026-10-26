@@ -23,6 +23,21 @@ npm run test:demo
 npm run build:demo
 ```
 
+For a hosted demo, build with its actual public origin so WhatsApp and other
+social crawlers receive the product name, description and absolute image URL
+without running JavaScript:
+
+```bash
+npm run build:demo -- --site-url https://vetmech-shop-dev-demo.vetmechpharma.chatgpt.site
+```
+
+The demo build writes initial HTML for both `/products/:slug` and
+`/shop/products/:slug` from the shipped sample catalogue. These pages and the
+demo fallback remain `noindex, nofollow`. Browser-local product edits are not
+published to crawlers; update the seed and rebuild to change a shared preview.
+QUINOTAZ uses a local JPEG copy of its published social image. The production
+VPS continues to use its existing backend crawler rendering for live records.
+
 Use the top **Demo tools** menu for one-click admin, doctor and agency entry,
 local sample-data export and reset. The optional sample admin login is
 `demo@vetmech.local` / `Demo@123`; the sample OTP is `123456`.
