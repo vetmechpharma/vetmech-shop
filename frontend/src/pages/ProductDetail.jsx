@@ -14,7 +14,7 @@ import { breadcrumbLd, faqLd, siteUrl } from "@/lib/seo";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShoppingCart, Minus, Plus, FileDown, Check, MessageCircle, Lock, Tag } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Check, MessageCircle, Lock, Tag } from "lucide-react";
 
 function gcdN(a, b) { return b ? gcdN(b, a % b) : a; }
 function simplifyRatio(b, f) { if (b > 0 && f > 0) { const g = gcdN(b, f); if (g > 1) return [b / g, f / g]; } return [b, f]; }
@@ -207,6 +207,12 @@ export default function ProductDetail() {
                         onClick={() => navigate(`/account?redirect=${encodeURIComponent(`/shop/products/${slug}`)}`)}>Login</Button>
               </div>
             </div>
+          ) : baseRate == null && bestOffer?.kind !== "price" ? (
+            <div className="mt-6 rounded-xl border border-[#E2E8F0] bg-vm-bg p-5" data-testid="product-rate-pending">
+              <p className="font-heading text-lg font-bold text-vm-ink">Price available on enquiry</p>
+              <p className="text-sm text-slate-600 mt-1">A rate has not been assigned for this pack. Please contact VETMECH before ordering.</p>
+              <Link className="inline-block mt-3 text-sm font-semibold text-vm-green" to={`/contact?product=${encodeURIComponent(p.name)}`}>Contact our team</Link>
+            </div>
           ) : (
           <>
           <div className="mt-5 flex items-center gap-3">
@@ -257,16 +263,6 @@ export default function ProductDetail() {
 
           <ShareButtons url={siteUrl(`/products/${slug}`)} title={p.name} className="mt-5 pt-4 border-t border-[#E2E8F0]" />
 
-          {p.brochure_url && (
-            <a href={mediaUrl(p.brochure_url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-4 text-sm text-vm-green font-medium hover:underline" data-testid="download-brochure">
-              <FileDown className="w-4 h-4" /> Download Brochure
-            </a>
-          )}
-          {p.visual_aid_url && (
-            <a href={mediaUrl(p.visual_aid_url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-4 ml-4 text-sm text-vm-green font-medium hover:underline">
-              <FileDown className="w-4 h-4" /> Visual Aid
-            </a>
-          )}
         </div>
       </div>
 
