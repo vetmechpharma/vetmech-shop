@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 const AdminAuthContext = createContext(null);
 export const useAdminAuth = () => useContext(AdminAuthContext);
 
 export function AdminAuthProvider({ children }) {
+  const queryClient = useQueryClient();
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,9 +26,10 @@ export function AdminAuthProvider({ children }) {
 
   const login = (token, user) => {
     localStorage.setItem("vm_admin_token", token);
+    queryClient.clear();
     setAdmin(user);
   };
-  const logout = () => { localStorage.removeItem("vm_admin_token"); setAdmin(null); };
+  const logout = () => { localStorage.removeItem("vm_admin_token"); queryClient.clear(); setAdmin(null); };
 
   const can = (module) => {
     if (!admin) return false;

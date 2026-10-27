@@ -80,20 +80,21 @@ async def test_delivery_failure_returns_error_and_invalidates_code(database, mon
 
 
 @pytest.mark.asyncio
-async def test_email_is_a_valid_fallback_when_whatsapp_fails(database, monkeypatch):
+async def test_existing_customer_cannot_request_a_registration_otp(database, monkeypatch):
     monkeypatch.setattr(auth_routes, "db", database)
     await database.customers.insert_one({"mobile": "9000000001", "email": "customer@example.com"})
-    monkeypatch.setattr(auth_routes, "send_whatsapp", AsyncMock(return_value={"status": "failed"}))
-    monkeypatch.setattr(auth_routes, "send_email", AsyncMock(return_value={"status": "sent"}))
-    result = await auth_routes.otp_request(auth_routes.OtpRequest(mobile="9000000001"))
-    assert result["sent"] is True
-    assert "dev_otp" not in result
+    sender = AsyncMock()
+    monkeypatch.setattr(auth_routes, "send_whatsapp", sender)
+    with pytest.raises(HTTPException) as error:
+        await auth_routes.otp_request(auth_routes.OtpRequest(mobile="9000000001"))
+    assert error.value.status_code == 409
+    sender.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_verified_otp_cannot_be_replayed(database, monkeypatch):
     monkeypatch.setattr(auth_routes, "db", database)
-    await database.otps.insert_one({"mobile": "9000000001", "otp": "123456", "verified": True,
+    await database.otps.insert_one({"_id": "registration:9000000001", "purpose": "registration", "mobile": "9000000001", "otp": "123456", "verified": True,
                                     "expires": "2099-01-01T00:00:00+00:00", "wrong_attempts": 0})
     with pytest.raises(HTTPException, match="already used"):
         await auth_routes.otp_verify(auth_routes.OtpVerify(mobile="9000000001", otp="123456"))

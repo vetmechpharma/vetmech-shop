@@ -1,4 +1,5 @@
 import secrets
+import hashlib
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
@@ -6,8 +7,8 @@ from typing import Optional
 
 from db import db
 from config import dev_otp_enabled
-from security import (hash_password, verify_password, create_token,
-                      get_current_admin, get_current_customer, customer_status_label)
+from security import (hash_password, verify_password, create_token, validate_customer_password,
+                      get_current_admin, get_current_customer, customer_status_label, ROLE_MODULES)
 from helpers import new_id, now_iso, log_audit, send_whatsapp, send_email, email_for, normalize_mobile
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -53,39 +54,75 @@ class Register(BaseModel):
     state: Optional[str] = ""
     category: Optional[str] = "other"
     license_number: Optional[str] = ""
-    password: Optional[str] = None
+    password: str
+    verification_token: str
+
+
+def _admin_public(user):
+    return {**{k: v for k, v in user.items() if k not in {"_id", "password_hash"}},
+            "permissions": user.get("permissions") or ROLE_MODULES.get(user.get("role"), [])}
+
+
+def _mobile(value):
+    mobile = normalize_mobile(value)
+    if len(mobile) != 10:
+        raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number")
+    return mobile
+
+
+async def _existing_customer(mobile):
+    return await db.customers.find_one(
+        {"$or": [{"normalized_mobile": mobile}, {"mobile": {"$regex": mobile + "$"}}]})
+
+
+async def _check_login_lock(identifier):
+    record = await db.login_attempts.find_one({"identifier": identifier}) or {}
+    if record.get("locked_until") and datetime.fromisoformat(record["locked_until"]) > datetime.now(timezone.utc):
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Please try again in a few minutes.")
+    return record
+
+
+async def _failed_login(identifier, record):
+    fails = record.get("fails", 0) + 1
+    update = {"identifier": identifier, "fails": fails, "updated_at": now_iso()}
+    if fails >= 5:
+        update.update(locked_until=(datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(), fails=0)
+    await db.login_attempts.update_one({"identifier": identifier}, {"$set": update}, upsert=True)
 
 
 @router.post("/admin/login")
 async def admin_login(body: AdminLogin):
     email = body.email.lower().strip()
+    identifier = f"admin:{email}"
+    attempts = await _check_login_lock(identifier)
     user = await db.admin_users.find_one({"email": email})
     if not user or not verify_password(body.password, user.get("password_hash", "")):
+        await _failed_login(identifier, attempts)
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.get("active", True):
         raise HTTPException(status_code=403, detail="Account disabled")
+    await db.login_attempts.delete_one({"identifier": identifier})
     token = create_token(user["id"], "admin")
     await db.admin_users.update_one({"id": user["id"]}, {"$set": {"last_login": now_iso()}})
     await log_audit(db, user, "login", "admin_user", user["id"])
-    user.pop("_id", None)
-    user.pop("password_hash", None)
-    return {"token": token, "user": user}
+    return {"token": token, "user": _admin_public(user)}
 
 
 @router.get("/admin/me")
 async def admin_me(admin: dict = Depends(get_current_admin)):
-    return admin
+    return _admin_public(admin)
 
 
 # =============== CUSTOMER REGISTRATION ===============
 @router.post("/register")
 async def register(body: Register):
-    mobile = normalize_mobile(body.mobile)
-    if len(mobile) != 10:
-        raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number")
-    existing = await db.customers.find_one({"normalized_mobile": mobile})
-    if not existing:
-        existing = await db.customers.find_one({"mobile": {"$regex": mobile + "$"}})
+    mobile = _mobile(body.mobile)
+    validate_customer_password(body.password)
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="Please enter your name")
+    if body.category not in {"doctor", "agency", "medical_shop", "distributor", "farm", "other"}:
+        raise HTTPException(status_code=400, detail="Choose a valid customer category")
+    existing = await _existing_customer(mobile)
     if existing:
         raise HTTPException(status_code=409,
                             detail="An account already exists with this mobile number. Please login or contact support.")
@@ -96,6 +133,16 @@ async def register(body: Register):
     license_number = (body.license_number or "").strip()
     if body.category in LICENSE_REQUIRED and not license_number:
         raise HTTPException(status_code=400, detail="License Number is required for your selected category.")
+    # A one-use grant is bound to the verified number. Old login OTP records are not accepted.
+    password_hash = hash_password(body.password)
+    claimed = await db.otps.find_one_and_update(
+        {"_id": f"registration:{mobile}", "purpose": "registration", "mobile": mobile,
+         "registration_token_hash": hashlib.sha256(body.verification_token.encode()).hexdigest(),
+         "verified": True, "consumed": False, "registration_expires": {"$gt": now_iso()}},
+        {"$set": {"consumed": True, "consumed_at": now_iso()}, "$unset": {"registration_token_hash": ""}},
+    )
+    if not claimed:
+        raise HTTPException(status_code=400, detail="Verify your mobile number with a registration OTP first. Verification may have expired.")
     doc = {
         "id": new_id(),
         "prefix": body.prefix or "Mr.",
@@ -117,9 +164,9 @@ async def register(body: Register):
         "addresses": [],
         "created_at": now_iso(),
         "source": "self_registration",
+        "mobile_verified_at": claimed.get("verified_at"),
+        "password_hash": password_hash,
     }
-    if body.password:
-        doc["password_hash"] = hash_password(body.password)
     await db.customers.insert_one(dict(doc))
     await send_email(db, "admin", "New Customer Registration",
                      f"New customer {doc['name']} ({mobile}), category {doc['category']}, status {status}.",
@@ -141,16 +188,14 @@ async def register(body: Register):
                         else "Registration successful. You can now log in.")}
 
 
-# =============== CUSTOMER LOGIN ===============
+# =============== REGISTRATION MOBILE VERIFICATION ===============
 @router.post("/otp/request")
 async def otp_request(body: OtpRequest):
-    settings = await pricing_settings()
-    if not settings.get("enable_otp", True):
-        raise HTTPException(status_code=400, detail="OTP login is currently disabled. Please use password login.")
-    mobile = normalize_mobile(body.mobile)
-    if len(mobile) != 10:
-        raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number")
-    rec = await db.otps.find_one({"mobile": mobile}) or {}
+    mobile = _mobile(body.mobile)
+    if await _existing_customer(mobile):
+        raise HTTPException(status_code=409, detail="This mobile number is already registered. Sign in with your password or contact support to reset it.")
+    otp_id = f"registration:{mobile}"
+    rec = await db.otps.find_one({"_id": otp_id}) or {}
     now = datetime.now(timezone.utc)
     # rate limit: max 5 requests per 15 min
     window_start = rec.get("window_start")
@@ -169,23 +214,19 @@ async def otp_request(body: OtpRequest):
     otp = str(secrets.randbelow(900000) + 100000)
     expires = (now + timedelta(minutes=10)).isoformat()
     await db.otps.update_one(
-        {"mobile": mobile},
-        {"$set": {"mobile": mobile, "otp": otp, "expires": expires, "verified": False,
+        {"_id": otp_id},
+        {"$set": {"mobile": mobile, "purpose": "registration", "otp": otp, "expires": expires, "verified": False,
+                  "consumed": False,
                   "wrong_attempts": 0, "window_start": window_start, "request_count": count + 1,
-                  "created_at": now_iso()}},
+                  "created_at": now_iso()}, "$unset": {"registration_token_hash": "", "registration_expires": ""}},
         upsert=True,
     )
-    whatsapp = await send_whatsapp(db, mobile, f"Your VETMECH verification code is {otp}. Valid for 10 minutes.", kind="otp")
+    whatsapp = await send_whatsapp(db, mobile, f"Your VETMECH registration verification code is {otp}. Valid for 10 minutes.", kind="otp")
     delivered = whatsapp.get("status") == "sent"
-    cust = await db.customers.find_one({"$or": [{"normalized_mobile": mobile}, {"mobile": {"$regex": mobile + "$"}}]}, {"_id": 0, "email": 1})
-    if cust and cust.get("email"):
-        subj, ebody = await email_for(db, "otp", {"otp": otp})
-        email = await send_email(db, cust["email"], subj, ebody, kind="otp", cc_admin=False)
-        delivered = delivered or email.get("status") == "sent"
     if not delivered and not dev_otp_enabled():
-        await db.otps.update_one({"mobile": mobile, "otp": otp}, {"$set": {"otp": "", "expires": now_iso()}})
-        raise HTTPException(status_code=503, detail="OTP could not be sent. Please use password login or contact support.")
-    result = {"sent": True, "message": "OTP sent. Check WhatsApp or your registered email."}
+        await db.otps.update_one({"_id": otp_id, "otp": otp}, {"$set": {"otp": "", "expires": now_iso()}})
+        raise HTTPException(status_code=503, detail="Registration OTP could not be sent. Please try again later or contact VETMECH support.")
+    result = {"sent": True, "message": "Registration OTP sent to your mobile on WhatsApp."}
     if dev_otp_enabled():
         result.update(dev_otp=otp, message="Development OTP generated.")
     return result
@@ -197,8 +238,11 @@ def _status_of(cust):
 
 @router.post("/otp/verify")
 async def otp_verify(body: OtpVerify):
-    mobile = normalize_mobile(body.mobile)
-    rec = await db.otps.find_one({"mobile": mobile})
+    mobile = _mobile(body.mobile)
+    if await _existing_customer(mobile):
+        raise HTTPException(status_code=409, detail="Sign in with your password. OTP is only for new registrations.")
+    otp_id = f"registration:{mobile}"
+    rec = await db.otps.find_one({"_id": otp_id, "purpose": "registration"})
     if not rec:
         raise HTTPException(status_code=400, detail="Please request an OTP first")
     if rec.get("verified"):
@@ -206,51 +250,33 @@ async def otp_verify(body: OtpVerify):
     if rec.get("wrong_attempts", 0) >= 5:
         raise HTTPException(status_code=429, detail="Too many incorrect attempts. Please request a new OTP.")
     if rec.get("otp") != body.otp.strip():
-        await db.otps.update_one({"mobile": mobile}, {"$inc": {"wrong_attempts": 1}})
+        await db.otps.update_one({"_id": otp_id}, {"$inc": {"wrong_attempts": 1}})
         raise HTTPException(status_code=400, detail="Invalid OTP")
     if rec.get("expires", "") < now_iso():
         raise HTTPException(status_code=400, detail="OTP expired, request a new one")
+    registration_token = secrets.token_urlsafe(32)
     claimed = await db.otps.find_one_and_update(
-        {"mobile": mobile, "otp": body.otp.strip(), "verified": False,
+        {"_id": otp_id, "purpose": "registration", "otp": body.otp.strip(), "verified": False,
          "expires": {"$gt": now_iso()}, "wrong_attempts": {"$lt": 5}},
-        {"$set": {"verified": True, "wrong_attempts": 0}},
+        {"$set": {"verified": True, "verified_at": now_iso(), "wrong_attempts": 0,
+                  "registration_token_hash": hashlib.sha256(registration_token.encode()).hexdigest(),
+                  "registration_expires": (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()}},
     )
     if not claimed:
         raise HTTPException(status_code=400, detail="OTP expired or already used. Please request a new OTP.")
-    customer = await db.customers.find_one(
-        {"$or": [{"normalized_mobile": mobile}, {"mobile": {"$regex": mobile + "$"}}]}, {"_id": 0})
-    if customer:
-        st = _status_of(customer)
-        if st in BLOCKED:
-            raise HTTPException(status_code=403, detail=BLOCKED[st])
-        token = create_token(customer["id"], "customer")
-        customer.pop("password_hash", None)
-        return {"verified": True, "registered": True, "token": token, "customer": customer,
-                "status": st, "status_label": customer_status_label(st)}
-    return {"verified": True, "registered": False, "mobile": mobile}
+    return {"verified": True, "registered": False, "mobile": mobile,
+            "verification_token": registration_token}
 
 
 @router.post("/login/password")
 async def login_password(body: PasswordLogin):
-    settings = await pricing_settings()
-    if not settings.get("enable_password_login", True):
-        raise HTTPException(status_code=400, detail="Password login is currently disabled. Please use OTP login.")
-    mobile = normalize_mobile(body.mobile)
+    mobile = _mobile(body.mobile)
     ident = f"pw:{mobile}"
-    att = await db.login_attempts.find_one({"identifier": ident}) or {}
-    now = datetime.now(timezone.utc)
-    locked_until = att.get("locked_until")
-    if locked_until and datetime.fromisoformat(locked_until) > now:
-        raise HTTPException(status_code=429, detail="Too many failed attempts. Please try again in a few minutes.")
+    att = await _check_login_lock(ident)
     customer = await db.customers.find_one(
         {"$or": [{"normalized_mobile": mobile}, {"mobile": {"$regex": mobile + "$"}}]})
     if not customer or not customer.get("password_hash") or not verify_password(body.password, customer["password_hash"]):
-        fails = att.get("fails", 0) + 1
-        upd = {"identifier": ident, "fails": fails, "updated_at": now_iso()}
-        if fails >= 5:
-            upd["locked_until"] = (now + timedelta(minutes=15)).isoformat()
-            upd["fails"] = 0
-        await db.login_attempts.update_one({"identifier": ident}, {"$set": upd}, upsert=True)
+        await _failed_login(ident, att)
         raise HTTPException(status_code=401, detail="Invalid mobile number or password")
     st = _status_of(customer)
     if st in BLOCKED:
@@ -259,10 +285,12 @@ async def login_password(body: PasswordLogin):
     token = create_token(customer["id"], "customer")
     customer.pop("_id", None)
     customer.pop("password_hash", None)
+    customer.pop("password", None)
     return {"token": token, "customer": customer, "status": st, "status_label": customer_status_label(st)}
 
 
 @router.get("/customer/me")
 async def customer_me(customer: dict = Depends(get_current_customer)):
     customer.pop("password_hash", None)
+    customer.pop("password", None)
     return customer

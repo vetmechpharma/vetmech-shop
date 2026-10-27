@@ -1,3 +1,4 @@
+import LoadError from "@/components/LoadError";
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, apiError } from "@/lib/api";
@@ -24,7 +25,7 @@ export default function AdminOrders() {
   const [createOpen, setCreateOpen] = useState(false);
   const delOrder = useMutation({ mutationFn: async (id) => (await api.delete(`/admin/orders/${id}`)).data, onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-orders"] }); toast.success("Order deleted"); }, onError: (e) => toast.error(apiError(e)) });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-orders", status, q],
     queryFn: async () => (await api.get("/admin/orders", { params: { status: status !== "all" ? status : undefined, q: q || undefined, limit: 100 } })).data,
   });
@@ -64,7 +65,7 @@ export default function AdminOrders() {
         <Table>
           <TableHeader><TableRow className="bg-vm-bg"><TableHead>Order #</TableHead><TableHead>Customer</TableHead><TableHead>Date</TableHead><TableHead className="text-center">Qty</TableHead><TableHead>Status</TableHead><TableHead>Transport</TableHead><TableHead>Freight</TableHead><TableHead>Invoice #</TableHead><TableHead className="text-right">View</TableHead></TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={9} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
+            {isError ? <TableRow><TableCell colSpan={9}><LoadError onRetry={() => refetch()} /></TableCell></TableRow> : isLoading ? <TableRow><TableCell colSpan={9} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
               : (data?.items || []).length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-10 text-slate-400">No orders found.</TableCell></TableRow>
               : data.items.map((o) => (
                 <TableRow key={o.id} data-testid={`order-row-${o.order_number}`}>
@@ -77,8 +78,8 @@ export default function AdminOrders() {
                   <TableCell className="text-sm">{o.dispatch ? <span className={`text-xs font-semibold px-2 py-0.5 rounded ${o.dispatch.freight === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{o.dispatch.freight === "paid" ? "Paid" : "To Pay"}</span> : <span className="text-slate-300">—</span>}</TableCell>
                   <TableCell className="text-sm text-slate-600">{o.dispatch?.invoice_number || <span className="text-slate-300">—</span>}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    <Button variant="ghost" size="icon" onClick={() => setDetailId(o.id)} data-testid={`view-order-${o.order_number}`}><Eye className="w-4 h-4" /></Button>
-                    <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500" data-testid={`delete-order-${o.order_number}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
+                    <Button variant="ghost" size="icon" onClick={() => setDetailId(o.id)} aria-label={`View order ${o.order_number}`} data-testid={`view-order-${o.order_number}`}><Eye className="w-4 h-4" /></Button>
+                    <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500" aria-label={`Delete order ${o.order_number}`} data-testid={`delete-order-${o.order_number}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
                       <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete order {o.order_number}?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-600" onClick={() => delOrder.mutate(o.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                   </TableCell>
                 </TableRow>

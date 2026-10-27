@@ -5,7 +5,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        heading: ['Ubuntu', 'system-ui', 'sans-serif'],
+        heading: ['Manrope', 'system-ui', 'sans-serif'],
         body: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
@@ -28,10 +28,10 @@ module.exports = {
       },
       colors: {
         vm: {
-          green: '#065F46',
-          greenhover: '#054C38',
-          accent: '#D97706',
-          ink: '#0F172A',
+          green: '#DF2030',
+          greenhover: '#B71827',
+          accent: '#DF2030',
+          ink: '#17181B',
           bg: '#F8FAFC',
           bg2: '#EEF2F6',
         },

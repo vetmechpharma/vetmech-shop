@@ -1,5 +1,6 @@
 import { DEMO_KEY, DEMO_SCHEMA, DEMO_PASSWORD, DEMO_OTP, seedDemo } from "./seed.mjs";
 import { productProfileExample } from "./productProfileExample.mjs";
+import { passwordError } from "../lib/customerAuth.mjs";
 
 export class DemoError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -20,6 +21,7 @@ export function createDemoEngine(storage) {
   let state;
   try { state = JSON.parse(storage.getItem(DEMO_KEY) || "null"); } catch { state = null; }
   if (!state || state.schema !== DEMO_SCHEMA) state = seedDemo();
+  state.registration_otps ||= {};
   // Add the product-page example without resetting existing browser-demo edits.
   if (!state.product_profile_demo_v2) {
     state.products = state.products || [];
@@ -36,7 +38,8 @@ export function createDemoEngine(storage) {
   };
   const audit = (action, entity, entity_id) => state.audit_logs.unshift({ id: uid("audit"), actor_name: "Demo Admin", actor_role: "super_admin", action, entity, entity_id, meta: {}, created_at: today() });
   const notify = (kind, message) => state.notification_logs.unshift({ id: uid("notification"), channel: "whatsapp", to: "Demo recipient", kind, message, simulated: true, status: "simulated", created_at: today() });
-  const cleanCustomer = c => { const { password, ...rest } = c; return copy(rest); };
+  const cleanCustomer = c => { const { password, ...rest } = c; return copy({ ...rest, has_password: !!password }); };
+  const mobileNumber = value => { const mobile = String(value || "").replace(/\D/g, "").slice(-10); if (mobile.length !== 10) throw new DemoError(400, "Enter a valid 10-digit mobile number"); return mobile; };
   const tokenCustomer = token => state.customers.find(c => token === `demo-customer:${c.id}`);
   const offerList = (variant, customer) => {
     if (!customer || customer.status !== "active") return [];
@@ -130,15 +133,37 @@ export function createDemoEngine(storage) {
     } else if (path === "/auth/customer/me") {
       if (!customer) throw new DemoError(401, "Enter the customer demo."); result = cleanCustomer(customer);
     } else if (path === "/auth/otp/request") {
-      result = { sent: true, dev_otp: DEMO_OTP, message: `Demo OTP: ${DEMO_OTP}. No message was sent.` };
-    } else if (path === "/auth/otp/verify" || path === "/auth/login/password") {
-      const found = state.customers.find(c => c.mobile === body.mobile);
-      if ((path.endsWith("verify") && body.otp !== DEMO_OTP) || (path.endsWith("password") && (!found || body.password !== (found.password || DEMO_PASSWORD)))) throw new DemoError(400, "Use the correct sample password or demo OTP 123456.");
-      if (!found) result = { verified: true, registered: false, mobile: body.mobile };
-      else { if (["suspended", "rejected", "deleted"].includes(found.status)) throw new DemoError(403, "This sample account is inactive."); result = { token: `demo-customer:${found.id}`, customer: cleanCustomer(found), registered: true, verified: true, status: found.status }; }
+      const mobile = mobileNumber(body.mobile);
+      if (state.customers.some(c => c.mobile === mobile)) throw new DemoError(409, "This mobile is already registered. Sign in with your password.");
+      const previous = state.registration_otps[mobile], recent = previous && previous.window_start > Date.now() - 900000;
+      if (recent && previous.requests >= 5) throw new DemoError(429, "Too many OTP requests. Please try again later.");
+      state.registration_otps[mobile] = { expires: Date.now() + 600000, verified: false, attempts: 0, requests: recent ? previous.requests + 1 : 1, window_start: recent ? previous.window_start : Date.now() };
+      result = { sent: true, dev_otp: DEMO_OTP, message: `Demo registration OTP: ${DEMO_OTP}. No message was sent.` };
+    } else if (path === "/auth/otp/verify") {
+      const mobile = mobileNumber(body.mobile), record = state.registration_otps[mobile];
+      if (state.customers.some(c => c.mobile === mobile)) throw new DemoError(409, "OTP is only for new registrations. Sign in with your password.");
+      if (!record || record.expires <= Date.now() || record.verified) throw new DemoError(400, "Request a new registration OTP.");
+      if (record.attempts >= 5) throw new DemoError(429, "Too many incorrect attempts. Request a new OTP.");
+      if (body.otp !== DEMO_OTP) { record.attempts++; persist(); throw new DemoError(400, "Invalid registration OTP."); }
+      Object.assign(record, { verified: true, token: uid("registration"), registration_expires: Date.now() + 900000, consumed: false });
+      result = { verified: true, registered: false, mobile, verification_token: record.token };
+    } else if (path === "/auth/login/password") {
+      const mobile = mobileNumber(body.mobile), found = state.customers.find(c => c.mobile === mobile);
+      if (!found?.password || body.password !== found.password) throw new DemoError(401, "Invalid mobile number or password");
+      if (["suspended", "rejected", "deleted"].includes(found.status)) throw new DemoError(403, "This sample account is inactive.");
+      result = { token: `demo-customer:${found.id}`, customer: cleanCustomer(found), status: found.status };
     } else if (path === "/auth/register") {
-      if (state.customers.some(c => c.mobile === body.mobile)) throw new DemoError(400, "This sample mobile is already registered.");
-      state.customers.push({ ...copy(body), id: uid("customer"), status: "pending", active: true, addresses: [], created_at: today() }); result = { registered: true, status: "pending", message: "Sample registration saved. Approve it in the admin demo." };
+      const mobile = mobileNumber(body.mobile), record = state.registration_otps[mobile];
+      if (state.customers.some(c => c.mobile === mobile)) throw new DemoError(409, "This sample mobile is already registered.");
+      if (passwordError(body.password)) throw new DemoError(400, passwordError(body.password));
+      if (!body.name?.trim()) throw new DemoError(400, "Please enter your name");
+      if (!CATEGORIES.includes(body.category || "other")) throw new DemoError(400, "Choose a valid customer category");
+      if (["doctor", "agency", "medical_shop", "distributor"].includes(body.category) && !body.license_number?.trim()) throw new DemoError(400, "License Number is required for your selected category");
+      if (!record?.verified || record.consumed || !record.token || record.token !== body.verification_token || record.registration_expires <= Date.now()) throw new DemoError(400, "Verify your mobile number with a registration OTP first.");
+      record.consumed = true;
+      const { verification_token, ...details } = copy(body), status = state.settings.pricing_engine.require_approval === false ? "active" : "pending";
+      state.customers.push({ ...details, mobile, id: uid("customer"), status, active: true, addresses: [], created_at: today() });
+      result = { registered: true, status, message: status === "pending" ? "Sample registration saved. Approve it in the admin demo." : "Sample account created. You can now sign in with your password." };
     } else if (path === "/health" || path === "/") result = { status: "ok", mode: "demo" };
     else if (parts[0] === "settings" || (parts[0] === "admin" && parts[1] === "settings")) {
       const id = parts[parts.length - 1]; if (mutation) state.settings[id] = { ...state.settings[id], ...copy(body), id }; result = copy(state.settings[id] || { id });
@@ -227,14 +252,14 @@ export function createDemoEngine(storage) {
   function customersApi(method, parts, params, body) {
     const id = parts[2], action = parts[3];
     if (!id && method === "GET") return pages(search(state.customers.filter(c => (!params.status || c.status === params.status) && (!params.category || c.category === params.category)), params.q).map(c => ({ ...cleanCustomer(c), order_count: state.orders.filter(o => o.customer_id === c.id).length })), params);
-    if (!id) { if (state.customers.some(c => c.mobile === body.mobile)) throw new DemoError(400, "Mobile already exists in the demo."); const row = { ...copy(body), id: uid("customer"), status: body.status || "active", active: true, addresses: [], created_at: today() }; state.customers.push(row); return cleanCustomer(row); }
+    if (!id) { if (passwordError(body.password)) throw new DemoError(400, passwordError(body.password)); if (state.customers.some(c => c.mobile === body.mobile)) throw new DemoError(400, "Mobile already exists in the demo."); const row = { ...copy(body), id: uid("customer"), status: body.status || "active", active: true, addresses: [], created_at: today() }; state.customers.push(row); return cleanCustomer(row); }
     const row = get("customers", id);
     if (method === "DELETE") { row.status = "deleted"; return { deleted: true }; }
     if (action) {
       const states = { approve: "active", reject: "rejected", suspend: "suspended", reactivate: "active" };
       if (states[action]) row.status = states[action];
       if (action === "change-category") row.category = body.category;
-      if (action === "reset-password") row.password = body.password;
+      if (action === "reset-password") { if (passwordError(body.password)) throw new DemoError(400, passwordError(body.password)); row.password = body.password; }
     } else if (method !== "GET") Object.assign(row, copy(body));
     return { ...cleanCustomer(row), orders: copy(state.orders.filter(o => o.customer_id === id)), order_count: state.orders.filter(o => o.customer_id === id).length, total_value: state.orders.filter(o => o.customer_id === id).reduce((n, o) => n + (o.sales_value || 0), 0), frequent_products: [] };
   }
@@ -257,7 +282,7 @@ export function createDemoEngine(storage) {
   }
   function pricingApi(method, parts, body) {
     const section = parts[2], id = parts[3];
-    if (section === "settings") { if (method !== "GET") Object.assign(state.settings.pricing_engine, copy(body)); return copy(state.settings.pricing_engine); }
+    if (section === "settings") { if (method !== "GET") Object.assign(state.settings.pricing_engine, copy(body)); return copy({ ...state.settings.pricing_engine, enable_otp: false, enable_password_login: true }); }
     if (section === "product") {
       const product = get("products", id);
       if (method !== "GET") for (const row of body.prices || []) { state.category_prices = state.category_prices.filter(p => !(p.variant_id === row.variant_id && p.category === row.category)); if (row.rate != null && row.rate !== "") state.category_prices.push({ ...row, rate: Number(row.rate), product_id: id, active: true }); }
@@ -315,7 +340,7 @@ export function createDemoEngine(storage) {
   }
   function dashboard() {
     const rows = state.orders, sales_value = money(rows.filter(o => o.status !== "cancelled").reduce((n, o) => n + o.items.reduce((v, i) => v + i.unit_price * i.qty, 0), 0));
-    return { today_orders: rows.filter(o => o.created_at.slice(0, 10) === today().slice(0, 10)).length, status_counts: Object.fromEntries(["new", "confirmed", "processing", "ready_to_dispatch", "dispatched", "delivered", "cancelled", "on_hold"].map(s => [s, rows.filter(o => o.status === s).length])), sales_value, total_orders: rows.length, total_customers: state.customers.length, repeat_customers: state.customers.filter(c => rows.filter(o => o.customer_id === c.id).length > 1).length, trend: Array.from({ length: 7 }, (_, i) => { const date = new Date(Date.now() - (6 - i) * 86400000).toISOString().slice(0, 10); return { date, orders: rows.filter(o => o.created_at.startsWith(date)).length }; }), top_products: state.products.map(p => ({ name: p.name, qty: rows.flatMap(o => o.items).filter(i => i.product_id === p.id).reduce((n, i) => n + i.qty, 0) })), category_performance: [{ name: "Large Animal", qty: rows.reduce((n, o) => n + o.total_qty, 0) }], top_customers: state.customers.map(c => ({ name: c.name, orders: rows.filter(o => o.customer_id === c.id).length })) };
+    return { today_orders: rows.filter(o => o.created_at.slice(0, 10) === today().slice(0, 10)).length, status_counts: Object.fromEntries(["new", "confirmed", "processing", "ready_to_dispatch", "dispatched", "delivered", "cancelled", "on_hold"].map(s => [s, rows.filter(o => o.status === s).length])), sales_value, total_orders: rows.length, total_customers: state.customers.length, pending_customers: state.customers.filter(c => c.status === "pending").length, repeat_customers: state.customers.filter(c => rows.filter(o => o.customer_id === c.id).length > 1).length, trend: Array.from({ length: 7 }, (_, i) => { const date = new Date(Date.now() - (6 - i) * 86400000).toISOString().slice(0, 10); return { date, orders: rows.filter(o => o.created_at.startsWith(date)).length }; }), top_products: state.products.map(p => ({ name: p.name, qty: rows.flatMap(o => o.items).filter(i => i.product_id === p.id).reduce((n, i) => n + i.qty, 0) })), category_performance: [{ name: "Large Animal", qty: rows.reduce((n, o) => n + o.total_qty, 0) }], top_customers: state.customers.map(c => ({ name: c.name, orders: rows.filter(o => o.customer_id === c.id).length })) };
   }
   return { handle, snapshot: () => copy(state), reset: () => { state = seedDemo(); persist(); }, enterCustomer: id => { get("customers", id); return `demo-customer:${id}`; } };
 }

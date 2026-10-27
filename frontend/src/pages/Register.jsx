@@ -4,6 +4,8 @@ import { api, apiError } from "@/lib/api";
 import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PasswordInput from "@/components/PasswordInput";
+import { passwordError, safeReturnPath } from "@/lib/customerAuth.mjs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,28 +20,67 @@ const LICENSE_REQUIRED = ["doctor", "agency", "medical_shop", "distributor"];
 export default function Register() {
   const loc = useLocation();
   const navigate = useNavigate();
-  const redirect = new URLSearchParams(loc.search).get("redirect");
+  const redirect = safeReturnPath(new URLSearchParams(loc.search).get("redirect"));
   const [form, setForm] = useState({ ...empty, mobile: loc.state?.mobile || "" });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(null);
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [otpStep, setOtpStep] = useState("mobile");
+  const [otp, setOtp] = useState("");
+  const [devOtp, setDevOtp] = useState("");
+  const [verification, setVerification] = useState(null);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [error, setError] = useState("");
+  const verified = verification?.mobile === form.mobile && !!verification?.token;
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (k === "mobile") { setVerification(null); setOtpStep("mobile"); setOtp(""); setDevOtp(""); }
+  };
 
-  const submit = async () => {
+  const sendOtp = async () => {
+    if (form.mobile.length !== 10) { setError("Enter a valid 10-digit mobile number"); return; }
+    const mobile = form.mobile;
+    setOtpLoading(true); setError("");
+    try {
+      const { data } = await api.post("/auth/otp/request", { mobile });
+      setOtpStep("otp"); setOtp(""); setDevOtp(data.dev_otp || "");
+      toast.success(data.message);
+    } catch (e) { setError(apiError(e)); }
+    finally { setOtpLoading(false); }
+  };
+
+  const verifyOtp = async () => {
+    setOtpLoading(true); setError("");
+    try {
+      const { data } = await api.post("/auth/otp/verify", { mobile: form.mobile, otp });
+      setVerification({ mobile: data.mobile, token: data.verification_token });
+      setOtp(""); setDevOtp(""); toast.success("Mobile number verified. Complete your account details.");
+    } catch (e) { setError(apiError(e)); }
+    finally { setOtpLoading(false); }
+  };
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (loading) return;
+    if (!verified) { setError("Verify your mobile number before creating an account"); return; }
     if (!form.name.trim()) return toast.error("Please enter your name");
     if (form.mobile.length !== 10) return toast.error("Enter a valid 10-digit mobile");
     if (LICENSE_REQUIRED.includes(form.category) && !form.license_number.trim()) return toast.error("License Number is required for your selected category");
-    setLoading(true);
+    if (passwordError(form.password)) { setError(passwordError(form.password)); return; }
+    if (form.password !== confirmPassword) { setError("Passwords do not match"); return; }
+    setLoading(true); setError("");
     try {
-      const { data } = await api.post("/auth/register", form);
+      const { data } = await api.post("/auth/register", { ...form, verification_token: verification.token });
+      setForm((f) => ({ ...f, password: "" })); setConfirmPassword(""); setVerification(null);
       setDone(data);
-    } catch (e) { toast.error(apiError(e)); }
+    } catch (e) { setError(apiError(e)); }
     setLoading(false);
   };
 
   if (done) {
     return (
       <div className="vm-container py-20 max-w-lg text-center">
-        <SEO title="Registration Received" />
+        <SEO noindex title="Registration Received" />
         <CheckCircle2 className="w-16 h-16 mx-auto text-vm-green mb-4" />
         <h1 className="font-heading text-2xl font-bold text-vm-ink">Registration Received</h1>
         <p className="text-slate-600 mt-3" data-testid="register-success-msg">{done.message}</p>
@@ -53,7 +94,7 @@ export default function Register() {
 
   return (
     <div className="min-h-[70vh] grid lg:grid-cols-2">
-      <SEO title="Create Account" />
+      <SEO noindex title="Create Account" />
       <div className="relative hidden lg:block bg-vm-ink overflow-hidden">
         <img src="https://images.unsplash.com/photo-1732690233982-1d4567384ea1?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200" alt="Laboratory" className="absolute inset-0 w-full h-full object-cover opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-t from-vm-ink via-vm-ink/70 to-vm-ink/30" />
@@ -72,7 +113,26 @@ export default function Register() {
       <div className="flex items-center justify-center p-6 md:p-12 overflow-y-auto">
         <div className="w-full max-w-lg">
           <h1 className="font-heading text-3xl font-bold text-vm-ink">Create your account</h1>
-          <p className="text-slate-500 text-sm mt-2 mb-6">Register to unlock your special B2B pricing. New accounts are activated after admin approval.</p>
+          <p className="text-slate-500 text-sm mt-2 mb-6">Verify your mobile with a one-time code and set a password. Your password is used for future sign-ins.</p>
+
+          <form onSubmit={submit}>
+          <div className="border border-slate-200 bg-slate-50 rounded-xl p-5 mb-6 space-y-3">
+            <div className="flex items-center gap-2 font-heading font-bold text-vm-ink"><ShieldCheck className="w-5 h-5 text-vm-green" /> Verify your mobile</div>
+            <Label htmlFor="reg-mobile">Mobile number *</Label>
+            <div className="flex gap-2"><Input id="reg-mobile" type="tel" autoComplete="tel-national" inputMode="numeric" value={form.mobile}
+              onChange={(e) => set("mobile", e.target.value.replace(/\D/g, ""))} required pattern="[0-9]{10}" maxLength={10}
+              placeholder="10-digit mobile" disabled={otpLoading || loading} data-testid="reg-mobile" />
+              {!verified && <Button type="button" variant="outline" onClick={sendOtp} disabled={otpLoading || form.mobile.length !== 10} data-testid="reg-send-otp">
+                {otpLoading && <Loader2 className="w-4 h-4 animate-spin" />}{otpStep === "otp" ? "Resend OTP" : "Send OTP"}</Button>}
+            </div>
+            {verified ? <p className="text-sm text-green-700 flex gap-2 items-center" data-testid="reg-mobile-verified"><CheckCircle2 className="w-4 h-4" /> Mobile verified</p> : otpStep === "otp" ? <>
+              <p className="text-sm text-slate-500">Enter the 6-digit registration code sent to your mobile on WhatsApp. Valid for 10 minutes.</p>
+              <Label htmlFor="reg-otp">Registration OTP</Label>
+              <div className="flex gap-2"><Input id="reg-otp" inputMode="numeric" autoComplete="one-time-code" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} maxLength={6} placeholder="6-digit code" data-testid="reg-otp" />
+                <Button type="button" onClick={verifyOtp} disabled={otpLoading || otp.length !== 6} data-testid="reg-verify-otp">Verify</Button></div>
+              {devOtp && <p className="text-sm bg-white p-2 rounded" data-testid="reg-demo-otp">Demo registration code: <strong>{devOtp}</strong>. No message was sent.</p>}
+            </> : <p className="text-sm text-slate-500">Use a mobile number with WhatsApp to receive your registration code.</p>}
+          </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
@@ -80,8 +140,7 @@ export default function Register() {
               <Select value={form.prefix} onValueChange={(v) => set("prefix", v)}><SelectTrigger className="mt-1" data-testid="reg-prefix"><SelectValue /></SelectTrigger>
                 <SelectContent>{PREFIXES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select>
             </div>
-            <div><Label>Full Name *</Label><Input value={form.name} onChange={(e) => set("name", e.target.value)} className="mt-1" data-testid="reg-name" /></div>
-            <div><Label>Mobile Number *</Label><Input value={form.mobile} onChange={(e) => set("mobile", e.target.value.replace(/\D/g, ""))} maxLength={10} className="mt-1" data-testid="reg-mobile" /></div>
+            <div><Label htmlFor="reg-name">Full Name *</Label><Input id="reg-name" autoComplete="name" required value={form.name} onChange={(e) => set("name", e.target.value)} className="mt-1" data-testid="reg-name" /></div>
             <div><Label>WhatsApp Number</Label><Input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value.replace(/\D/g, ""))} maxLength={10} className="mt-1" placeholder="Same as mobile if blank" data-testid="reg-whatsapp" /></div>
             <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className="mt-1" data-testid="reg-email" /></div>
             <div><Label>Company Name</Label><Input value={form.company_name} onChange={(e) => set("company_name", e.target.value)} className="mt-1" data-testid="reg-company" /></div>
@@ -99,14 +158,18 @@ export default function Register() {
                 <SelectContent>{CUSTOMER_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent></Select>
             </div>
             {LICENSE_REQUIRED.includes(form.category) && (
-              <div className="sm:col-span-2"><Label>License Number *</Label><Input value={form.license_number} onChange={(e) => set("license_number", e.target.value)} className="mt-1" placeholder="Drug / Trade license number" data-testid="reg-license" /></div>
+              <div className="sm:col-span-2"><Label htmlFor="reg-license">License Number *</Label><Input id="reg-license" required value={form.license_number} onChange={(e) => set("license_number", e.target.value)} className="mt-1" placeholder="Drug / Trade license number" data-testid="reg-license" /></div>
             )}
-            <div className="sm:col-span-2"><Label>Password (optional)</Label><Input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} className="mt-1" placeholder="Set a password for password login (you can always use OTP)" data-testid="reg-password" /></div>
+            <div className="sm:col-span-2 space-y-2"><Label htmlFor="reg-password">Password *</Label><PasswordInput id="reg-password" required minLength={8} autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="At least 8 characters" data-testid="reg-password" />
+              <p className="text-sm text-slate-500">Use at least 8 characters. You will sign in with this password.</p></div>
+            <div className="sm:col-span-2 space-y-2"><Label htmlFor="reg-password-confirm">Confirm password *</Label><PasswordInput id="reg-password-confirm" label="confirmation password" required autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Enter your password again" data-testid="reg-password-confirm" /></div>
           </div>
 
-          <Button className="mt-6 w-full bg-vm-green hover:bg-vm-greenhover" onClick={submit} disabled={loading} data-testid="reg-submit">
+          {error && <p role="alert" className="text-sm text-red-700 bg-red-50 p-3 rounded-md mt-4">{error}</p>}
+          <Button type="submit" className="mt-6 w-full bg-vm-green hover:bg-vm-greenhover" disabled={loading || !verified} data-testid="reg-submit">
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Create Account
           </Button>
+          </form>
           <p className="text-sm text-slate-500 mt-4 text-center">Already have an account? <Link to="/account" className="text-vm-green font-semibold hover:underline">Login</Link></p>
         </div>
       </div>

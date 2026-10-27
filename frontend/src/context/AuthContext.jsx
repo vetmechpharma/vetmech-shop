@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
+  const queryClient = useQueryClient();
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +33,10 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem("vm_customer_token");
+    for (const prefix of ["my-orders", "products", "product", "cat-products", "quick-order"]) {
+      queryClient.cancelQueries({ queryKey: [prefix] });
+      queryClient.removeQueries({ queryKey: [prefix] });
+    }
     setCustomer(null);
   };
 

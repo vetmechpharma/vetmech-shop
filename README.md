@@ -23,7 +23,7 @@ Existing native installations also need the checked nginx SEO routing installer.
 ## Existing modules
 
 - Public website, product catalogue, categories, product SEO and social previews.
-- Customer registration/approval, password and WhatsApp OTP login, customer pricing,
+- Customer registration with WhatsApp OTP verification and a required password, admin approval, password login, customer pricing,
   quantity offers, cart, orders, dispatch and reorder.
 - Admin CMS, users/permissions, quotations/PDF, customer reports, CRM and tickets.
 - Configurable WhatsApp gateway, SMTP, notification templates and database/media backups.
@@ -114,8 +114,9 @@ rollback tooling remain documented in [the legacy guide](docs/HOMEPAGE_UPDATE.md
 ## Integrations
 
 Configure WhatsApp API URL/key/session and SMTP credentials in Admin. Production
-OTP login returns a delivery error if neither WhatsApp nor registered-email
-delivery succeeds; password login remains available. Test with an explicit test
+Registration requires successful WhatsApp OTP delivery; the server returns a delivery
+error if it cannot send the code. Customer login uses mobile number and password.
+Existing OTP-only customers need a password set through Admin → Customers → Reset Password. Test with an explicit test
 recipient before enabling customer notifications.
 
 Review reminders previously scheduled by Emergent need a scheduler on the new

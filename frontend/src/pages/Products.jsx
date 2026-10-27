@@ -1,7 +1,9 @@
+import LoadError from "@/components/LoadError";
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import SEO from "@/components/SEO";
 import ProductCard from "@/components/public/ProductCard";
 import { Input } from "@/components/ui/input";
@@ -49,6 +51,7 @@ function FilterRail({ categories, brands, category, setCategory, brand, setBrand
 }
 
 export default function Products() {
+  const { customer, loading: authLoading } = useAuth();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get("q") || "");
   const [category, setCategory] = useState("all");
@@ -60,8 +63,9 @@ export default function Products() {
 
   const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: async () => (await api.get("/brands")).data });
   const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: async () => (await api.get("/categories")).data });
-  const { data, isLoading } = useQuery({
-    queryKey: ["products", q, category, brand, availability, page],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["products", q, category, brand, availability, page, customer?.id, customer?.status, customer?.category],
+    enabled: !authLoading,
     queryFn: async () => (await api.get("/products", {
       params: {
         q: q || undefined, category: category !== "all" ? category : undefined,
@@ -100,7 +104,7 @@ export default function Products() {
             </Sheet>
           </div>
 
-          {isLoading ? (
+          {isError ? <LoadError onRetry={() => refetch()} /> : isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-80 rounded-lg" />)}</div>
           ) : data?.items?.length ? (
             <>
