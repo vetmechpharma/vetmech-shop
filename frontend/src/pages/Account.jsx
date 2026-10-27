@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import SEO from "@/components/SEO";
 import LedgerView from "@/components/ledger/LedgerView";
+import PendingOrderItems from "@/components/public/PendingOrderItems";
 import {ledgerDate,ledgerMoney} from "@/lib/ledger.mjs";
 import AuthDialog from "@/components/public/AuthDialog";
 import { Button } from "@/components/ui/button";
@@ -109,9 +110,10 @@ function Dashboard({ customer, logout }) {
       )}
 
       <Tabs defaultValue="orders" className="mt-8">
-        <TabsList>
+        <TabsList className="flex h-auto w-fit max-w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="orders" data-testid="tab-orders"><Package className="w-4 h-4 mr-1" /> My Orders</TabsTrigger>
           <TabsTrigger value="ledger" data-testid="tab-ledger"><Wallet className="w-4 h-4 mr-1" /> My Ledger</TabsTrigger>
+          <TabsTrigger value="missed" data-testid="tab-missed">Missed items</TabsTrigger>
           <TabsTrigger value="profile" data-testid="tab-profile"><User className="w-4 h-4 mr-1" /> Profile</TabsTrigger>
           <TabsTrigger value="addresses" data-testid="tab-addresses"><MapPin className="w-4 h-4 mr-1" /> Addresses</TabsTrigger>
         </TabsList>
@@ -154,6 +156,7 @@ function Dashboard({ customer, logout }) {
         </TabsContent>
 
         <TabsContent value="ledger" className="mt-6"><LedgerView customerId={customer.id}/></TabsContent>
+        <TabsContent value="missed" className="mt-6"><PendingOrderItems customer={customer} showEmpty/></TabsContent>
 
         <TabsContent value="profile" className="mt-4">
           <div className="border border-[#E2E8F0] rounded-lg p-5 grid sm:grid-cols-2 gap-4 text-sm max-w-2xl">

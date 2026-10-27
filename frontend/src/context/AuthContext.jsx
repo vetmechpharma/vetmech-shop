@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem("vm_customer_token");
-    for (const prefix of ["my-ledger", "my-orders", "products", "product", "cat-products", "quick-order"]) {
+    for (const prefix of ["my-pending-items", "my-ledger", "my-orders", "products", "product", "cat-products", "quick-order"]) {
       queryClient.cancelQueries({ queryKey: [prefix] });
       queryClient.removeQueries({ queryKey: [prefix] });
     }

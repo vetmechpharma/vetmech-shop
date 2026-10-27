@@ -36,6 +36,7 @@ import AdminSchemes from "@/pages/admin/AdminSchemes";
 import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminCustomers from "@/pages/admin/AdminCustomers";
 import AdminLedger from "@/pages/admin/AdminLedger";
+import AdminPendingItems from "@/pages/admin/AdminPendingItems";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import { AdminCategories, AdminBrands, AdminUnits, AdminNews, AdminGallery, AdminCareers } from "@/pages/admin/SimpleCrud";
 import { CompanySettings, WhatsAppSettings, SmtpSettings, SeoSettings, HomepageSettings, WebsiteSettings, MenuSettings, EmailTemplates } from "@/pages/admin/AdminSettings";
@@ -118,6 +119,7 @@ function App() {
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="customers" element={<AdminCustomers />} />
                   <Route path="ledger" element={<AdminLedger />} />
+                  <Route path="pending-items" element={<AdminPendingItems />} />
                   <Route path="customers/reports" element={<AdminCustomerReports />} />
                   <Route path="pages" element={<AdminPages />} />
                   <Route path="news" element={<AdminNews />} />

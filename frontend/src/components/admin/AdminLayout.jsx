@@ -26,6 +26,7 @@ const GROUPS = [
   {
     label: "Sales & Pricing", icon: IndianRupee, children: [
       { to: "/admin/orders", label: "Orders", module: "orders" },
+      { to: "/admin/pending-items", label: "Pending Items", module: "orders" },
       { to: "/admin/dispatch-list", label: "Dispatch Register", module: "orders" },
       { to: "/admin/transports", label: "Transport Master", module: "orders" },
       { to: "/admin/customers", label: "Customers", module: "customers" },

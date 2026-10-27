@@ -3,6 +3,7 @@ import { productProfileExample } from "./productProfileExample.mjs";
 import { passwordError } from "../lib/customerAuth.mjs";
 import { randomRelatedProducts } from "../lib/relatedProducts.mjs";
 import { isLedgerPath, handleLedger } from "./ledgerEngine.mjs";
+import {preparePending,pendingLinks,recordOosNotice,isPendingPath,handlePending,demoStockTemplates} from "./pendingEngine.mjs";
 
 export class DemoError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -25,6 +26,7 @@ export function createDemoEngine(storage) {
   if (!state || state.schema !== DEMO_SCHEMA) state = seedDemo();
   state.registration_otps ||= {};
   state.ledger_entries ||= [];
+  for(const order of state.orders||[])if(!Array.isArray(order.pending_items)&&(order.items||[]).some(line=>line.out_of_stock))order.pending_items=preparePending(order,order.items,uid,today);
   // Add the product-page example without resetting existing browser-demo edits.
   if (!state.product_profile_demo_v2) {
     state.products = state.products || [];
@@ -95,7 +97,9 @@ export function createDemoEngine(storage) {
   const makeOrder = (body, customer, manual = false) => {
     if (!body.items?.length) throw new DemoError(400, "Add at least one item.");
     const items = linesFor(body.items, customer, manual), seq = state.orders.length + 1;
+    const pending_reorders=pendingLinks(state,customer.id,body.pending_item_ids,items,DemoError);
     const order = { id: uid("order"), order_number: `DEMO-${new Date().getFullYear()}-${String(seq).padStart(5, "0")}`, customer_id: customer.id, customer_name: customer.name, customer_mobile: customer.mobile, customer_whatsapp: customer.mobile, customer_category: customer.category, company_name: customer.company_name, address: body.address || customer.default_address, items, status: body.status || "new", total_qty: items.reduce((n, i) => n + i.qty, 0), total_free: items.reduce((n, i) => n + i.free_qty, 0), total_dispatch: items.reduce((n, i) => n + i.dispatch_qty, 0), sales_value: money(items.reduce((n, i) => n + i.unit_price * i.qty, 0)), notes: body.notes || "", cash_discount: !!body.cash_discount, origin: { device: "Development demo", browser: "Demo", os: "Demo", location: "Local sample data", ip: "" }, activity: [{ id: uid("activity"), text: "Sample order created", actor: customer.name, at: today() }], created_at: today(), updated_at: today(), dispatch: null };
+    order.pending_reorders=pending_reorders;
     state.orders.unshift(order); notify("order_received", `Sample order ${order.order_number} created. No message was sent.`); return copy(order);
   };
   const makeQuote = (body, existing) => {
@@ -127,7 +131,8 @@ export function createDemoEngine(storage) {
     const mutation = method !== "GET";
     if ((path.startsWith("/admin/") || path.startsWith("/tickets") || path.startsWith("/crm/")) && !admin) throw new DemoError(401, "Enter the admin demo to continue.");
     let result;
-    if (isLedgerPath(path)) result = await handleLedger({state,method,parts,body,params,customer,admin,now:today,uid,ErrorType:DemoError});
+    if (isPendingPath(path)) result=handlePending({state,method,path,params,body,customer,admin,uid,now:today,ErrorType:DemoError});
+    else if (isLedgerPath(path)) result = await handleLedger({state,method,parts,body,params,customer,admin,now:today,uid,ErrorType:DemoError});
     else if (path === "/auth/admin/login") {
       if (body.email !== "demo@vetmech.local" || body.password !== DEMO_PASSWORD) throw new DemoError(401, "Demo login: demo@vetmech.local / Demo@123");
       result = { token: "demo-admin", user: copy(state.admin_users[0]) };
@@ -214,7 +219,7 @@ export function createDemoEngine(storage) {
     else if (path === "/admin/whatsapp/status") result = { status: "simulated", connected: false, message: "Demo mode. No gateway is connected." };
     else if (path === "/admin/whatsapp/test") { notify("test", "Demo message simulated."); result = { status: "simulated", sent: false, simulated: true }; }
     else if (path === "/admin/whatsapp/webhook-debug") result = { items: [] };
-    else if (path === "/admin/message-templates") { if (mutation) state.settings.message_templates = copy(body); result = copy(state.settings.message_templates); }
+    else if (path === "/admin/message-templates") { if (mutation) state.settings.message_templates = copy(body); result = demoStockTemplates(state); }
     else if (parts[0] === "admin" && parts[1] === "seo") result = seoApi(parts, body, mutation);
     else if (parts[0] === "tickets") result = ticketsApi(method, parts, params, body);
     else if (path === "/admin/tickets/config") { state.settings.ticket_config = copy(body); result = copy(body); }
@@ -273,7 +278,7 @@ export function createDemoEngine(storage) {
     if (!id && method === "GET") return pages(search(state.orders.filter(o => (!params.status || o.status === params.status)), params.q), params);
     if (!id) { let c = state.customers.find(c => c.mobile === body.mobile); if (!c) { c = { id: uid("customer"), name: body.name, mobile: body.mobile, company_name: body.company_name, category: body.category || "doctor", status: "active", addresses: [] }; state.customers.push(c); } return makeOrder(body, c, true); }
     const order = get("orders", id), c = get("customers", order.customer_id);
-    if (method === "DELETE") { if(order.invoice || order.voided_invoices?.length)throw new DemoError(409,"Orders with invoice history must be retained for the customer ledger");state.orders = state.orders.filter(o => o.id !== id); return { deleted: true }; }
+    if (method === "DELETE") { if(order.invoice || order.voided_invoices?.length || order.pending_items?.length)throw new DemoError(409,"Orders with invoice or pending-item history must be retained");state.orders = state.orders.filter(o => o.id !== id); return { deleted: true }; }
     if(order.invoice&&(action==="status"||action==="dispatch"||(!action&&body.items)))throw new DemoError(409,"Void the posted invoice before changing this order");
     if(action==="status"&&body.status==="closed")throw new DemoError(400,"Use Close order with an invoice number, date and amount");
     if (action === "offers") return Object.fromEntries(order.items.map(i => [i.variant_id, offerList({ id: i.variant_id, product_id: i.product_id }, c).map(s => ({ ...s, type: s.scheme_type, buy: s.buy_quantity, free: s.free_quantity, min: s.min_quantity }))]));
@@ -281,7 +286,7 @@ export function createDemoEngine(storage) {
     if (action === "status") order.status = body.status;
     if (action === "dispatch") { if (!Number(body.cases) || !body.transport_id) throw new DemoError(400, "Choose a transport and enter cases."); order.dispatch = { ...order.dispatch, ...copy(body), transport_name: get("transports", body.transport_id).name }; order.status = "dispatched"; }
     if (!action && method === "PUT") {
-      if (body.items) { order.items = linesFor(body.items, c, true); order.sales_value = money(order.items.reduce((n, i) => n + i.qty * i.unit_price, 0)); order.total_qty = order.items.reduce((n, i) => n + i.qty, 0); order.total_free = order.items.reduce((n, i) => n + i.free_qty, 0); order.total_dispatch = order.total_qty + order.total_free; }
+      if (body.items) { order.items = linesFor(body.items, c, true);order.pending_items=preparePending(order,order.items,uid,today);for(const line of order.items)if(line.out_of_stock)line.dispatch_qty=0;order.sales_value = money(order.items.reduce((n, i) => n + i.qty * i.unit_price, 0)); order.total_qty = order.items.reduce((n, i) => n + i.qty, 0); order.total_free = order.items.reduce((n, i) => n + i.free_qty, 0); order.total_dispatch = order.items.reduce((n,i)=>n+i.dispatch_qty,0);if(body.notify_out_of_stock)order.stock_notice_result=recordOosNotice(state,order,uid,today);}
       if (body.notes != null) order.notes = body.notes;
     }
     if (method !== "GET") { order.updated_at = today(); order.activity.push({ id: uid("activity"), text: `Demo ${action || "order"} updated`, actor: "Demo Admin", at: today() }); }
