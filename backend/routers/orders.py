@@ -14,7 +14,7 @@ STATUS_FLOW = ["new", "confirmed", "processing", "ready_to_dispatch", "dispatche
 STATUS_LABELS = {
     "new": "New", "confirmed": "Confirmed", "processing": "Processing",
     "ready_to_dispatch": "Ready to Dispatch", "dispatched": "Dispatched",
-    "delivered": "Delivered", "cancelled": "Cancelled", "on_hold": "On Hold",
+    "delivered": "Delivered", "closed": "Closed / Invoiced", "cancelled": "Cancelled", "on_hold": "On Hold",
 }
 STATUS_TEMPLATE_KEY = {
     "confirmed": "order_confirmed", "processing": "order_processing",
@@ -318,6 +318,8 @@ async def order_prev_pricing(oid: str, admin=Depends(require_module("orders"))):
 
 @router.post("/admin/orders")
 async def admin_create_order(body: dict = Body(...), admin=Depends(require_module("orders"))):
+    if body.get("status") == "closed":
+        raise HTTPException(400, "Create the order first, then close it with invoice details")
     cust = None
     if body.get("customer_id"):
         cust = await db.customers.find_one({"id": body["customer_id"]}, {"_id": 0})
@@ -355,7 +357,10 @@ async def admin_create_order(body: dict = Body(...), admin=Depends(require_modul
 
 @router.delete("/admin/orders/{oid}")
 async def delete_order(oid: str, admin=Depends(require_module("orders"))):
-    res = await db.orders.delete_one({"id": oid})
+    order = await db.orders.find_one({"id": oid})
+    if order and (order.get("invoice") or order.get("voided_invoices")):
+        raise HTTPException(409, "Orders with invoice history must be retained for the customer ledger")
+    res = await db.orders.delete_one({"id": oid, "invoice": None, "voided_invoices.0": {"$exists": False}})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     await log_audit(db, admin, "delete", "order", oid)
@@ -370,11 +375,17 @@ async def update_status(oid: str, body: dict = Body(...), admin=Depends(require_
     new_status = body.get("status")
     if new_status not in STATUS_LABELS:
         raise HTTPException(status_code=400, detail="Invalid status")
+    if new_status == "closed":
+        raise HTTPException(400, "Use Close order with an invoice number, date and amount")
+    if order.get("invoice", {}).get("status") == "posted":
+        raise HTTPException(409, "Void the posted invoice before changing this order's status")
     add_order_activity(order, f"Status changed {STATUS_LABELS.get(order['status'])} → {STATUS_LABELS[new_status]}", admin["name"])
     set_fields = {"status": new_status, "updated_at": now_iso(), "activity": order["activity"]}
     if new_status == "delivered":
         set_fields["delivered_at"] = now_iso()
-    await db.orders.update_one({"id": oid}, {"$set": set_fields})
+    changed = await db.orders.update_one({"id": oid, "invoice.status": {"$ne": "posted"}}, {"$set": set_fields})
+    if not changed.matched_count:
+        raise HTTPException(409, "This order was invoiced; refresh it before changing status")
     # WhatsApp status notification — uses editable Message Templates
     order["status"] = new_status
     tmpls = await get_templates()
@@ -490,6 +501,8 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
     order = await db.orders.find_one({"id": oid})
     if not order:
         raise HTTPException(status_code=404, detail="Not found")
+    if "items" in body and order.get("invoice", {}).get("status") == "posted":
+        raise HTTPException(409, "Void the posted invoice before changing order items or pricing")
     updates = {"updated_at": now_iso()}
     if "items" in body:
         cust = await db.customers.find_one({"id": order.get("customer_id")}, {"_id": 0})
@@ -542,7 +555,12 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
     if "internal_notes" in body:
         updates["internal_notes"] = body["internal_notes"]
     updates["activity"] = order["activity"]
-    await db.orders.update_one({"id": oid}, {"$set": updates})
+    query = {"id": oid}
+    if "items" in body:
+        query["invoice.status"] = {"$ne": "posted"}
+    changed = await db.orders.update_one(query, {"$set": updates})
+    if not changed.matched_count:
+        raise HTTPException(409, "This order was invoiced; refresh it before changing items")
     await log_audit(db, admin, "edit", "order", oid)
     return await db.orders.find_one({"id": oid}, {"_id": 0})
 
@@ -553,7 +571,7 @@ async def _run_review_reminders():
     from datetime import datetime, timezone, timedelta
     cutoff = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
     base = os.environ.get("APP_BASE_URL") or os.environ.get("SITE_URL") or ""
-    orders = await db.orders.find({"status": "delivered", "review_reminder_sent": {"$ne": True}}, {"_id": 0}).to_list(500)
+    orders = await db.orders.find({"status": {"$in": ["delivered", "closed"]}, "review_reminder_sent": {"$ne": True}}, {"_id": 0}).to_list(500)
     for o in orders:
         da = o.get("delivered_at") or o.get("updated_at") or ""
         if da and da > cutoff:
@@ -715,6 +733,8 @@ async def dispatch_order(oid: str, body: dict = Body(...), admin=Depends(require
     order = await db.orders.find_one({"id": oid})
     if not order:
         raise HTTPException(404, "Not found")
+    if order.get("invoice", {}).get("status") == "posted":
+        raise HTTPException(409, "Void the posted invoice before changing dispatch details")
     cases = body.get("cases")
     transport = (body.get("transport") or "").strip()
     lr = (body.get("lr_number") or "").strip()
@@ -739,8 +759,10 @@ async def dispatch_order(oid: str, body: dict = Body(...), admin=Depends(require
         add_order_activity(order, f"Updated dispatch details · LR {lr or '—'} · Invoice {dispatch['invoice_number'] or '—'}", admin["name"])
     else:
         add_order_activity(order, f"Dispatched via {transport} · {dispatch['cases']} case(s) · LR {lr or '—'} · Freight {dispatch['freight']}", admin["name"])
-    await db.orders.update_one({"id": oid}, {"$set": {
+    changed = await db.orders.update_one({"id": oid, "invoice.status": {"$ne": "posted"}}, {"$set": {
         "status": "dispatched", "dispatch": dispatch, "updated_at": now_iso(), "activity": order["activity"]}})
+    if not changed.matched_count:
+        raise HTTPException(409, "This order was invoiced; refresh it before changing dispatch details")
     await log_audit(db, admin, "dispatch", "order", oid, {"transport": transport, "lr": lr})
     if body.get("notify"):
         cust = await db.customers.find_one({"id": order.get("customer_id")}, {"_id": 0})

@@ -17,6 +17,7 @@ import { Loader2, Eye, Plus, Check, X, Ban, RotateCw, KeyRound, Trash2 } from "l
 import { toast } from "sonner";
 import { CUSTOMER_CATEGORIES, CUSTOMER_STATUSES, customerStatusMeta, statusMeta, PREFIXES } from "@/lib/constants";
 import { exportRows } from "@/lib/exportUtils";
+import {Link} from "react-router-dom";
 
 export default function AdminCustomers() {
   const qc = useQueryClient();
@@ -82,6 +83,7 @@ export default function AdminCustomers() {
                       {c.status === "active" && <StatusBtn cid={c.id} action="suspend" invalidate={invalidate} icon={Ban} cls="text-amber-600" title="Suspend" />}
                       {(c.status === "suspended" || c.status === "rejected") && <StatusBtn cid={c.id} action="reactivate" invalidate={invalidate} icon={RotateCw} cls="text-green-600" title="Reactivate" />}
                       <Button variant="ghost" size="icon" onClick={() => setDetailId(c.id)} aria-label={`View ${c.name}`} data-testid={`view-customer-${c.id}`}><Eye className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="sm" asChild><Link to={`/admin/ledger?customer_id=${encodeURIComponent(c.id)}`} data-testid={`ledger-link-${c.id}`}>Ledger</Link></Button>
                       <DeleteCustomerAction customer={c} onDeleted={invalidate} />
                     </TableCell>
                   </TableRow>
@@ -162,6 +164,7 @@ function CustomerDetail({ id, onChange, onClose }) {
           <p className="text-slate-500 mt-1">{c.address}{c.district ? `, ${c.district}` : ""}{c.state ? `, ${c.state}` : ""}{c.pincode ? ` - ${c.pincode}` : ""}</p>
         </div>
         {c.has_password === false && <p className="bg-amber-50 text-amber-800 border border-amber-200 rounded-lg p-3">This customer needs a password to sign in. Use Reset Password to set one.</p>}
+        <Button variant="outline" asChild><Link to={`/admin/ledger?customer_id=${encodeURIComponent(c.id)}`}>View ledger & opening balance</Link></Button>
 
         <div className="grid grid-cols-2 gap-3">
           <div>

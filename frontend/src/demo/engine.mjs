@@ -2,6 +2,7 @@ import { DEMO_KEY, DEMO_SCHEMA, DEMO_PASSWORD, DEMO_OTP, seedDemo } from "./seed
 import { productProfileExample } from "./productProfileExample.mjs";
 import { passwordError } from "../lib/customerAuth.mjs";
 import { randomRelatedProducts } from "../lib/relatedProducts.mjs";
+import { isLedgerPath, handleLedger } from "./ledgerEngine.mjs";
 
 export class DemoError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -23,6 +24,7 @@ export function createDemoEngine(storage) {
   try { state = JSON.parse(storage.getItem(DEMO_KEY) || "null"); } catch { state = null; }
   if (!state || state.schema !== DEMO_SCHEMA) state = seedDemo();
   state.registration_otps ||= {};
+  state.ledger_entries ||= [];
   // Add the product-page example without resetting existing browser-demo edits.
   if (!state.product_profile_demo_v2) {
     state.products = state.products || [];
@@ -125,7 +127,8 @@ export function createDemoEngine(storage) {
     const mutation = method !== "GET";
     if ((path.startsWith("/admin/") || path.startsWith("/tickets") || path.startsWith("/crm/")) && !admin) throw new DemoError(401, "Enter the admin demo to continue.");
     let result;
-    if (path === "/auth/admin/login") {
+    if (isLedgerPath(path)) result = await handleLedger({state,method,parts,body,params,customer,admin,now:today,uid,ErrorType:DemoError});
+    else if (path === "/auth/admin/login") {
       if (body.email !== "demo@vetmech.local" || body.password !== DEMO_PASSWORD) throw new DemoError(401, "Demo login: demo@vetmech.local / Demo@123");
       result = { token: "demo-admin", user: copy(state.admin_users[0]) };
     } else if (path === "/auth/admin/me") {
@@ -270,7 +273,9 @@ export function createDemoEngine(storage) {
     if (!id && method === "GET") return pages(search(state.orders.filter(o => (!params.status || o.status === params.status)), params.q), params);
     if (!id) { let c = state.customers.find(c => c.mobile === body.mobile); if (!c) { c = { id: uid("customer"), name: body.name, mobile: body.mobile, company_name: body.company_name, category: body.category || "doctor", status: "active", addresses: [] }; state.customers.push(c); } return makeOrder(body, c, true); }
     const order = get("orders", id), c = get("customers", order.customer_id);
-    if (method === "DELETE") { state.orders = state.orders.filter(o => o.id !== id); return { deleted: true }; }
+    if (method === "DELETE") { if(order.invoice || order.voided_invoices?.length)throw new DemoError(409,"Orders with invoice history must be retained for the customer ledger");state.orders = state.orders.filter(o => o.id !== id); return { deleted: true }; }
+    if(order.invoice&&(action==="status"||action==="dispatch"||(!action&&body.items)))throw new DemoError(409,"Void the posted invoice before changing this order");
+    if(action==="status"&&body.status==="closed")throw new DemoError(400,"Use Close order with an invoice number, date and amount");
     if (action === "offers") return Object.fromEntries(order.items.map(i => [i.variant_id, offerList({ id: i.variant_id, product_id: i.product_id }, c).map(s => ({ ...s, type: s.scheme_type, buy: s.buy_quantity, free: s.free_quantity, min: s.min_quantity }))]));
     if (action === "prev-pricing") return { items: order.items.map(i => ({ ...i, rate: i.unit_price, qty: i.qty })) };
     if (action === "status") order.status = body.status;
@@ -342,7 +347,7 @@ export function createDemoEngine(storage) {
   }
   function dashboard() {
     const rows = state.orders, sales_value = money(rows.filter(o => o.status !== "cancelled").reduce((n, o) => n + o.items.reduce((v, i) => v + i.unit_price * i.qty, 0), 0));
-    return { today_orders: rows.filter(o => o.created_at.slice(0, 10) === today().slice(0, 10)).length, status_counts: Object.fromEntries(["new", "confirmed", "processing", "ready_to_dispatch", "dispatched", "delivered", "cancelled", "on_hold"].map(s => [s, rows.filter(o => o.status === s).length])), sales_value, total_orders: rows.length, total_customers: state.customers.length, pending_customers: state.customers.filter(c => c.status === "pending").length, repeat_customers: state.customers.filter(c => rows.filter(o => o.customer_id === c.id).length > 1).length, trend: Array.from({ length: 7 }, (_, i) => { const date = new Date(Date.now() - (6 - i) * 86400000).toISOString().slice(0, 10); return { date, orders: rows.filter(o => o.created_at.startsWith(date)).length }; }), top_products: state.products.map(p => ({ name: p.name, qty: rows.flatMap(o => o.items).filter(i => i.product_id === p.id).reduce((n, i) => n + i.qty, 0) })), category_performance: [{ name: "Large Animal", qty: rows.reduce((n, o) => n + o.total_qty, 0) }], top_customers: state.customers.map(c => ({ name: c.name, orders: rows.filter(o => o.customer_id === c.id).length })) };
+    return { today_orders: rows.filter(o => o.created_at.slice(0, 10) === today().slice(0, 10)).length, status_counts: Object.fromEntries(["new", "confirmed", "processing", "ready_to_dispatch", "dispatched", "delivered", "closed", "cancelled", "on_hold"].map(s => [s, rows.filter(o => o.status === s).length])), sales_value, total_orders: rows.length, total_customers: state.customers.length, pending_customers: state.customers.filter(c => c.status === "pending").length, repeat_customers: state.customers.filter(c => rows.filter(o => o.customer_id === c.id).length > 1).length, trend: Array.from({ length: 7 }, (_, i) => { const date = new Date(Date.now() - (6 - i) * 86400000).toISOString().slice(0, 10); return { date, orders: rows.filter(o => o.created_at.startsWith(date)).length }; }), top_products: state.products.map(p => ({ name: p.name, qty: rows.flatMap(o => o.items).filter(i => i.product_id === p.id).reduce((n, i) => n + i.qty, 0) })), category_performance: [{ name: "Large Animal", qty: rows.reduce((n, o) => n + o.total_qty, 0) }], top_customers: state.customers.map(c => ({ name: c.name, orders: rows.filter(o => o.customer_id === c.id).length })) };
   }
   return { handle, snapshot: () => copy(state), reset: () => { state = seedDemo(); persist(); }, enterCustomer: id => { get("customers", id); return `demo-customer:${id}`; } };
 }

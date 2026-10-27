@@ -6,13 +6,15 @@ import { safeReturnPath } from "@/lib/customerAuth.mjs";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import SEO from "@/components/SEO";
+import LedgerView from "@/components/ledger/LedgerView";
+import {ledgerDate,ledgerMoney} from "@/lib/ledger.mjs";
 import AuthDialog from "@/components/public/AuthDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { statusMeta, CUSTOMER_CATEGORIES } from "@/lib/constants";
-import { User, Package, RotateCcw, LogOut, MapPin, ShoppingCart } from "lucide-react";
+import { User, Package, RotateCcw, LogOut, MapPin, ShoppingCart, Wallet } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function Account() {
@@ -109,6 +111,7 @@ function Dashboard({ customer, logout }) {
       <Tabs defaultValue="orders" className="mt-8">
         <TabsList>
           <TabsTrigger value="orders" data-testid="tab-orders"><Package className="w-4 h-4 mr-1" /> My Orders</TabsTrigger>
+          <TabsTrigger value="ledger" data-testid="tab-ledger"><Wallet className="w-4 h-4 mr-1" /> My Ledger</TabsTrigger>
           <TabsTrigger value="profile" data-testid="tab-profile"><User className="w-4 h-4 mr-1" /> Profile</TabsTrigger>
           <TabsTrigger value="addresses" data-testid="tab-addresses"><MapPin className="w-4 h-4 mr-1" /> Addresses</TabsTrigger>
         </TabsList>
@@ -145,9 +148,12 @@ function Dashboard({ customer, logout }) {
               <div className="mt-3 flex gap-2">
                 <Button size="sm" variant="outline" className="border-vm-green text-vm-green" onClick={() => doReorder(o.id, false)} data-testid={`reorder-${o.order_number}`}><RotateCcw className="w-3.5 h-3.5 mr-1" /> Reorder</Button>
               </div>
+              {o.invoice&&<p className="mt-3 rounded bg-vm-bg p-3 text-sm" data-testid={`account-invoice-${o.id}`}>Invoice <strong>{o.invoice.invoice_number}</strong> · {ledgerDate(o.invoice.invoice_date)} · <strong>{ledgerMoney(o.invoice.amount_paise)}</strong></p>}
             </div>
           )) : <p className="text-slate-400 py-10 text-center">No orders yet. <Link to="/shop" className="text-vm-green underline">Start ordering</Link></p>}
         </TabsContent>
+
+        <TabsContent value="ledger" className="mt-6"><LedgerView customerId={customer.id}/></TabsContent>
 
         <TabsContent value="profile" className="mt-4">
           <div className="border border-[#E2E8F0] rounded-lg p-5 grid sm:grid-cols-2 gap-4 text-sm max-w-2xl">
