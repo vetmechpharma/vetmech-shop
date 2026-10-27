@@ -2,18 +2,16 @@ import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ROLE_LABELS } from "@/lib/adminNav";
-import {
-  LayoutDashboard, Package, FolderTree, Tag, Layers, Percent, ShoppingBag, Users,
-  Newspaper, Image, Briefcase, Mail, MessageCircle, Send, Search, BarChart3,
-  UserCog, Settings, ScrollText, Menu, LogOut, FileText, Globe,
-  Ticket, ListChecks, CalendarDays, Headset, Contact, Database, FileSignature,
-  IndianRupee, ChevronDown, LayoutGrid,
-} from "lucide-react";
+import { LayoutDashboard, Package, IndianRupee, FileSignature, Headset, LayoutGrid, MessageCircle, Settings, ChevronDown, Globe, LogOut, Menu } from "lucide-react";
 import NotificationBell from "./NotificationBell";
+import Brand from "@/components/corporate/Brand";
+import SEO from "@/components/SEO";
+import { currentAdminDestination } from "@/lib/adminNavigation.mjs";
+import "./admin.css";
 
-// Grouped, collapsible navigation (TailAdmin style)
+// One active destination per grouped navigation section.
 const GROUPS = [
   { single: true, to: "/admin", label: "Dashboard", icon: LayoutDashboard, module: null, end: true },
   {
@@ -22,6 +20,7 @@ const GROUPS = [
       { to: "/admin/categories", label: "Categories", module: "categories" },
       { to: "/admin/brands", label: "Brands", module: "brands" },
       { to: "/admin/units", label: "Units", module: "units" },
+      { to: "/admin/schemes", label: "Schemes", module: "schemes" },
     ],
   },
   {
@@ -93,106 +92,82 @@ const GROUPS = [
 
 const testid = (s) => `adminnav-${s.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "")}`;
 
-function SidebarLinks({ can, onNav }) {
-  const { pathname } = useLocation();
-  const visibleGroups = GROUPS.map((g) => {
-    if (g.single) return can === undefined || !g.module || can(g.module) || g.module === null ? g : (g.module ? (can(g.module) ? g : null) : g);
-    const children = g.children.filter((c) => !c.module || can(c.module));
-    return children.length ? { ...g, children } : null;
+function permittedGroups(can) {
+  return GROUPS.map((group) => {
+    if (group.single) return !group.module || can(group.module) ? group : null;
+    const children = group.children.filter((child) => !child.module || can(child.module));
+    return children.length ? { ...group, children } : null;
   }).filter(Boolean);
+}
 
-  const groupHasActive = (g) => !g.single && g.children.some((c) => c.end ? pathname === c.to : pathname.startsWith(c.to));
+function SidebarLinks({ groups, onNav }) {
+  const { pathname } = useLocation();
+  const activeItem = currentAdminDestination(groups, pathname);
   const [open, setOpen] = useState({});
-  useEffect(() => {
-    const active = {};
-    visibleGroups.forEach((g) => { if (groupHasActive(g)) active[g.label] = true; });
-    setOpen((o) => ({ ...o, ...active }));
-    // eslint-disable-next-line
-  }, [pathname]);
+  const activeGroup = groups.find((group) => group.children?.some((child) => child.to === activeItem?.to))?.label;
+  useEffect(() => { if (activeGroup) setOpen((previous) => ({ ...previous, [activeGroup]: true })); }, [activeGroup]);
 
-  const toggle = (label) => setOpen((o) => ({ ...o, [label]: !o[label] }));
-
-  return (
-    <nav className="flex flex-col gap-1 px-4 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-3 mb-2">Menu</p>
-      {visibleGroups.map((g) => {
-        if (g.single) {
-          const Icon = g.icon;
-          return (
-            <NavLink key={g.to} to={g.to} end={g.end} onClick={onNav} data-testid={testid(g.label)}
-              className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-vm-green/10 text-vm-green" : "text-slate-600 hover:bg-slate-100"}`}>
-              {({ isActive }) => (<><Icon className={`w-5 h-5 ${isActive ? "text-vm-green" : "text-slate-400"}`} /> {g.label}</>)}
-            </NavLink>
-          );
-        }
-        const Icon = g.icon;
-        const isOpen = !!open[g.label];
-        const active = groupHasActive(g);
-        return (
-          <div key={g.label}>
-            <button onClick={() => toggle(g.label)} data-testid={`adminnav-group-${g.label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-              className={`flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active ? "text-vm-green" : "text-slate-600 hover:bg-slate-100"}`}>
-              <Icon className={`w-5 h-5 ${active ? "text-vm-green" : "text-slate-400"}`} />
-              <span className="flex-1 text-left">{g.label}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-            </button>
-            <div className={`overflow-hidden transition-all duration-200 ${isOpen ? "max-h-[600px]" : "max-h-0"}`}>
-              <div className="mt-1 ml-4 pl-4 border-l border-slate-200 flex flex-col gap-0.5">
-                {g.children.map((c) => (
-                  <NavLink key={c.to} to={c.to} end={c.end} onClick={onNav} data-testid={testid(c.label)}
-                    className={({ isActive }) => `px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? "text-vm-green font-medium bg-vm-green/5" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"}`}>
-                    {c.label}
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </nav>
-  );
+  return <nav className="vm-admin-nav" aria-label="Admin navigation">
+    <p className="vm-admin-nav-label">Workspace</p>
+    {groups.map((group) => {
+      const Icon = group.icon;
+      if (group.single) return <NavLink key={group.to} to={group.to} end={group.end} onClick={onNav} data-testid={testid(group.label)}
+        className={`vm-admin-nav-link ${activeItem?.to === group.to ? "is-active" : ""}`}><Icon size={19} />{group.label}</NavLink>;
+      const expanded = !!open[group.label];
+      const id = `nav-${group.label.toLowerCase().replace(/[^a-z]+/g, "-")}`;
+      return <div key={group.label} className="vm-admin-nav-group">
+        <button type="button" className={`vm-admin-nav-link ${activeGroup === group.label ? "is-current" : ""}`}
+          aria-expanded={expanded} aria-controls={id} onClick={() => setOpen((previous) => ({ ...previous, [group.label]: !previous[group.label] }))}
+          data-testid={`adminnav-group-${group.label.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
+          <Icon size={19} /><span>{group.label}</span><ChevronDown size={16} className={expanded ? "rotate-180" : ""} />
+        </button>
+        <div id={id} hidden={!expanded} className="vm-admin-nav-children">
+          {group.children.map((child) => <NavLink key={child.to} to={child.to} end onClick={onNav} data-testid={testid(child.label)}
+            aria-current={activeItem?.to === child.to ? "page" : undefined}
+            className={`vm-admin-nav-child ${activeItem?.to === child.to ? "is-active" : ""}`}>{child.label}</NavLink>)}
+        </div>
+      </div>;
+    })}
+  </nav>;
 }
 
 export default function AdminLayout() {
   const { admin, loading, logout, can } = useAdminAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  if (loading) return <div className="min-h-screen grid place-items-center text-slate-400">Loading admin...</div>;
+  if (loading) return <div className="vm-admin-loading" role="status">Loading your workspace…</div>;
   if (!admin) return <Navigate to="/admin/login" replace />;
+  const groups = permittedGroups(can);
+  const activeItem = currentAdminDestination(groups, pathname);
+  const role = ROLE_LABELS[admin.role] || admin.role;
+  const brand = <div className="vm-admin-brand"><Brand light /><span>ADMINISTRATION</span></div>;
+  const profile = <div className="vm-admin-profile"><span>{(admin.name || "V").slice(0, 1).toUpperCase()}</span><div><strong>{admin.name}</strong><small>{role}</small></div></div>;
 
-  const Brand = (
-    <div className="flex items-center gap-2.5 px-6 h-16 border-b border-slate-100">
-      <div className="w-9 h-9 rounded-lg bg-vm-green text-white grid place-items-center font-heading font-extrabold">V</div>
-      <div className="font-heading font-bold text-vm-ink leading-tight">VETMECH <span className="block text-[10px] font-medium text-vm-green tracking-wide">ADMIN PANEL</span></div>
+  return <div className="vm-admin-shell">
+    <SEO title={`${activeItem?.label || "Workspace"} | Administration`} noindex />
+    <a href="#admin-main" className="vm-admin-skip">Skip to workspace</a>
+    <aside className="vm-admin-sidebar hidden lg:flex">{brand}<SidebarLinks groups={groups} />{profile}</aside>
+    <div className="vm-admin-workspace">
+      <header className="vm-admin-header">
+        <div className="flex items-center gap-3 min-w-0">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open admin navigation"><Menu className="w-5 h-5" /></Button></SheetTrigger>
+            <SheetContent side="left" className="vm-admin-mobile-sidebar">
+              <SheetHeader className="sr-only"><SheetTitle>Admin navigation</SheetTitle><SheetDescription>Choose a workspace section.</SheetDescription></SheetHeader>
+              {brand}<SidebarLinks groups={groups} onNav={() => setMobileOpen(false)} />{profile}
+            </SheetContent>
+          </Sheet>
+          <div className="vm-admin-breadcrumb"><span>Administration</span><span>/</span><strong>{activeItem?.label || "Workspace"}</strong></div>
+        </div>
+        <div className="vm-admin-header-actions">
+          {can("tickets") && <NotificationBell />}
+          <a href="/" target="_blank" rel="noreferrer" className="vm-admin-site-link" aria-label="View corporate website"><Globe size={17} /><span>View website</span></a>
+          <Button variant="outline" size="sm" onClick={() => { logout(); navigate("/admin/login"); }} aria-label="Sign out of admin" data-testid="admin-logout"><LogOut size={16} /><span className="hidden sm:inline">Sign out</span></Button>
+        </div>
+      </header>
+      <main id="admin-main" className="vm-admin-main"><Outlet /></main>
+      <footer className="vm-admin-footer"><span>VETMECH Pharmaceuticals</span><span>The Science of Animal Health</span></footer>
     </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex">
-      <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-slate-200 fixed inset-y-0 overflow-y-auto">
-        {Brand}
-        <SidebarLinks can={can} />
-      </aside>
-
-      <div className="flex-1 lg:ml-72 flex flex-col min-h-screen">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu className="w-5 h-5" /></Button></SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0 bg-white border-0 overflow-y-auto">{Brand}<SidebarLinks can={can} onNav={() => setMobileOpen(false)} /></SheetContent>
-            </Sheet>
-            <span className="text-sm text-slate-500 hidden sm:block">Welcome back, <strong className="text-vm-ink">{admin.name}</strong></span>
-          </div>
-          <div className="flex items-center gap-2 md:gap-3">
-            <NotificationBell />
-            <span className="text-xs bg-vm-green/10 text-vm-green px-2.5 py-1 rounded-full font-medium hidden sm:block">{ROLE_LABELS[admin.role] || admin.role}</span>
-            <a href="/" target="_blank" rel="noreferrer"><Button variant="ghost" size="sm" className="text-slate-600"><Globe className="w-4 h-4 mr-1" /> <span className="hidden md:inline">View Site</span></Button></a>
-            <Button variant="outline" size="sm" onClick={() => { logout(); navigate("/admin/login"); }} data-testid="admin-logout"><LogOut className="w-4 h-4 md:mr-1" /> <span className="hidden md:inline">Logout</span></Button>
-          </div>
-        </header>
-        <main className="flex-1 p-4 md:p-6"><Outlet /></main>
-      </div>
-    </div>
-  );
+  </div>;
 }

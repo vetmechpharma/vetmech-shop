@@ -52,6 +52,13 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+def validate_customer_password(password: str):
+    if not isinstance(password, str) or len(password.strip()) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Password must be no more than 72 UTF-8 bytes")
+
+
 def verify_password(plain: str, hashed: str) -> bool:
     try:
         return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
@@ -110,6 +117,7 @@ async def get_current_customer(request: Request) -> dict:
     if resolved_status(cust) in CUSTOMER_BLOCKED_STATUSES:
         raise HTTPException(status_code=403, detail="Your account is not active. Please contact support.")
     cust.pop("password_hash", None)
+    cust.pop("password", None)
     return cust
 
 

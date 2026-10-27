@@ -2,10 +2,11 @@ from fastapi import APIRouter, HTTPException, Depends, Body, Query, Response
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from collections import Counter
+from email_validator import validate_email, EmailNotValidError
 
 from db import db, paginate
 from security import (require_module, get_current_admin, hash_password,
-                      ROLE_MODULES, ROLE_LABELS, customer_status_label, resolved_status)
+                      ROLE_MODULES, ROLE_LABELS, customer_status_label, resolved_status, validate_customer_password)
 from helpers import new_id, now_iso, log_audit, normalize_mobile, send_whatsapp, send_email
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -16,36 +17,41 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 async def dashboard(admin=Depends(get_current_admin)):
     today = datetime.now(timezone.utc).date().isoformat()
     all_orders = await db.orders.find({}, {"_id": 0}).to_list(5000)
-    by_status = Counter(o["status"] for o in all_orders)
-    today_orders = [o for o in all_orders if o["created_at"][:10] == today]
+    by_status = Counter(o.get("status", "new") for o in all_orders)
+    today_orders = [o for o in all_orders if str(o.get("created_at", ""))[:10] == today]
+    fulfilled_orders = [o for o in all_orders if o.get("status") != "cancelled"]
 
     # sales value (internal) using unit_price * qty
     def order_value(o):
         return sum((l.get("unit_price") or 0) * l.get("qty", 0) for l in o.get("items", []))
-    sales_value = sum(order_value(o) for o in all_orders)
+    sales_value = sum(order_value(o) for o in fulfilled_orders)
 
     # top products
     prod_counter = Counter()
-    for o in all_orders:
+    for o in fulfilled_orders:
         for l in o.get("items", []):
-            prod_counter[l["product_name"]] += l.get("qty", 0)
+            prod_counter[l.get("product_name", "Unknown product")] += l.get("qty", 0)
     top_products = [{"name": n, "qty": q} for n, q in prod_counter.most_common(5)]
 
     # top customers
     cust_counter = Counter()
-    for o in all_orders:
-        cust_counter[o.get("customer_name", "?")] += 1
-    top_customers = [{"name": n, "orders": c} for n, c in cust_counter.most_common(5)]
+    names = {}
+    for o in fulfilled_orders:
+        key = o.get("customer_id") or o.get("customer_mobile") or o.get("customer_name", "?")
+        cust_counter[key] += 1
+        names[key] = o.get("customer_name", "Unknown customer")
+    top_customers = [{"name": names[key], "orders": count} for key, count in cust_counter.most_common(5)]
 
     # category performance
     cats = await db.categories.find({}, {"_id": 0}).to_list(200)
     catmap = {c["id"]: c["name"] for c in cats}
+    product_ids = list({line.get("product_id") for order in fulfilled_orders for line in order.get("items", []) if line.get("product_id")})
+    products = await db.products.find({"id": {"$in": product_ids}}, {"_id": 0, "id": 1, "category_id": 1}).to_list(len(product_ids) or 1)
+    product_categories = {p["id"]: catmap.get(p.get("category_id"), "Other") for p in products}
     cat_counter = Counter()
-    for o in all_orders:
+    for o in fulfilled_orders:
         for l in o.get("items", []):
-            p = await db.products.find_one({"id": l["product_id"]}, {"_id": 0, "category_id": 1})
-            if p:
-                cat_counter[catmap.get(p.get("category_id"), "Other")] += l.get("qty", 0)
+            cat_counter[product_categories.get(l.get("product_id"), "Other")] += l.get("qty", 0)
     category_performance = [{"name": n, "qty": q} for n, q in cat_counter.most_common()]
 
     total_customers = await db.customers.count_documents({})
@@ -58,7 +64,7 @@ async def dashboard(admin=Depends(get_current_admin)):
     trend = []
     for i in range(6, -1, -1):
         d = (datetime.now(timezone.utc) - timedelta(days=i)).date().isoformat()
-        cnt = sum(1 for o in all_orders if o["created_at"][:10] == d)
+        cnt = sum(1 for o in all_orders if str(o.get("created_at", ""))[:10] == d)
         trend.append({"date": d[5:], "orders": cnt})
 
     return {
@@ -100,7 +106,9 @@ async def list_customers(category: Optional[str] = None, status: Optional[str] =
         query["$or"] = [{"name": rx}, {"mobile": rx}, {"company_name": rx}, {"email": rx}]
     res = await paginate(db.customers, query, page, limit)
     for c in res["items"]:
+        c["has_password"] = bool(c.get("password_hash"))
         c.pop("password_hash", None)
+        c.pop("password", None)
         c["status"] = resolved_status(c)
         c["status_label"] = customer_status_label(c["status"])
         c["order_count"] = await db.orders.count_documents({"customer_id": c["id"]})
@@ -114,9 +122,11 @@ async def pending_count(admin=Depends(require_module("customers"))):
 
 @router.get("/customers/{cid}")
 async def get_customer(cid: str, admin=Depends(require_module("customers"))):
-    cust = await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0})
+    cust = await db.customers.find_one({"id": cid}, {"_id": 0})
     if not cust:
         raise HTTPException(status_code=404, detail="Not found")
+    cust["has_password"] = bool(cust.pop("password_hash", None))
+    cust.pop("password", None)
     cust["status"] = resolved_status(cust)
     cust["status_label"] = customer_status_label(cust["status"])
     orders = await db.orders.find({"customer_id": cid}, {"_id": 0}).sort("created_at", -1).to_list(200)
@@ -131,6 +141,7 @@ async def get_customer(cid: str, admin=Depends(require_module("customers"))):
 
 @router.post("/customers")
 async def create_customer(body: dict = Body(...), admin=Depends(require_module("customers"))):
+    validate_customer_password(body.get("password"))
     mobile = normalize_mobile(body.get("mobile", ""))
     if len(mobile) != 10:
         raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number")
@@ -148,8 +159,7 @@ async def create_customer(body: dict = Body(...), admin=Depends(require_module("
         "active": True, "price_protected": bool(body.get("price_protected", False)),
         "addresses": [], "created_at": now_iso(), "source": "admin_created",
     }
-    if body.get("password"):
-        doc["password_hash"] = hash_password(body["password"])
+    doc["password_hash"] = hash_password(body["password"])
     await db.customers.insert_one(dict(doc))
     await log_audit(db, admin, "create", "customer", doc["id"], {"name": doc["name"]})
     doc.pop("_id", None); doc.pop("password_hash", None)
@@ -158,18 +168,27 @@ async def create_customer(body: dict = Body(...), admin=Depends(require_module("
 
 @router.put("/customers/{cid}")
 async def update_customer(cid: str, body: dict = Body(...), admin=Depends(require_module("customers"))):
-    for k in ("id", "_id", "orders", "password_hash", "status_label", "frequent_products", "order_count"):
+    password = body.pop("password", None)
+    for k in ("id", "_id", "orders", "password_hash", "has_password", "status_label", "frequent_products", "order_count"):
         body.pop(k, None)
+    if password:
+        validate_customer_password(password)
+        body["password_hash"] = hash_password(password)
     if body.get("mobile"):
         nm = normalize_mobile(body["mobile"])
+        if len(nm) != 10:
+            raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number")
+        body["mobile"] = nm
         body["normalized_mobile"] = nm
         dup = await db.customers.find_one({"id": {"$ne": cid},
                                            "$or": [{"normalized_mobile": nm}, {"mobile": {"$regex": nm + "$"}}]})
         if dup:
             raise HTTPException(status_code=409, detail="Another customer already uses this mobile number.")
-    await db.customers.update_one({"id": cid}, {"$set": body})
+    res = await db.customers.update_one({"id": cid}, {"$set": body, "$unset": {"password": ""}})
+    if not res.matched_count:
+        raise HTTPException(status_code=404, detail="Customer not found")
     await log_audit(db, admin, "update", "customer", cid)
-    return await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0})
+    return await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0, "password": 0})
 
 
 async def _set_status(cid, status, admin, notify=None):
@@ -180,7 +199,7 @@ async def _set_status(cid, status, admin, notify=None):
     await log_audit(db, admin, "status_change", "customer", cid, {"status": status})
     if notify and cust.get("whatsapp"):
         await send_whatsapp(db, cust.get("whatsapp") or cust.get("mobile"), notify, kind=f"customer_{status}")
-    out = await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0})
+    out = await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0, "password": 0})
     out["status_label"] = customer_status_label(status)
     return out
 
@@ -222,9 +241,8 @@ async def delete_customer(cid: str, hard: bool = False, admin=Depends(require_mo
 @router.post("/customers/{cid}/reset-password")
 async def reset_customer_password(cid: str, body: dict = Body(...), admin=Depends(require_module("customers"))):
     pwd = body.get("password")
-    if not pwd or len(pwd) < 4:
-        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
-    res = await db.customers.update_one({"id": cid}, {"$set": {"password_hash": hash_password(pwd)}})
+    validate_customer_password(pwd)
+    res = await db.customers.update_one({"id": cid}, {"$set": {"password_hash": hash_password(pwd)}, "$unset": {"password": ""}})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     await log_audit(db, admin, "reset_password", "customer", cid)
@@ -242,10 +260,17 @@ async def change_category(cid: str, body: dict = Body(...), admin=Depends(requir
     await db.customers.update_one({"id": cid}, {"$set": {"category": cat}})
     await log_audit(db, admin, "change_category", "customer", cid,
                     {"from": cust.get("category"), "to": cat})
-    return await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0})
+    return await db.customers.find_one({"id": cid}, {"_id": 0, "password_hash": 0, "password": 0})
 
 
 # =============== ADMIN USERS ===============
+def _admin_email(value):
+    try:
+        return validate_email(value.strip() if isinstance(value, str) else "", check_deliverability=False).normalized.lower()
+    except EmailNotValidError:
+        raise HTTPException(status_code=400, detail="Enter a valid admin email address")
+
+
 @router.get("/roles")
 async def roles(admin=Depends(get_current_admin)):
     return [{"value": k, "label": ROLE_LABELS[k], "modules": v} for k, v in ROLE_MODULES.items()]
@@ -253,17 +278,20 @@ async def roles(admin=Depends(get_current_admin)):
 
 @router.get("/users")
 async def list_admins(admin=Depends(require_module("*"))):
-    users = await db.admin_users.find({}, {"_id": 0, "password_hash": 0}).to_list(200)
+    users = await db.admin_users.find({}, {"_id": 0, "password_hash": 0, "password": 0}).to_list(200)
     return users
 
 
 @router.post("/users")
 async def create_admin(body: dict = Body(...), admin=Depends(require_module("*"))):
-    email = body.get("email", "").lower().strip()
+    email = _admin_email(body.get("email"))
+    validate_customer_password(body.get("password"))
+    if body.get("role", "order_manager") not in ROLE_MODULES:
+        raise HTTPException(status_code=400, detail="Choose a valid admin role")
     if await db.admin_users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already exists")
     doc = {"id": new_id(), "name": body.get("name", ""), "email": email,
-           "password_hash": hash_password(body.get("password", "changeme123")),
+           "password_hash": hash_password(body["password"]),
            "role": body.get("role", "order_manager"),
            "permissions": body.get("permissions"),
            "active": body.get("active", True), "created_at": now_iso()}
@@ -276,15 +304,29 @@ async def create_admin(body: dict = Body(...), admin=Depends(require_module("*")
 @router.put("/users/{uid}")
 async def update_admin(uid: str, body: dict = Body(...), admin=Depends(require_module("*"))):
     body.pop("id", None); body.pop("_id", None)
+    body.pop("password_hash", None)
+    target = await db.admin_users.find_one({"id": uid})
+    if not target:
+        raise HTTPException(status_code=404, detail="Admin user not found")
+    if body.get("role", target.get("role")) not in ROLE_MODULES:
+        raise HTTPException(status_code=400, detail="Choose a valid admin role")
+    if target.get("role") == "super_admin" and target.get("active", True) and (body.get("role", "super_admin") != "super_admin" or body.get("active") is False):
+        remaining = await db.admin_users.count_documents({"role": "super_admin", "active": {"$ne": False}, "id": {"$ne": uid}})
+        if not remaining:
+            raise HTTPException(status_code=400, detail="Keep at least one active Super Admin")
     if body.get("password"):
+        validate_customer_password(body["password"])
         body["password_hash"] = hash_password(body.pop("password"))
     else:
         body.pop("password", None)
-    if body.get("email"):
-        body["email"] = body["email"].lower().strip()
+    if "email" in body:
+        body["email"] = _admin_email(body["email"])
+        duplicate = await db.admin_users.find_one({"email": body["email"], "id": {"$ne": uid}})
+        if duplicate:
+            raise HTTPException(status_code=409, detail="Another admin already uses this email address")
     await db.admin_users.update_one({"id": uid}, {"$set": body})
     await log_audit(db, admin, "update", "admin_user", uid)
-    u = await db.admin_users.find_one({"id": uid}, {"_id": 0, "password_hash": 0})
+    u = await db.admin_users.find_one({"id": uid}, {"_id": 0, "password_hash": 0, "password": 0})
     return u
 
 

@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, apiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PasswordInput from "@/components/PasswordInput";
+import { passwordError } from "@/lib/customerAuth.mjs";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -64,7 +66,7 @@ export default function AdminUsers() {
           <div className="space-y-4">
             <div><Label>Name</Label><Input value={form.name || ""} onChange={(e) => set("name", e.target.value)} data-testid="au-name" /></div>
             <div><Label>Email</Label><Input type="email" value={form.email || ""} onChange={(e) => set("email", e.target.value)} data-testid="au-email" /></div>
-            <div><Label>Password {editing && "(leave blank to keep)"}</Label><Input type="password" value={form.password || ""} onChange={(e) => set("password", e.target.value)} data-testid="au-password" /></div>
+            <div className="space-y-2"><Label>Password {editing ? "(leave blank to keep)" : "*"}</Label><PasswordInput autoComplete="new-password" value={form.password || ""} onChange={(e) => set("password", e.target.value)} placeholder="At least 8 characters" data-testid="au-password" /></div>
             <div><Label>Role</Label>
               <Select value={form.role} onValueChange={(v) => set("role", v)}><SelectTrigger data-testid="au-role"><SelectValue /></SelectTrigger>
                 <SelectContent>{ROLE_OPTIONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent></Select></div>
@@ -78,7 +80,7 @@ export default function AdminUsers() {
               </div>
             )}
           </div>
-          <div className="flex justify-end gap-2 mt-4"><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => save.mutate(form)} disabled={save.isPending} data-testid="save-admin-user">{save.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save</Button></div>
+          <div className="flex justify-end gap-2 mt-4"><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => save.mutate(form)} disabled={save.isPending || !form.name?.trim() || !form.email?.trim() || ((!editing || form.password) && !!passwordError(form.password))} data-testid="save-admin-user">{save.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save</Button></div>
         </DialogContent>
       </Dialog>
     </div>

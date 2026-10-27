@@ -1,102 +1,54 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { ShoppingBag, Clock, CheckCircle2, Truck, PackageCheck, XCircle, IndianRupee, Users, TrendingUp } from "lucide-react";
+import { useAdminAuth } from "@/context/AdminAuthContext";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import { Button } from "@/components/ui/button";
+import { ShoppingBag, Clock, CheckCircle2, Truck, PackageCheck, XCircle, IndianRupee, Users, UserCheck, ArrowUpRight, Plus, Package } from "lucide-react";
 
-const CARDS = [
-  { key: "today_orders", label: "Today's Orders", icon: ShoppingBag, color: "text-blue-600 bg-blue-50", root: true },
-  { key: "new", label: "Pending (New)", icon: Clock, color: "text-amber-600 bg-amber-50" },
-  { key: "confirmed", label: "Confirmed", icon: CheckCircle2, color: "text-indigo-600 bg-indigo-50" },
-  { key: "processing", label: "Processing", icon: Clock, color: "text-orange-600 bg-orange-50" },
-  { key: "ready_to_dispatch", label: "Ready to Dispatch", icon: PackageCheck, color: "text-purple-600 bg-purple-50" },
-  { key: "dispatched", label: "Dispatched", icon: Truck, color: "text-cyan-600 bg-cyan-50" },
-  { key: "delivered", label: "Delivered", icon: PackageCheck, color: "text-green-600 bg-green-50" },
-  { key: "cancelled", label: "Cancelled", icon: XCircle, color: "text-red-600 bg-red-50" },
+const STATUS = [
+  { key: "today_orders", label: "Today", icon: ShoppingBag, root: true },
+  { key: "new", label: "New", icon: Clock }, { key: "confirmed", label: "Confirmed", icon: CheckCircle2 },
+  { key: "processing", label: "Processing", icon: Clock }, { key: "ready_to_dispatch", label: "Ready to dispatch", icon: PackageCheck },
+  { key: "dispatched", label: "Dispatched", icon: Truck }, { key: "delivered", label: "Delivered", icon: PackageCheck }, { key: "cancelled", label: "Cancelled", icon: XCircle },
 ];
-
-const PIE_COLORS = ["#045D3A", "#0FA45F", "#3B82F6", "#F59E0B", "#8B5CF6"];
+const PIE_COLORS = ["#df2030", "#282a30", "#f08a94", "#8c8f99", "#dbdde2"];
 
 export default function AdminDashboard() {
-  const { data: d } = useQuery({ queryKey: ["admin-dashboard"], queryFn: async () => (await api.get("/admin/dashboard")).data });
-  if (!d) return <div className="text-slate-400">Loading dashboard...</div>;
-
-  const stat = (c) => c.root ? d[c.key] : (d.status_counts?.[c.key] ?? 0);
-
-  return (
-    <div>
-      <h1 className="font-heading text-2xl font-bold text-vm-ink mb-6">Dashboard</h1>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {CARDS.map((c) => {
-          const Icon = c.icon;
-          return (
-            <div key={c.key} className="bg-white border border-[#E2E8F0] rounded-lg p-4" data-testid={`stat-${c.key}`}>
-              <div className={`w-9 h-9 rounded-md grid place-items-center ${c.color}`}><Icon className="w-5 h-5" /></div>
-              <p className="text-2xl font-heading font-bold text-vm-ink mt-3">{stat(c)}</p>
-              <p className="text-xs text-slate-500">{c.label}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        <MiniStat icon={IndianRupee} label="Sales Value (internal)" value={`₹${(d.sales_value || 0).toLocaleString("en-IN")}`} />
-        <MiniStat icon={ShoppingBag} label="Total Orders" value={d.total_orders} />
-        <MiniStat icon={Users} label="Customers" value={`${d.total_customers} (${d.repeat_customers} repeat)`} />
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4 mt-6">
-        <Panel title="Orders — Last 7 Days">
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={d.trend}>
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} tick={{ fontSize: 12 }} /><Tooltip />
-              <Line type="monotone" dataKey="orders" stroke="#0FA45F" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Panel>
-        <Panel title="Top Products">
-          {d.top_products?.length ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={d.top_products} layout="vertical" margin={{ left: 20 }}>
-                <XAxis type="number" hide /><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} /><Tooltip />
-                <Bar dataKey="qty" fill="#045D3A" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <Empty />}
-        </Panel>
-        <Panel title="Category Performance">
-          {d.category_performance?.length ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie data={d.category_performance} dataKey="qty" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={{ fontSize: 11 }}>
-                  {d.category_performance.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie><Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : <Empty />}
-        </Panel>
-        <Panel title="Top Customers">
-          <div className="space-y-2">
-            {d.top_customers?.length ? d.top_customers.map((c, i) => (
-              <div key={i} className="flex justify-between text-sm border-b border-slate-50 pb-2">
-                <span className="text-slate-600">{c.name}</span><span className="font-medium text-vm-ink">{c.orders} orders</span>
-              </div>
-            )) : <Empty />}
-          </div>
-        </Panel>
-      </div>
+  const { can } = useAdminAuth();
+  const { data: d, isLoading, isError, refetch } = useQuery({ queryKey: ["admin-dashboard"], queryFn: async () => (await api.get("/admin/dashboard")).data });
+  if (isLoading) return <div className="py-20 text-slate-500" role="status">Loading business overview…</div>;
+  if (isError || !d) return <div className="vm-admin-panel" role="alert"><h1>Overview is unavailable</h1><p>We could not load the latest figures. Please try again.</p><Button onClick={() => refetch()}>Try again</Button></div>;
+  const date = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(new Date());
+  return <div>
+    <div className="vm-admin-overview-heading"><div><p className="vm-admin-eyebrow">YOUR BUSINESS, AT A GLANCE</p><h1>Business overview</h1><p>Keep your orders, customers and next steps in focus.</p></div><span className="vm-admin-date">{date}</span></div>
+    <div className="vm-admin-kpis">
+      <Kpi primary icon={IndianRupee} label="Sales value" value={`₹${Number(d.sales_value || 0).toLocaleString("en-IN")}`} note="Excludes cancelled orders" />
+      <Kpi icon={ShoppingBag} label="Total orders" value={d.total_orders ?? 0} note={`${d.today_orders ?? 0} placed today`} />
+      <Kpi icon={Users} label="Customers" value={d.total_customers ?? 0} note={`${d.repeat_customers ?? 0} repeat customers`} />
+      <Kpi icon={UserCheck} label="Awaiting approval" value={d.pending_customers ?? 0} note="New partner registrations" />
     </div>
-  );
+    <section className="vm-admin-status-panel"><div className="vm-admin-section-heading"><h2>Order pipeline</h2>{can("orders") && <Link to="/admin/orders">Manage orders <ArrowUpRight size={15} /></Link>}</div>
+      <div className="vm-admin-status-grid">{STATUS.map(({ key, label, icon: Icon, root }) => <div className="vm-admin-status-item" key={key} data-testid={`stat-${key}`}><strong>{(root ? d[key] : d.status_counts?.[key]) ?? 0}</strong><span><Icon />{label}</span></div>)}</div>
+    </section>
+    <div className="vm-admin-chart-grid">
+      <Panel title="Order activity" description="Orders received in the last 7 days">
+        <ResponsiveContainer width="100%" height={240}><LineChart data={d.trend || []} margin={{ top: 8, right: 10, left: -22, bottom: 0 }}><CartesianGrid vertical={false} stroke="#eeeef1" /><XAxis dataKey="date" tick={{ fontSize: 12, fill: "#9295a0" }} axisLine={false} tickLine={false} tickMargin={12} /><YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#9295a0" }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e5e8", fontSize: 13 }} /><Line type="monotone" dataKey="orders" name="Orders" stroke="#df2030" strokeWidth={3} dot={{ r: 3, fill: "#fff", strokeWidth: 2 }} activeDot={{ r: 5 }} /></LineChart></ResponsiveContainer>
+      </Panel>
+      <Panel title="Top products" description="Units ordered, excluding cancellations">
+        {d.top_products?.length ? <ResponsiveContainer width="100%" height={240}><BarChart data={d.top_products} layout="vertical" margin={{ left: 5, right: 12 }}><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={118} tick={{ fontSize: 11, fill: "#737681" }} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="qty" name="Units" fill="#292b31" radius={[0, 4, 4, 0]} barSize={18} /></BarChart></ResponsiveContainer> : <Empty />}
+      </Panel>
+      <Panel title="Category performance" description="Product mix by quantity">
+        {d.category_performance?.length ? <ResponsiveContainer width="100%" height={230}><PieChart><Pie data={d.category_performance} dataKey="qty" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={82} paddingAngle={3} label={{ fontSize: 12 }}>{d.category_performance.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer> : <Empty />}
+      </Panel>
+      <Panel title="Top customers" description="Partners with the most orders">
+        {d.top_customers?.length ? d.top_customers.map((customer, index) => <div key={index} className="vm-admin-customer-row"><span><i>{String(index + 1).padStart(2, "0")}</i>{customer.name}</span><strong>{customer.orders} {customer.orders === 1 ? "order" : "orders"}</strong></div>) : <Empty />}
+      </Panel>
+    </div>
+    <nav className="vm-admin-quicklinks" aria-label="Quick actions">{can("products") && <Link to="/admin/products"><Package size={15} /> Product catalogue <ArrowUpRight size={14} /></Link>}{can("customers") && <Link to="/admin/customers"><UserCheck size={15} /> Review customers <ArrowUpRight size={14} /></Link>}{can("quotations") && <Link to="/admin/quotations/new"><Plus size={15} /> New quotation <ArrowUpRight size={14} /></Link>}</nav>
+  </div>;
 }
-
-const MiniStat = ({ icon: Icon, label, value }) => (
-  <div className="bg-white border border-[#E2E8F0] rounded-lg p-4 flex items-center gap-3">
-    <div className="w-10 h-10 rounded-md bg-vm-bg grid place-items-center text-vm-green"><Icon className="w-5 h-5" /></div>
-    <div><p className="text-lg font-heading font-bold text-vm-ink">{value}</p><p className="text-xs text-slate-500">{label}</p></div>
-  </div>
-);
-const Panel = ({ title, children }) => (
-  <div className="bg-white border border-[#E2E8F0] rounded-lg p-5"><h3 className="font-heading font-bold text-vm-ink mb-4">{title}</h3>{children}</div>
-);
-const Empty = () => <p className="text-sm text-slate-400 text-center py-10">No data yet.</p>;
+function Kpi({ icon: Icon, label, value, note, primary }) { return <div className={`vm-admin-kpi ${primary ? "is-primary" : ""}`}><div className="vm-admin-kpi-top"><span>{label}</span><Icon size={19} /></div><strong>{value}</strong><small>{note}</small></div>; }
+function Panel({ title, description, children }) { return <section className="vm-admin-panel"><h2>{title}</h2><p>{description}</p>{children}</section>; }
+function Empty() { return <div className="vm-admin-empty">No activity yet.</div>; }

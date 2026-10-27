@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --vm-green: #065F46;
-  --vm-green-hover: #054C38;
-  --vm-accent: #D97706;
-  --vm-ink: #0F172A;
+  --vm-green: #DF2030;
+  --vm-green-hover: #B71827;
+  --vm-accent: #DF2030;
+  --vm-ink: #17181B;
 }
 
 html { font-size: 17px; }
@@ -16,12 +16,12 @@ body {
   font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #0F172A;
+  color: #17181B;
   background: #ffffff;
 }
 
 h1, h2, h3, h4, h5, .font-heading {
-  font-family: "Ubuntu", system-ui, sans-serif;
+  font-family: "Manrope", system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
 
@@ -32,27 +32,27 @@ h1, h2, h3, h4, h5, .font-heading {
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 158 79% 9%;
+    --foreground: 225 8% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 158 79% 9%;
+    --card-foreground: 225 8% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 158 79% 9%;
-    --primary: 156 91% 19%;
+    --popover-foreground: 225 8% 10%;
+    --primary: 355 75% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 150 16% 96%;
-    --secondary-foreground: 156 91% 19%;
-    --muted: 150 16% 96%;
+    --secondary: 220 10% 96%;
+    --secondary-foreground: 355 75% 50%;
+    --muted: 220 10% 96%;
     --muted-foreground: 215 16% 47%;
-    --accent: 152 85% 35%;
+    --accent: 355 75% 50%;
     --accent-foreground: 0 0% 100%;
     --destructive: 347 77% 50%;
     --destructive-foreground: 0 0% 100%;
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 152 85% 35%;
+    --ring: 355 75% 50%;
     --radius: 0.5rem;
-    --chart-1: 156 91% 19%;
-    --chart-2: 152 85% 35%;
+    --chart-1: 355 75% 50%;
+    --chart-2: 355 75% 50%;
     --chart-3: 43 74% 49%;
     --chart-4: 215 70% 50%;
     --chart-5: 27 87% 55%;

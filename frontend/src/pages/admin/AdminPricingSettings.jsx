@@ -10,8 +10,6 @@ import { Loader2, Save, SlidersHorizontal } from "lucide-react";
 
 const TOGGLES = [
   ["require_approval", "Require admin approval for new registrations"],
-  ["enable_otp", "Enable Mobile + OTP login"],
-  ["enable_password_login", "Enable Mobile + Password login"],
   ["enable_customer_pricing", "Enable customer pricing engine (master switch)"],
   ["enable_category_pricing", "Enable customer-category pricing"],
   ["enable_customer_specific_pricing", "Enable customer-specific pricing"],
@@ -51,6 +49,7 @@ export default function AdminPricingSettings() {
       </div>
 
       <div className="bg-white border border-[#E2E8F0] rounded-xl divide-y divide-[#EEF2F1]">
+        <p className="px-5 py-4 text-sm text-slate-600">Customers sign in with mobile number and password. Registration requires a verified mobile OTP and a password.</p>
         {TOGGLES.map(([key, label]) => (
           <div key={key} className="flex items-center justify-between px-5 py-3.5">
             <Label className="text-sm text-vm-ink pr-4">{label}</Label>

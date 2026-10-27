@@ -1,3 +1,4 @@
+import LoadError from "@/components/LoadError";
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, mediaUrl, apiError } from "@/lib/api";
@@ -76,7 +77,7 @@ export default function AdminProducts() {
   const [saving, setSaving] = useState(false);
   const [deletedOffers, setDeletedOffers] = useState([]);
 
-  const { data: list, isLoading } = useQuery({ queryKey: ["admin-products", q], queryFn: async () => (await api.get("/admin/products", { params: { q: q || undefined, limit: 100 } })).data });
+  const { data: list, isLoading, isError, refetch } = useQuery({ queryKey: ["admin-products", q], queryFn: async () => (await api.get("/admin/products", { params: { q: q || undefined, limit: 100 } })).data });
   const { data: cats } = useQuery({ queryKey: ["admin-categories"], queryFn: async () => (await api.get("/admin/categories")).data });
   const { data: brands } = useQuery({ queryKey: ["admin-brands"], queryFn: async () => (await api.get("/admin/brands")).data });
   const { data: units } = useQuery({ queryKey: ["units"], queryFn: async () => (await api.get("/units")).data });
@@ -181,16 +182,16 @@ export default function AdminProducts() {
             <TableHead>Image</TableHead><TableHead>Name</TableHead><TableHead>Category</TableHead><TableHead>Variants</TableHead><TableHead>Active</TableHead><TableHead className="text-right">Actions</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={6} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
+            {isError ? <TableRow><TableCell colSpan={6}><LoadError onRetry={() => refetch()} /></TableCell></TableRow> : isLoading ? <TableRow><TableCell colSpan={6} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
               : (list?.items || []).map((p) => (
                 <TableRow key={p.id} data-testid={`product-row-${p.id}`}>
                   <TableCell>{p.image ? <img src={mediaUrl(p.image)} alt="" className="w-10 h-10 object-contain bg-[#F8FAF9] rounded" /> : "—"}</TableCell>
                   <TableCell><span className="font-medium text-vm-ink">{p.name}</span></TableCell>
                   <TableCell className="text-sm">{catName(p.category_id)}</TableCell>
                   <TableCell className="text-sm">{p.variants?.length || 0}</TableCell>
-                  <TableCell><Switch checked={!!p.active} onCheckedChange={() => toggleActive.mutate(p)} data-testid={`toggle-active-${p.id}`} /></TableCell>
+                  <TableCell><Switch checked={!!p.active} onCheckedChange={() => toggleActive.mutate(p)} aria-label={`Active status for ${p.name}`} data-testid={`toggle-active-${p.id}`} /></TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)} data-testid={`edit-product-${p.id}`}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`} data-testid={`edit-product-${p.id}`}><Pencil className="w-4 h-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))}

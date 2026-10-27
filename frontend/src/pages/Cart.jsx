@@ -32,7 +32,7 @@ export default function Cart() {
   if (lines.length === 0) {
     return (
       <div className="vm-container py-20 text-center">
-        <SEO title="Cart" />
+        <SEO noindex title="Cart" />
         <ShoppingCart className="w-14 h-14 mx-auto text-slate-300 mb-4" />
         <h1 className="font-heading text-2xl font-bold text-vm-ink">Your cart is empty</h1>
         <p className="text-slate-500 mt-2">Browse our catalog and add products to order.</p>
@@ -43,7 +43,7 @@ export default function Cart() {
 
   return (
     <div className="vm-container py-10">
-      <SEO title="Cart" />
+      <SEO noindex title="Cart" />
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-3xl font-bold text-vm-ink tracking-tight">Your Order Cart</h1>
         <Button variant="ghost" className="text-slate-500" onClick={clear} data-testid="clear-cart">Clear cart</Button>

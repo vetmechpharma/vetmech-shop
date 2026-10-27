@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { api, apiError } from "@/lib/api";
 import { useAdminAuth } from "@/context/AdminAuthContext";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PasswordInput from "@/components/PasswordInput";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Brand from "@/components/corporate/Brand";
+import SEO from "@/components/SEO";
+import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import "@/components/admin/admin.css";
 
 export default function AdminLogin() {
   const { admin, login } = useAdminAuth();
@@ -14,42 +17,36 @@ export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const [error, setError] = useState("");
   if (admin) return <Navigate to="/admin" replace />;
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const submit = async (event) => {
+    event.preventDefault();
+    if (loading) return;
+    setLoading(true); setError("");
     try {
-      // Clear any stale/expired token so it can't interfere with a fresh login
       localStorage.removeItem("vm_admin_token");
       const { data } = await api.post("/auth/admin/login", { email: email.trim(), password });
-      login(data.token, data.user);
-      toast.success("Welcome back");
-      navigate("/admin");
-    } catch (err) { toast.error(apiError(err)); }
-    setLoading(false);
+      login(data.token, data.user); setPassword(""); navigate("/admin");
+    } catch (e) { setError(apiError(e)); }
+    finally { setLoading(false); }
   };
-
-  return (
-    <div className="min-h-screen grid place-items-center bg-vm-ink px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-10 h-10 rounded-md bg-vm-accent text-white grid place-items-center font-heading font-extrabold text-lg">V</div>
-          <div className="text-white font-heading font-extrabold text-xl">VETMECH <span className="text-vm-accent text-sm">Admin</span></div>
-        </div>
-        <form onSubmit={submit} className="bg-white rounded-xl p-7 shadow-xl" data-testid="admin-login-form">
-          <h1 className="font-heading text-xl font-bold text-vm-ink flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-vm-accent" /> Admin Login</h1>
-          <p className="text-sm text-slate-500 mt-1 mb-5">Sign in to manage VETMECH</p>
-          <div className="space-y-4">
-            <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} data-testid="admin-email" /></div>
-            <div><Label>Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="admin-password" /></div>
-            <Button type="submit" className="w-full bg-vm-green hover:bg-vm-greenhover" disabled={loading} data-testid="admin-login-submit">
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Sign In
-            </Button>
-          </div>
-        </form>
-      </div>
+  return <div className="vm-admin-login">
+    <SEO title="Admin sign in" noindex />
+    <div className="vm-admin-login-story">
+      <Brand light />
+      <div><div className="vm-admin-eyebrow">VETMECH ADMINISTRATION</div><h2>One workspace.<br />A shared purpose.</h2><p>Manage the products, partnerships and everyday work behind animal health.</p></div>
+      <small>THE SCIENCE OF ANIMAL HEALTH</small>
     </div>
-  );
+    <div className="vm-admin-login-form-wrap"><form onSubmit={submit} className="vm-admin-login-form" data-testid="admin-login-form">
+      <div className="vm-admin-eyebrow">YOUR WORKSPACE</div>
+      <h1>Welcome back.</h1><p>Sign in to your VETMECH admin account.</p>
+      <div className="space-y-5">
+        <div className="space-y-2"><Label htmlFor="admin-email">Email address</Label><Input id="admin-email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@vetmech.in" data-testid="admin-email" /></div>
+        <div className="space-y-2"><Label htmlFor="admin-password">Password</Label><PasswordInput id="admin-password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" data-testid="admin-password" /></div>
+        {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-md p-3">{error}</p>}
+        <Button type="submit" className="w-full bg-vm-green hover:bg-vm-greenhover h-12" disabled={loading} data-testid="admin-login-submit">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Sign in</Button>
+      </div>
+      <Link to="/" className="vm-admin-login-back"><ArrowLeft size={15} /> Back to corporate website</Link>
+    </form></div>
+  </div>;
 }

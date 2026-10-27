@@ -1,3 +1,4 @@
+import LoadError from "@/components/LoadError";
 import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -62,10 +63,10 @@ function Row({ p, v, addItem, loggedIn }) {
 
 export default function QuickOrder() {
   const { addItem, count, setOpen, calc } = useCart();
-  const { customer } = useAuth();
+  const { customer, loading: authLoading } = useAuth();
   const estValue = (calc?.items || []).reduce((a, l) => a + (l.unit_price || 0) * (l.qty || 0), 0);
   const [q, setQ] = useState("");
-  const { data, isLoading } = useQuery({ queryKey: ["quick-order"], queryFn: async () => (await api.get("/products", { params: { limit: 200 } })).data });
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ["quick-order", customer?.id, customer?.status, customer?.category], enabled: !authLoading, queryFn: async () => (await api.get("/products", { params: { limit: 200 } })).data });
 
   const rows = useMemo(() => {
     const items = data?.items || [];
@@ -104,7 +105,7 @@ export default function QuickOrder() {
           <span className="w-24 text-right hidden md:block">Price</span><span className="w-24 text-center hidden md:block">Offer</span>
           <span className="w-[112px] text-center">Qty</span><span className="w-[68px]"></span>
         </div>
-        {isLoading ? <div className="py-16 text-center"><Loader2 className="w-6 h-6 animate-spin inline text-slate-400" /></div>
+        {isError ? <LoadError onRetry={() => refetch()} /> : isLoading ? <div className="py-16 text-center"><Loader2 className="w-6 h-6 animate-spin inline text-slate-400" /></div>
           : rows.length === 0 ? <div className="py-16 text-center text-slate-400">No products found.</div>
             : <div className="max-h-[65vh] overflow-y-auto">{rows.map(({ p, v }) => <Row key={v.id} p={p} v={v} addItem={addItem} loggedIn={!!customer} />)}</div>}
       </div>

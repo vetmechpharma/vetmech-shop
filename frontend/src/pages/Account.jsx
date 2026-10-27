@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api, mediaUrl } from "@/lib/api";
+import { safeReturnPath } from "@/lib/customerAuth.mjs";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import SEO from "@/components/SEO";
@@ -19,7 +20,7 @@ export default function Account() {
   const [authOpen, setAuthOpen] = useState(false);
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const redirect = params.get("redirect");
+  const redirect = params.get("redirect") ? safeReturnPath(params.get("redirect")) : null;
 
   useEffect(() => { if (customer && redirect) navigate(redirect, { replace: true }); }, [customer, redirect, navigate]);
 
@@ -28,21 +29,21 @@ export default function Account() {
   if (!customer) {
     return (
       <div className="min-h-[70vh] grid lg:grid-cols-2">
-        <SEO title="My Account" />
+        <SEO noindex title="My Account" />
         <div className="relative hidden lg:block bg-vm-ink overflow-hidden">
           <img src="https://images.unsplash.com/photo-1732690233982-1d4567384ea1?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200" alt="Laboratory" className="absolute inset-0 w-full h-full object-cover opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-t from-vm-ink via-vm-ink/70 to-vm-ink/30" />
           <div className="relative h-full flex flex-col justify-end p-12 text-white">
             <div className="w-12 h-12 rounded-xl bg-vm-green grid place-items-center font-heading font-extrabold text-xl mb-5">V</div>
             <h2 className="font-heading text-4xl font-bold leading-tight">Your B2B pricing,<br />in one login.</h2>
-            <p className="mt-4 text-slate-200 text-lg max-w-md">Access your special rates, quantity offers, order history and one-tap reorder — trusted by 12,000+ veterinary partners.</p>
+            <p className="mt-4 text-slate-200 text-lg max-w-md">Access your special rates, quantity offers, order history and one-tap reorder in your VETMECH partner account.</p>
           </div>
         </div>
         <div className="flex items-center justify-center p-8 md:p-14">
           <div className="w-full max-w-sm text-center">
             <User className="w-12 h-12 mx-auto text-vm-green mb-4" />
             <h1 className="font-heading text-3xl font-bold text-vm-ink">Welcome back</h1>
-            <p className="text-slate-500 mt-2 text-lg">Login with WhatsApp OTP or password to view your special pricing and orders.</p>
+            <p className="text-slate-500 mt-2 text-lg">Sign in with your mobile number and password to view your pricing and orders.</p>
             <Button size="lg" className="mt-6 w-full bg-vm-green hover:bg-vm-greenhover" onClick={() => setAuthOpen(true)} data-testid="account-login-btn">Login</Button>
             <p className="text-sm text-slate-500 mt-4">New customer? <Link to="/register" className="text-vm-green font-semibold hover:underline">Create an account</Link></p>
           </div>
@@ -59,7 +60,7 @@ function Dashboard({ customer, logout }) {
   const navigate = useNavigate();
   const { replaceCart, addItem } = useCart();
   const [reorderData, setReorderData] = useState(null);
-  const { data: orders, refetch } = useQuery({ queryKey: ["my-orders"], queryFn: async () => (await api.get("/orders/mine")).data });
+  const { data: orders, isError, refetch } = useQuery({ queryKey: ["my-orders", customer.id], queryFn: async () => (await api.get("/orders/mine")).data });
   const lastOrder = orders?.[0];
 
   const doReorder = async (orderId, editMode) => {
@@ -77,7 +78,7 @@ function Dashboard({ customer, logout }) {
 
   return (
     <div className="vm-container py-10">
-      <SEO title="My Account" />
+      <SEO noindex title="My Account" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-3xl font-bold text-vm-ink tracking-tight">Welcome, {customer.name}</h1>
@@ -113,7 +114,7 @@ function Dashboard({ customer, logout }) {
         </TabsList>
 
         <TabsContent value="orders" className="mt-4 space-y-4">
-          {orders?.length ? orders.map((o) => (
+          {isError ? <p role="alert" className="py-6 text-slate-600">Could not load your orders. <button onClick={() => refetch()} className="text-vm-green underline">Try again</button></p> : orders?.length ? orders.map((o) => (
             <div key={o.id} className="border border-[#E2E8F0] rounded-lg p-4" data-testid={`order-${o.order_number}`}>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>

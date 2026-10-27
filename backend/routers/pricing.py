@@ -14,7 +14,7 @@ DEFAULT_SETTINGS = {
     "enable_price_protection": True,
     "allow_customer_price_override": True,
     "require_approval": True,
-    "enable_otp": True,
+    "enable_otp": False,  # Legacy OTP login is disabled; registration verification is mandatory.
     "enable_password_login": True,
     "price_change_behavior": "keep_protected",  # keep_all | reset_all | keep_protected
 }
@@ -25,7 +25,7 @@ async def ensure_settings():
     if not doc:
         await db.settings.update_one({"id": "pricing_engine"}, {"$set": DEFAULT_SETTINGS}, upsert=True)
         return dict(DEFAULT_SETTINGS)
-    merged = {**DEFAULT_SETTINGS, **doc}
+    merged = {**DEFAULT_SETTINGS, **doc, "enable_otp": False, "enable_password_login": True}
     return merged
 
 
@@ -38,6 +38,7 @@ async def get_settings(admin=Depends(get_current_admin)):
 async def update_settings(body: dict = Body(...), admin=Depends(require_module("customers"))):
     allowed = set(DEFAULT_SETTINGS.keys())
     clean = {k: v for k, v in body.items() if k in allowed}
+    clean.update(enable_otp=False, enable_password_login=True)
     clean["id"] = "pricing_engine"
     clean["updated_at"] = now_iso()
     await db.settings.update_one({"id": "pricing_engine"}, {"$set": clean}, upsert=True)

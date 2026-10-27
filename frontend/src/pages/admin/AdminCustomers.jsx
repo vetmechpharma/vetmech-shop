@@ -1,8 +1,11 @@
+import LoadError from "@/components/LoadError";
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, apiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PasswordInput from "@/components/PasswordInput";
+import { passwordError } from "@/lib/customerAuth.mjs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,7 +26,7 @@ export default function AdminCustomers() {
   const [detailId, setDetailId] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-customers", category, status, q],
     queryFn: async () => (await api.get("/admin/customers", { params: { category: category !== "all" ? category : undefined, status: status !== "all" ? status : undefined, q: q || undefined, limit: 100 } })).data,
   });
@@ -61,7 +64,7 @@ export default function AdminCustomers() {
         <Table>
           <TableHeader><TableRow className="bg-vm-bg"><TableHead>Name</TableHead><TableHead>Company</TableHead><TableHead>Mobile</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead className="text-center">Orders</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={7} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
+            {isError ? <TableRow><TableCell colSpan={7}><LoadError onRetry={() => refetch()} /></TableCell></TableRow> : isLoading ? <TableRow><TableCell colSpan={7} className="text-center py-10"><Loader2 className="w-5 h-5 animate-spin inline text-slate-400" /></TableCell></TableRow>
               : (data?.items || []).length === 0 ? <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-400">No customers found.</TableCell></TableRow>
               : data.items.map((c) => {
                 const sm = customerStatusMeta(c.status);
@@ -78,7 +81,7 @@ export default function AdminCustomers() {
                       {c.status === "pending" && <StatusBtn cid={c.id} action="reject" invalidate={invalidate} icon={X} cls="text-red-500" title="Reject" />}
                       {c.status === "active" && <StatusBtn cid={c.id} action="suspend" invalidate={invalidate} icon={Ban} cls="text-amber-600" title="Suspend" />}
                       {(c.status === "suspended" || c.status === "rejected") && <StatusBtn cid={c.id} action="reactivate" invalidate={invalidate} icon={RotateCw} cls="text-green-600" title="Reactivate" />}
-                      <Button variant="ghost" size="icon" onClick={() => setDetailId(c.id)} data-testid={`view-customer-${c.id}`}><Eye className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDetailId(c.id)} aria-label={`View ${c.name}`} data-testid={`view-customer-${c.id}`}><Eye className="w-4 h-4" /></Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -117,7 +120,7 @@ function CustomerDetail({ id, onChange, onClose }) {
   });
   const resetPwd = useMutation({
     mutationFn: async () => (await api.post(`/admin/customers/${id}/reset-password`, { password: pwd })).data,
-    onSuccess: () => { setPwd(""); setPwdOpen(false); toast.success("Password reset"); },
+    onSuccess: () => { setPwd(""); setPwdOpen(false); qc.invalidateQueries({ queryKey: ["admin-customer", id] }); onChange(); toast.success("Password reset"); },
     onError: (e) => toast.error(apiError(e)),
   });
   const del = useMutation({
@@ -137,6 +140,7 @@ function CustomerDetail({ id, onChange, onClose }) {
           <p className="text-slate-500">{c.mobile}{c.email ? ` · ${c.email}` : ""}</p>
           <p className="text-slate-500 mt-1">{c.address}{c.district ? `, ${c.district}` : ""}{c.state ? `, ${c.state}` : ""}{c.pincode ? ` - ${c.pincode}` : ""}</p>
         </div>
+        {c.has_password === false && <p className="bg-amber-50 text-amber-800 border border-amber-200 rounded-lg p-3">This customer needs a password to sign in. Use Reset Password to set one.</p>}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -148,8 +152,9 @@ function CustomerDetail({ id, onChange, onClose }) {
             <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
               <Button variant="outline" size="sm" onClick={() => setPwdOpen(true)} data-testid="detail-reset-pw"><KeyRound className="w-4 h-4 mr-1" /> Reset Password</Button>
               <DialogContent className="max-w-sm"><DialogHeader><DialogTitle>Set new password</DialogTitle></DialogHeader>
-                <Input type="text" value={pwd} onChange={(e) => setPwd(e.target.value)} placeholder="New password" data-testid="detail-pw-input" />
-                <DialogFooter><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => resetPwd.mutate()} disabled={resetPwd.isPending} data-testid="detail-pw-save">Save</Button></DialogFooter>
+                <PasswordInput aria-label="New customer password" autoComplete="new-password" value={pwd} onChange={(e) => setPwd(e.target.value)} placeholder="At least 8 characters" data-testid="detail-pw-input" />
+                <p className="text-sm text-slate-500">Use at least 8 characters. Share the new password securely with the customer.</p>
+                <DialogFooter><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => resetPwd.mutate()} disabled={resetPwd.isPending || !!passwordError(pwd)} data-testid="detail-pw-save">Save</Button></DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
@@ -218,9 +223,9 @@ function AddCustomerDialog({ open, onOpenChange, onCreated }) {
           <div><Label className="text-xs">District</Label><Input value={form.district} onChange={(e) => set("district", e.target.value)} className="mt-1" /></div>
           <div><Label className="text-xs">Category</Label><Select value={form.category} onValueChange={(v) => set("category", v)}><SelectTrigger className="mt-1" data-testid="add-category"><SelectValue /></SelectTrigger><SelectContent>{CUSTOMER_CATEGORIES.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
           <div><Label className="text-xs">Status</Label><Select value={form.status} onValueChange={(v) => set("status", v)}><SelectTrigger className="mt-1" data-testid="add-status"><SelectValue /></SelectTrigger><SelectContent>{CUSTOMER_STATUSES.filter((s) => s.value !== "deleted").map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
-          <div className="col-span-2"><Label className="text-xs">Password (optional)</Label><Input type="text" value={form.password} onChange={(e) => set("password", e.target.value)} className="mt-1" placeholder="Set for password login" /></div>
+          <div className="col-span-2 space-y-2"><Label className="text-xs">Password *</Label><PasswordInput autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="At least 8 characters" /></div>
         </div>
-        <DialogFooter><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => create.mutate()} disabled={create.isPending} data-testid="add-customer-save">{create.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Create</Button></DialogFooter>
+        <DialogFooter><Button className="bg-vm-green hover:bg-vm-greenhover" onClick={() => create.mutate()} disabled={create.isPending || !!passwordError(form.password) || !form.name.trim() || form.mobile.length !== 10} data-testid="add-customer-save">{create.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Create</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

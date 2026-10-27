@@ -7,6 +7,9 @@ import AuthDialog from "@/components/public/AuthDialog";
 import SEO from "@/components/SEO";
 import ProductBadges from "@/components/public/ProductBadges";
 import ProductCard from "@/components/public/ProductCard";
+import ProductContent from "@/components/corporate/ProductContent";
+import { portfolioText } from "@/lib/portfolio.mjs";
+import "@/components/corporate/product-profile.css";
 import ProductReviews from "@/components/public/ProductReviews";
 import ShareButtons from "@/components/public/ShareButtons";
 import { useCart } from "@/context/CartContext";
@@ -63,14 +66,15 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { addItem } = useCart();
-  const { customer } = useAuth();
+  const { customer, loading: authLoading } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
-  const { data: p, isLoading } = useQuery({ queryKey: ["product", slug], queryFn: async () => (await api.get(`/products/${slug}`)).data });
+  const { data: p, isLoading, error, refetch } = useQuery({ queryKey: ["product", slug, customer?.id, customer?.status, customer?.category], enabled: !authLoading, queryFn: async () => (await api.get(`/products/${slug}`)).data });
   const [variantId, setVariantId] = useState(null);
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
 
   if (isLoading) return <div className="vm-container py-10 grid md:grid-cols-2 gap-8"><Skeleton className="h-96 rounded-lg" /><div className="space-y-4"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-24" /></div></div>;
+  if (error && error.response?.status !== 404) return <div role="alert" className="vm-container py-20 text-center"><p>We could not load this product.</p><Button className="mt-4" onClick={() => refetch()}>Try again</Button></div>;
   if (!p) return <div className="vm-container py-20 text-center text-slate-400">Product not found. <Link to="/shop" className="text-vm-green underline">Back to shop</Link></div>;
 
   const variants = p.variants || [];
@@ -133,7 +137,7 @@ export default function ProductDetail() {
         <div>
           <p className="text-xs uppercase tracking-widest text-vm-accent font-semibold">{p.brand_name}</p>
           <h1 className="font-heading text-3xl font-bold text-vm-ink mt-1 tracking-tight" data-testid="product-title">{p.name}</h1>
-          <p className="text-slate-600 mt-3">{p.short_description}</p>
+          <p className="text-slate-600 mt-3">{portfolioText(p.short_description)}</p>
 
           {variant.your_price != null ? (
                 <div className="rounded-lg border border-vm-green/30 bg-vm-bg p-3 inline-block" data-testid="your-price-block">
@@ -217,9 +221,9 @@ export default function ProductDetail() {
           <>
           <div className="mt-5 flex items-center gap-3">
             <div className="flex items-center border border-[#E2E8F0] rounded-md">
-              <button className="px-3 py-2 text-slate-500 hover:text-vm-green" onClick={() => setQty((q) => Math.max(variant.min_order_qty || 1, q - 1))} data-testid="qty-minus"><Minus className="w-4 h-4" /></button>
-              <input value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-14 text-center outline-none" data-testid="qty-input" />
-              <button className="px-3 py-2 text-slate-500 hover:text-vm-green" onClick={() => setQty((q) => q + 1)} data-testid="qty-plus"><Plus className="w-4 h-4" /></button>
+              <button className="px-3 py-2 text-slate-500 hover:text-vm-green" onClick={() => setQty((q) => Math.max(variant.min_order_qty || 1, q - 1))} aria-label="Decrease quantity" data-testid="qty-minus"><Minus className="w-4 h-4" /></button>
+              <input value={qty} onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))} className="w-14 text-center outline-none" aria-label="Quantity" inputMode="numeric" data-testid="qty-input" />
+              <button className="px-3 py-2 text-slate-500 hover:text-vm-green" onClick={() => setQty((q) => q + 1)} aria-label="Increase quantity" data-testid="qty-plus"><Plus className="w-4 h-4" /></button>
             </div>
             {dispatchFree > 0 && <span className="text-sm text-vm-accent font-medium">+{dispatchFree} free → {qty + dispatchFree} dispatched</span>}
           </div>
@@ -272,7 +276,7 @@ export default function ProductDetail() {
           {p.full_description && (
             <div className="mb-6">
               <h2 className="font-heading text-xl font-bold text-vm-ink mb-2">Description</h2>
-              <p className="text-slate-600 leading-relaxed whitespace-pre-line">{p.full_description}</p>
+              <ProductContent value={p.full_description} />
             </div>
           )}
           {optional.length > 0 && (
@@ -280,7 +284,7 @@ export default function ProductDetail() {
               {optional.map(([label, value], i) => (
                 <AccordionItem key={label} value={`item-${i}`}>
                   <AccordionTrigger className="font-heading font-semibold text-vm-ink">{label}</AccordionTrigger>
-                  <AccordionContent><p className="text-slate-600 leading-relaxed whitespace-pre-line">{value}</p></AccordionContent>
+                  <AccordionContent><ProductContent value={value} kind={label === "Composition" ? "composition" : label === "Indications" ? "indications" : "dosage"} /></AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>

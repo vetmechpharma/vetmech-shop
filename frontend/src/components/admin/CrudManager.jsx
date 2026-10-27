@@ -1,3 +1,4 @@
+import LoadError from "@/components/LoadError";
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, mediaUrl, apiError } from "@/lib/api";
@@ -27,7 +28,7 @@ export default function CrudManager({ title, subtitle, endpoint, listKey, column
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: [listKey],
     queryFn: async () => {
       const res = (await api.get(endpoint)).data;
@@ -69,15 +70,15 @@ export default function CrudManager({ title, subtitle, endpoint, listKey, column
             <TableHead className="text-right text-vm-ink">Actions</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={columns.length + 1} className="text-center py-10 text-slate-400"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
+            {isError ? <TableRow><TableCell colSpan={columns.length + 1}><LoadError onRetry={() => refetch()} /></TableCell></TableRow> : isLoading ? <TableRow><TableCell colSpan={columns.length + 1} className="text-center py-10 text-slate-400"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>
               : (data || []).length === 0 ? <TableRow><TableCell colSpan={columns.length + 1} className="text-center py-10 text-slate-400">No records yet.</TableCell></TableRow>
               : data.map((row) => (
                 <TableRow key={row.id} data-testid={`row-${listKey}-${row.id}`}>
                   {columns.map((c) => <TableCell key={c.key}>{c.render ? c.render(row) : String(row[c.key] ?? "—")}</TableCell>)}
                   <TableCell className="text-right whitespace-nowrap">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(row)} data-testid={`edit-${row.id}`}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(row)} aria-label={`Edit ${row.name || row.title || "record"}`} data-testid={`edit-${row.id}`}><Pencil className="w-4 h-4" /></Button>
                     <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500" data-testid={`delete-${row.id}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
+                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500" aria-label={`Delete ${row.name || row.title || "record"}`} data-testid={`delete-${row.id}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader><AlertDialogTitle>Delete this item?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => del.mutate(row.id)}>Delete</AlertDialogAction></AlertDialogFooter>

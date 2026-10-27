@@ -4,7 +4,7 @@ import { api, apiError } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import SEO from "@/components/SEO";
-import OtpDialog from "@/components/public/OtpDialog";
+import AuthDialog from "@/components/public/AuthDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,10 +25,11 @@ export default function Checkout() {
   const { calc, clear } = useCart();
   const { customer } = useAuth();
   const { data: website } = useSettings("website");
-  const [otpOpen, setOtpOpen] = useState(false);
-  const [verified, setVerified] = useState(false);
-  const [mobile, setMobile] = useState("");
-  const [existing, setExisting] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const verified = !!customer;
+  const approved = customer?.status === "active" || (customer && !customer.status && customer.active !== false);
+  const mobile = customer?.mobile || "";
+  const existing = customer;
   const [useExistingAddr, setUseExistingAddr] = useState(true);
   const [loading, setLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -41,30 +42,15 @@ export default function Checkout() {
 
   useEffect(() => {
     if (customer) {
-      setVerified(true);
-      setExisting(customer);
-      setMobile(customer.mobile);
       setForm((f) => ({ ...f, name: customer.name, whatsapp: customer.whatsapp, company_name: customer.company_name, category: customer.category, prefix: customer.prefix || "Dr." }));
     }
   }, [customer]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const onVerified = (data) => {
-    if (!data.registered || !data.token) {
-      toast.info("Please register your account before placing an order.");
-      navigate("/register", { state: { mobile: data.mobile } });
-      return;
-    }
-    setVerified(true);
-    setMobile(data.mobile);
-    if (data.registered && data.customer) {
-      setExisting(data.customer);
-      setForm((f) => ({ ...f, name: data.customer.name, whatsapp: data.customer.whatsapp, company_name: data.customer.company_name, category: data.customer.category, prefix: data.customer.prefix || "Dr." }));
-    }
-  };
-
   const submit = async () => {
+    if (loading) return;
+    if (!approved) { toast.error("Sign in with an approved account to place an order"); return; }
     if (calc.items.length === 0) { toast.error("Your cart is empty"); return; }
     const addr = (existing && useExistingAddr && existing.default_address)
       ? existing.default_address
@@ -101,7 +87,7 @@ export default function Checkout() {
 
   return (
     <div className="vm-container py-10">
-      <SEO title="Checkout" />
+      <SEO noindex title="Checkout" />
       <h1 className="font-heading text-3xl font-bold text-vm-ink tracking-tight">Checkout</h1>
 
       <div className="grid lg:grid-cols-3 gap-8 mt-6">
@@ -109,15 +95,15 @@ export default function Checkout() {
           {/* Verification */}
           <div className="border border-[#E2E8F0] rounded-lg p-5">
             <div className="flex items-center justify-between">
-              <h2 className="font-heading font-bold text-vm-ink flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-vm-accent" /> Verify Mobile (WhatsApp OTP)</h2>
-              {verified && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Verified</span>}
+              <h2 className="font-heading font-bold text-vm-ink flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-vm-accent" /> Partner account</h2>
+              {verified && <span className="text-sm text-green-600 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> Signed in</span>}
             </div>
             {verified ? (
-              <p className="text-sm text-slate-500 mt-2">Mobile <strong>{mobile}</strong> verified. {existing ? "Welcome back!" : "Please complete your details below."}</p>
+              <p className="text-sm text-slate-500 mt-2">Signed in as <strong>{customer.name}</strong> · {mobile}.{!approved && " Your account is pending approval. Contact VETMECH to activate ordering."}</p>
             ) : (
               <>
                 <p className="text-sm text-slate-500 mt-2">Log in to your registered account to place an order.</p>
-                <Button className="mt-3 bg-vm-green hover:bg-vm-greenhover" onClick={() => setOtpOpen(true)} data-testid="start-verification">Verify with WhatsApp OTP</Button>
+                <Button className="mt-3 bg-vm-green hover:bg-vm-greenhover" onClick={() => setAuthOpen(true)} data-testid="start-verification">Sign in with password</Button>
               </>
             )}
           </div>
@@ -140,7 +126,7 @@ export default function Checkout() {
                   <div><Label>Company Name (Optional)</Label><Input value={form.company_name} onChange={(e) => set("company_name", e.target.value)} data-testid="company-input" /></div>
                   <div className="sm:col-span-2">
                     <Label>Customer Category</Label>
-                    <Select value={form.category} onValueChange={(v) => set("category", v)}>
+                    <Select value={form.category} disabled>
                       <SelectTrigger data-testid="category-select"><SelectValue /></SelectTrigger>
                       <SelectContent>{CUSTOMER_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
                     </Select>
@@ -215,7 +201,7 @@ export default function Checkout() {
                 <span className="text-slate-600">I agree to the <button type="button" onClick={(e) => { e.preventDefault(); setTermsOpen(true); }} className="text-vm-green underline font-medium" data-testid="view-terms-btn">Terms &amp; Conditions</button> <span className="text-red-500">*</span></span>
               </label>
             </div>
-            <Button size="lg" className="w-full mt-5 bg-vm-green hover:bg-vm-greenhover" disabled={!verified || !acceptTerms || loading} onClick={submit} data-testid="confirm-order-btn">
+            <Button size="lg" className="w-full mt-5 bg-vm-green hover:bg-vm-greenhover" disabled={!approved || !acceptTerms || loading} onClick={submit} data-testid="confirm-order-btn">
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Confirm Order
             </Button>
             <p className="text-xs text-slate-400 mt-3 text-center">No payment now. We'll confirm on WhatsApp.</p>
@@ -223,7 +209,7 @@ export default function Checkout() {
         </div>
       </div>
 
-      <OtpDialog open={otpOpen} onOpenChange={setOtpOpen} onVerified={onVerified} />
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
       <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto" data-testid="terms-dialog">
           <DialogHeader><DialogTitle className="font-heading">Terms &amp; Conditions</DialogTitle></DialogHeader>
