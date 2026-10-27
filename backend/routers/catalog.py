@@ -7,6 +7,7 @@ from security import get_current_admin, require_module, optional_customer
 from helpers import new_id, now_iso, log_audit, applicable_schemes, compute_scheme
 
 router = APIRouter(prefix="/api", tags=["catalog"])
+RELATED_PRODUCT_LIMIT = 4
 
 
 def slugify(text):
@@ -281,15 +282,24 @@ async def public_product(slug: str, customer=Depends(optional_customer)):
     if not p:
         raise HTTPException(status_code=404, detail="Product not found")
     await enrich_products([p], customer)
-    # Related products: automatic — other active products in the same category
+    # Select on each request, so new products participate without saved assignments.
     related = []
     cids = list({*(p.get("category_ids") or []), *([p["category_id"]] if p.get("category_id") else [])})
     if cids:
-        rel_docs = await db.products.find(
-            {"$or": [{"category_id": {"$in": cids}}, {"category_ids": {"$in": cids}}], "active": True, "id": {"$ne": p["id"]}},
-            {"_id": 0}).limit(8).to_list(8)
-        await enrich_products(rel_docs, customer)
-        related = rel_docs
+        related = await db.products.aggregate([
+            {"$match": {"$or": [{"category_id": {"$in": cids}}, {"category_ids": {"$in": cids}}],
+                        "active": True, "id": {"$ne": p["id"]}}},
+            {"$sample": {"size": RELATED_PRODUCT_LIMIT}},
+            {"$project": {"_id": 0}},
+        ]).to_list(RELATED_PRODUCT_LIMIT)
+    remaining = RELATED_PRODUCT_LIMIT - len(related)
+    if remaining:
+        related.extend(await db.products.aggregate([
+            {"$match": {"active": True, "id": {"$nin": [p["id"], *[row["id"] for row in related]]}}},
+            {"$sample": {"size": remaining}},
+            {"$project": {"_id": 0}},
+        ]).to_list(remaining))
+    await enrich_products(related, customer)
     p["related"] = related
     # Attach category/subcategory {name, slug} for breadcrumbs + structured data
     if p.get("category_id"):

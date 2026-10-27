@@ -8,7 +8,8 @@ import { productImages } from "@/lib/productFormatting.mjs";
 import SEO from "@/components/SEO";
 import ShareButtons from "@/components/public/ShareButtons";
 import { siteUrl, breadcrumbLd, faqLd } from "@/lib/seo";
-import { ActionLink, Partnership, EmptyPortfolio } from "@/components/corporate/Shared";
+import { ActionLink, Partnership, EmptyPortfolio, Eyebrow, TextLink } from "@/components/corporate/Shared";
+import PortfolioCard from "@/components/corporate/PortfolioCard";
 import ProductContent from "@/components/corporate/ProductContent";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import "@/components/corporate/product-profile.css";
@@ -83,6 +84,10 @@ export default function ProductProfile() {
           <div className="pp-label-note"><Package size={24} strokeWidth={1.4}/><p>Use medicines under the guidance of a registered veterinary practitioner. Refer to the approved product label for complete directions.</p></div>
         </div>
       </div>
+      {p.related.length > 0 && <section className="corp-section" aria-labelledby="portfolio-related-heading" data-testid="related-products"><div className="corp-container">
+        <div className="corp-section-heading"><div><Eyebrow>EXPLORE OUR PORTFOLIO</Eyebrow><h2 id="portfolio-related-heading">Related products</h2></div><TextLink to="/products">View all products</TextLink></div>
+        <div className="corp-product-grid">{p.related.map(product => <PortfolioCard key={product.id} product={product}/>)}</div>
+      </div></section>}
     </article>
     <Dialog open={zoom} onOpenChange={setZoom}><DialogContent className="pp-image-dialog"><DialogTitle>{p.name}</DialogTitle><DialogDescription>Product image {imageIndex + 1} of {images.length}</DialogDescription>{image && <img src={mediaUrl(image)} alt={`${p.name} — enlarged product image`}/>}<div className="pp-lightbox-controls">{images.length > 1 && <><button onClick={() => setImageIndex(index => (index - 1 + images.length) % images.length)} aria-label="Previous product image"><ArrowLeft size={20}/></button><span>{imageIndex + 1} / {images.length}</span><button onClick={() => setImageIndex(index => (index + 1) % images.length)} aria-label="Next product image"><ArrowRight size={20}/></button></>}</div></DialogContent></Dialog>
     <Partnership/>

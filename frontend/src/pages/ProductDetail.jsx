@@ -9,6 +9,7 @@ import ProductBadges from "@/components/public/ProductBadges";
 import ProductCard from "@/components/public/ProductCard";
 import ProductContent from "@/components/corporate/ProductContent";
 import { portfolioText } from "@/lib/portfolio.mjs";
+import { relatedProductsFor } from "@/lib/relatedProducts.mjs";
 import "@/components/corporate/product-profile.css";
 import ProductReviews from "@/components/public/ProductReviews";
 import ShareButtons from "@/components/public/ShareButtons";
@@ -78,6 +79,7 @@ export default function ProductDetail() {
   if (!p) return <div className="vm-container py-20 text-center text-slate-400">Product not found. <Link to="/shop" className="text-vm-green underline">Back to shop</Link></div>;
 
   const variants = p.variants || [];
+  const related = relatedProductsFor(p);
   const variant = variants.find((v) => v.id === variantId) || variants[0] || {};
   const images = (variant.images && variant.images.length) ? variant.images : (p.images?.length ? p.images : [p.image]);
   const schemes = variant.active_schemes || [];
@@ -293,13 +295,13 @@ export default function ProductDetail() {
       )}
 
       {/* Related */}
-      {p.related?.length > 0 && (
-        <div className="mt-14">
-          <h2 className="font-heading text-2xl font-bold text-vm-ink mb-6">Related Products</h2>
+      {related.length > 0 && (
+        <section className="mt-14" aria-labelledby="shop-related-heading" data-testid="related-products">
+          <h2 id="shop-related-heading" className="font-heading text-2xl font-bold text-vm-ink mb-6">Related Products</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {p.related.map((rp) => <ProductCard key={rp.id} product={rp} />)}
+            {related.map((rp) => <ProductCard key={rp.id} product={rp} />)}
           </div>
-        </div>
+        </section>
       )}
 
       {/* FAQ */}

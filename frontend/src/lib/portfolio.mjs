@@ -1,15 +1,21 @@
 // Corporate views receive an information-only projection, including for signed-in customers.
+import { relatedProductsFor } from "./relatedProducts.mjs";
+
 const PRODUCT_FIELDS = ["id", "name", "slug", "generic_name", "brand_name", "category_id", "subcategory_id", "category_ids", "subcategory_ids", "image", "images", "short_description", "full_description", "composition", "indications", "dosage"];
 const SEO_FIELDS = ["title", "meta_description", "meta_keywords", "og_title", "og_description", "og_image", "robots", "faqs", "intro", "extra_content", "seo_content"];
 const select = (object, keys) => Object.fromEntries(keys.filter(key => object?.[key] !== undefined).map(key => [key, object[key]]));
 
-export function portfolioProduct(product = {}) {
+function projectProduct(product) {
   return {
     ...select(product, PRODUCT_FIELDS),
     category: product.category ? select(product.category, ["id", "name", "slug"]) : undefined,
     variants: (product.variants || []).map(variant => select(variant, ["id", "pack_size", "unit", "images"])),
     seo: select(product.seo || {}, SEO_FIELDS),
   };
+}
+
+export function portfolioProduct(product = {}) {
+  return { ...projectProduct(product), related: relatedProductsFor(product).map(projectProduct) };
 }
 
 export function portfolioText(value) {

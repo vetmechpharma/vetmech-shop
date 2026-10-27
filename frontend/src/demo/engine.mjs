@@ -1,6 +1,7 @@
 import { DEMO_KEY, DEMO_SCHEMA, DEMO_PASSWORD, DEMO_OTP, seedDemo } from "./seed.mjs";
 import { productProfileExample } from "./productProfileExample.mjs";
 import { passwordError } from "../lib/customerAuth.mjs";
+import { randomRelatedProducts } from "../lib/relatedProducts.mjs";
 
 export class DemoError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -177,8 +178,9 @@ export function createDemoEngine(storage) {
         result = path.endsWith("by-ids") ? rows.map(p => enrich(p, customer)) : pages(rows.map(p => path.startsWith("/admin") ? copy(p) : enrich(p, customer)), params);
       } else { const p = normalizeProduct(body); state.products.unshift(p); result = copy(p); }
     } else if (parts[0] === "products" && parts[1]) {
-      const p = state.products.find(p => p.slug === parts[1]); if (!p) throw new DemoError(404, "Product not found.");
-      result = { ...enrich(p, customer), related: state.products.filter(row => row.id !== p.id && row.active).map(row => enrich(row, customer)), related_products: state.products.filter(row => row.id !== p.id && row.active).map(row => enrich(row, customer)) };
+      const p = state.products.find(p => p.slug === parts[1] && p.active === true); if (!p) throw new DemoError(404, "Product not found.");
+      const related = randomRelatedProducts(p, state.products).map(row => enrich(row, customer));
+      result = { ...enrich(p, customer), related, related_products: related };
     } else if (path === "/cart/calculate") {
       const items = body.items?.length ? linesFor(body.items, customer) : [];
       result = { items, total_qty: items.reduce((n, i) => n + i.qty, 0), total_free: items.reduce((n, i) => n + i.free_qty, 0), total_dispatch: items.reduce((n, i) => n + i.dispatch_qty, 0), line_count: items.length };
