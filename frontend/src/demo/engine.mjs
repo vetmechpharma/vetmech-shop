@@ -40,7 +40,7 @@ export function createDemoEngine(storage) {
   const notify = (kind, message) => state.notification_logs.unshift({ id: uid("notification"), channel: "whatsapp", to: "Demo recipient", kind, message, simulated: true, status: "simulated", created_at: today() });
   const cleanCustomer = c => { const { password, ...rest } = c; return copy({ ...rest, has_password: !!password }); };
   const mobileNumber = value => { const mobile = String(value || "").replace(/\D/g, "").slice(-10); if (mobile.length !== 10) throw new DemoError(400, "Enter a valid 10-digit mobile number"); return mobile; };
-  const tokenCustomer = token => state.customers.find(c => token === `demo-customer:${c.id}`);
+  const tokenCustomer = token => state.customers.find(c => token === `demo-customer:${c.id}` && !["suspended", "rejected", "deleted"].includes(c.status));
   const offerList = (variant, customer) => {
     if (!customer || customer.status !== "active") return [];
     const list = state.schemes.filter(s => s.active !== false && (s.variant_id === variant.id || (!s.variant_id && s.product_id === variant.product_id)) && (!s.start_date || s.start_date <= today()) && (!s.end_date || s.end_date >= today()));
@@ -251,10 +251,10 @@ export function createDemoEngine(storage) {
   }
   function customersApi(method, parts, params, body) {
     const id = parts[2], action = parts[3];
-    if (!id && method === "GET") return pages(search(state.customers.filter(c => (!params.status || c.status === params.status) && (!params.category || c.category === params.category)), params.q).map(c => ({ ...cleanCustomer(c), order_count: state.orders.filter(o => o.customer_id === c.id).length })), params);
+    if (!id && method === "GET") return pages(search(state.customers.filter(c => (params.status && params.status !== "all" ? c.status === params.status : c.status !== "deleted") && (!params.category || c.category === params.category)), params.q).map(c => ({ ...cleanCustomer(c), order_count: state.orders.filter(o => o.customer_id === c.id).length })), params);
     if (!id) { if (passwordError(body.password)) throw new DemoError(400, passwordError(body.password)); if (state.customers.some(c => c.mobile === body.mobile)) throw new DemoError(400, "Mobile already exists in the demo."); const row = { ...copy(body), id: uid("customer"), status: body.status || "active", active: true, addresses: [], created_at: today() }; state.customers.push(row); return cleanCustomer(row); }
     const row = get("customers", id);
-    if (method === "DELETE") { row.status = "deleted"; return { deleted: true }; }
+    if (method === "DELETE") { row.status = "deleted"; row.active = false; return { deleted: true }; }
     if (action) {
       const states = { approve: "active", reject: "rejected", suspend: "suspended", reactivate: "active" };
       if (states[action]) row.status = states[action];

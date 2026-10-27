@@ -95,10 +95,10 @@ async def dashboard(admin=Depends(get_current_admin)):
 async def list_customers(category: Optional[str] = None, status: Optional[str] = None,
                          q: Optional[str] = None,
                          page: int = 1, limit: int = 20, admin=Depends(require_module("customers"))):
-    query = {}
+    query = {"status": {"$ne": "deleted"}}
     if category:
         query["category"] = category
-    if status:
+    if status and status != "all":
         query["status"] = status
     if q:
         import re

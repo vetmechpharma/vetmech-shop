@@ -32,7 +32,7 @@ export default function AdminCustomers() {
   });
   const { data: pending } = useQuery({ queryKey: ["cust-pending-count"], queryFn: async () => (await api.get("/admin/customers-pending-count")).data });
 
-  const invalidate = () => { qc.invalidateQueries({ queryKey: ["admin-customers"] }); qc.invalidateQueries({ queryKey: ["cust-pending-count"] }); };
+  const invalidate = () => { qc.invalidateQueries({ queryKey: ["admin-customers"] }); qc.invalidateQueries({ queryKey: ["cust-pending-count"] }); qc.invalidateQueries({ queryKey: ["admin-customer"] }); };
 
   return (
     <div>
@@ -46,7 +46,7 @@ export default function AdminCustomers() {
 
       {/* Status tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {[{ value: "all", label: "All" }, ...CUSTOMER_STATUSES.filter((s) => s.value !== "deleted")].map((s) => (
+        {[{ value: "all", label: "All" }, ...CUSTOMER_STATUSES].map((s) => (
           <button key={s.value} onClick={() => setStatus(s.value)} data-testid={`status-tab-${s.value}`}
             className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${status === s.value ? "bg-vm-green text-white border-vm-green" : "bg-white text-slate-600 border-[#E2E8F0] hover:border-vm-accent"}`}>
             {s.label}{s.value === "pending" && pending?.count ? ` (${pending.count})` : ""}
@@ -82,6 +82,7 @@ export default function AdminCustomers() {
                       {c.status === "active" && <StatusBtn cid={c.id} action="suspend" invalidate={invalidate} icon={Ban} cls="text-amber-600" title="Suspend" />}
                       {(c.status === "suspended" || c.status === "rejected") && <StatusBtn cid={c.id} action="reactivate" invalidate={invalidate} icon={RotateCw} cls="text-green-600" title="Reactivate" />}
                       <Button variant="ghost" size="icon" onClick={() => setDetailId(c.id)} aria-label={`View ${c.name}`} data-testid={`view-customer-${c.id}`}><Eye className="w-4 h-4" /></Button>
+                      <DeleteCustomerAction customer={c} onDeleted={invalidate} />
                     </TableCell>
                   </TableRow>
                 );
@@ -107,6 +108,31 @@ function StatusBtn({ cid, action, invalidate, icon: Icon, cls, title }) {
   return <Button variant="ghost" size="icon" className={cls} title={title} onClick={() => m.mutate()} disabled={m.isPending} data-testid={`cust-${action}-${cid}`}><Icon className="w-4 h-4" /></Button>;
 }
 
+function DeleteCustomerAction({ customer, onDeleted, testid }) {
+  const [open, setOpen] = useState(false);
+  const remove = useMutation({
+    mutationFn: async () => (await api.delete(`/admin/customers/${customer.id}`)).data,
+    onSuccess: () => { setOpen(false); onDeleted(); toast.success("Customer moved to Deleted"); },
+    onError: (e) => toast.error(apiError(e)),
+  });
+  if (customer.status === "deleted") return null;
+  return <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50 hover:text-red-700"
+      aria-label={`Delete ${customer.name}`} data-testid={testid || `delete-customer-${customer.id}`}><Trash2 className="w-4 h-4" /> Delete</Button></AlertDialogTrigger>
+    <AlertDialogContent>
+      <AlertDialogHeader><AlertDialogTitle>Delete {customer.name}?</AlertDialogTitle>
+        <AlertDialogDescription><span className="block mb-3 font-medium text-slate-700">{customer.prefix} {customer.name} · {customer.mobile}</span>
+          This customer will be moved to the Deleted tab and will no longer be able to sign in. Existing orders and order history will be kept.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter><AlertDialogCancel disabled={remove.isPending}>Cancel</AlertDialogCancel>
+        <AlertDialogAction className="bg-red-600 hover:bg-red-700" disabled={remove.isPending} data-testid={`confirm-delete-customer-${customer.id}`}
+          onClick={(event) => { event.preventDefault(); remove.mutate(); }}>{remove.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Delete customer</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>;
+}
+
 function CustomerDetail({ id, onChange, onClose }) {
   const qc = useQueryClient();
   const { data: c } = useQuery({ queryKey: ["admin-customer", id], queryFn: async () => (await api.get(`/admin/customers/${id}`)).data, enabled: !!id });
@@ -121,11 +147,6 @@ function CustomerDetail({ id, onChange, onClose }) {
   const resetPwd = useMutation({
     mutationFn: async () => (await api.post(`/admin/customers/${id}/reset-password`, { password: pwd })).data,
     onSuccess: () => { setPwd(""); setPwdOpen(false); qc.invalidateQueries({ queryKey: ["admin-customer", id] }); onChange(); toast.success("Password reset"); },
-    onError: (e) => toast.error(apiError(e)),
-  });
-  const del = useMutation({
-    mutationFn: async () => (await api.delete(`/admin/customers/${id}`)).data,
-    onSuccess: () => { onChange(); onClose(); toast.success("Customer deleted"); },
     onError: (e) => toast.error(apiError(e)),
   });
 
@@ -165,11 +186,7 @@ function CustomerDetail({ id, onChange, onClose }) {
           {c.status === "pending" && <StatusBtnWide cid={id} action="reject" onChange={onChange} label="Reject" cls="border border-red-300 text-red-600" />}
           {c.status === "active" && <StatusBtnWide cid={id} action="suspend" onChange={onChange} label="Suspend" cls="border border-amber-300 text-amber-700" />}
           {(c.status === "suspended" || c.status === "rejected") && <StatusBtnWide cid={id} action="reactivate" onChange={onChange} label="Reactivate" cls="bg-vm-green hover:bg-vm-greenhover text-white" />}
-          <AlertDialog>
-            <AlertDialogTrigger asChild><Button variant="ghost" size="sm" className="text-red-500" data-testid="detail-delete"><Trash2 className="w-4 h-4 mr-1" /> Delete</Button></AlertDialogTrigger>
-            <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {c.name}?</AlertDialogTitle><AlertDialogDescription>The account will be marked deleted and can no longer log in. Order history is preserved.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-600" onClick={() => del.mutate()}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-          </AlertDialog>
+          <DeleteCustomerAction customer={c} testid="detail-delete" onDeleted={() => { onChange(); onClose(); }} />
         </div>
 
         {c.frequent_products?.length > 0 && (
