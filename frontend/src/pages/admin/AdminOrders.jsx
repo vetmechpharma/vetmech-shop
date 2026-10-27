@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Loader2, Eye, Download, FileText, Plus, Trash2, X } from "lucide-react";
 import { ORDER_STATUSES, statusMeta, CUSTOMER_CATEGORIES, INDIAN_STATES } from "@/lib/constants";
 import { exportRows } from "@/lib/exportUtils";
+import OrderInvoicePanel from "@/components/ledger/OrderInvoicePanel";
 import DispatchSection from "@/components/admin/DispatchSection";
 
 export default function AdminOrders() {
@@ -36,7 +37,7 @@ export default function AdminOrders() {
       Company: o.company_name, Mobile: o.customer_mobile, Category: o.customer_category,
       Products: o.items.length, OrderedQty: o.total_qty, FreeQty: o.total_free, Status: statusMeta(o.status).label,
       Transport: o.dispatch?.transport || "", Freight: o.dispatch ? (o.dispatch.freight === "paid" ? "Paid" : "To Pay") : "",
-      InvoiceNo: o.dispatch?.invoice_number || "", InvoiceValue: o.dispatch?.invoice_value || "",
+      InvoiceNo: o.invoice?.invoice_number || o.dispatch?.invoice_number || "", InvoiceValue: o.invoice ? o.invoice.amount_paise / 100 : o.dispatch?.invoice_value || "",
     }));
     exportRows(rows, `vetmech-orders`, type);
   };
@@ -76,7 +77,7 @@ export default function AdminOrders() {
                   <TableCell><span className={`text-xs font-semibold px-2.5 py-1 rounded ${statusMeta(o.status).color}`}>{statusMeta(o.status).label}</span></TableCell>
                   <TableCell className="text-sm text-slate-600">{o.dispatch?.transport || <span className="text-slate-300">—</span>}</TableCell>
                   <TableCell className="text-sm">{o.dispatch ? <span className={`text-xs font-semibold px-2 py-0.5 rounded ${o.dispatch.freight === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{o.dispatch.freight === "paid" ? "Paid" : "To Pay"}</span> : <span className="text-slate-300">—</span>}</TableCell>
-                  <TableCell className="text-sm text-slate-600">{o.dispatch?.invoice_number || <span className="text-slate-300">—</span>}</TableCell>
+                  <TableCell className="text-sm text-slate-600">{o.invoice?.invoice_number || o.dispatch?.invoice_number || <span className="text-slate-300">—</span>}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     <Button variant="ghost" size="icon" onClick={() => setDetailId(o.id)} aria-label={`View order ${o.order_number}`} data-testid={`view-order-${o.order_number}`}><Eye className="w-4 h-4" /></Button>
                     <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500" aria-label={`Delete order ${o.order_number}`} data-testid={`delete-order-${o.order_number}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
@@ -217,9 +218,9 @@ function OrderDetail({ id, onClose, onChange }) {
             <div className="mt-4 space-y-5 text-sm">
               <div>
                 <Label>Order Status</Label>
-                <Select value={order.status} onValueChange={(v) => setStatus.mutate(v)}>
+                <Select value={order.status} disabled={!!order.invoice} onValueChange={(v) => setStatus.mutate(v)}>
                   <SelectTrigger className="mt-1" data-testid="change-status"><SelectValue /></SelectTrigger>
-                  <SelectContent>{ORDER_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{ORDER_STATUSES.filter(s=>s.value!=="closed"||order.status==="closed").map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
 
@@ -241,7 +242,7 @@ function OrderDetail({ id, onClose, onChange }) {
               <div>
                 <div className="flex items-center justify-between">
                   <Label>Products & Pricing</Label>
-                  {!editMode && <Button size="sm" variant="outline" onClick={startEdit} data-testid="order-edit-pricing">Edit Pricing</Button>}
+                  {!editMode && !order.invoice && <Button size="sm" variant="outline" onClick={startEdit} data-testid="order-edit-pricing">Edit Pricing</Button>}
                 </div>
                 {!editMode ? (
                   <>
@@ -313,7 +314,8 @@ function OrderDetail({ id, onClose, onChange }) {
                 )}
               </div>
 
-              <DispatchSection key={order.id + (order.dispatch?.cases ? "-d" : "-p")} order={order} onDone={() => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); }} />
+              {!order.invoice&&<DispatchSection key={order.id + (order.dispatch?.cases ? "-d" : "-p")} order={order} onDone={() => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); }} />}
+              <OrderInvoicePanel key={order.id+"-"+(order.invoice?.id||"open")} order={order} onDone={onChange}/>
 
               <div>
                 <Label>Internal Notes</Label>

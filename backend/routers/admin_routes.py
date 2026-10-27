@@ -74,6 +74,7 @@ async def dashboard(admin=Depends(get_current_admin)):
             "ready_to_dispatch": by_status.get("ready_to_dispatch", 0),
             "dispatched": by_status.get("dispatched", 0),
             "delivered": by_status.get("delivered", 0),
+            "closed": by_status.get("closed", 0),
             "cancelled": by_status.get("cancelled", 0),
         },
         "today_orders": len(today_orders),
@@ -230,6 +231,8 @@ async def reactivate_customer(cid: str, admin=Depends(require_module("customers"
 @router.delete("/customers/{cid}")
 async def delete_customer(cid: str, hard: bool = False, admin=Depends(require_module("customers"))):
     if hard:
+        if await db.ledger_entries.find_one({"customer_id": cid}) or await db.orders.find_one({"customer_id": cid, "$or": [{"invoice": {"$exists": True}}, {"voided_invoices.0": {"$exists": True}}]}):
+            raise HTTPException(409, "Customers with ledger history must be retained; use the normal Delete action")
         res = await db.customers.delete_one({"id": cid})
         if res.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Not found")

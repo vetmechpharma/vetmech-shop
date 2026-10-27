@@ -25,6 +25,7 @@ export const ORDER_STATUSES = [
   { value: "ready_to_dispatch", label: "Ready to Dispatch", color: "bg-purple-100 text-purple-700" },
   { value: "dispatched", label: "Dispatched", color: "bg-cyan-100 text-cyan-700" },
   { value: "delivered", label: "Delivered", color: "bg-green-100 text-green-700" },
+  { value: "closed", label: "Closed / Invoiced", color: "bg-slate-900 text-white" },
   { value: "cancelled", label: "Cancelled", color: "bg-red-100 text-red-700" },
   { value: "on_hold", label: "On Hold", color: "bg-slate-200 text-slate-600" },
 ];

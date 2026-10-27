@@ -11,7 +11,7 @@ const STATUS = [
   { key: "today_orders", label: "Today", icon: ShoppingBag, root: true },
   { key: "new", label: "New", icon: Clock }, { key: "confirmed", label: "Confirmed", icon: CheckCircle2 },
   { key: "processing", label: "Processing", icon: Clock }, { key: "ready_to_dispatch", label: "Ready to dispatch", icon: PackageCheck },
-  { key: "dispatched", label: "Dispatched", icon: Truck }, { key: "delivered", label: "Delivered", icon: PackageCheck }, { key: "cancelled", label: "Cancelled", icon: XCircle },
+  { key: "dispatched", label: "Dispatched", icon: Truck }, { key: "delivered", label: "Delivered", icon: PackageCheck }, { key: "closed", label: "Closed / Invoiced", icon: CheckCircle2 }, { key: "cancelled", label: "Cancelled", icon: XCircle },
 ];
 const PIE_COLORS = ["#df2030", "#282a30", "#f08a94", "#8c8f99", "#dbdde2"];
 
