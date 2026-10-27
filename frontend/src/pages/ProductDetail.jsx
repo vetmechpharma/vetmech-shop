@@ -252,12 +252,10 @@ export default function ProductDetail() {
           <div className="mt-5 flex flex-wrap gap-3">
             {comingSoon ? (
               <Button size="lg" disabled className="bg-slate-300">Coming Soon</Button>
-            ) : outOfStock ? (
-              <Button size="lg" disabled className="bg-red-100 text-red-700">Out of Stock</Button>
             ) : (
               <Button size="lg" className="bg-vm-green hover:bg-vm-greenhover" data-testid="detail-add-to-cart"
                       onClick={() => addItem(variant.id, qty, { name: p.name, pack: variant.pack_size }, true)}>
-                <ShoppingCart className="w-4 h-4 mr-2" /> Add to Cart
+                <ShoppingCart className="w-4 h-4 mr-2" /> {outOfStock?"Request this item":"Add to Cart"}
               </Button>
             )}
             <Button size="lg" variant="outline" className="border-vm-green text-vm-green" onClick={() => { addItem(variant.id, qty, { name: p.name }, true); navigate("/cart"); }} data-testid="buy-now">

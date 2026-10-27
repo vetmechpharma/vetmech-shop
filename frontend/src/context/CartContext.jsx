@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import {pendingCartMeta} from "@/lib/pendingItems.mjs";
 
 const CartContext = createContext(null);
 export const useCart = () => useContext(CartContext);
@@ -42,7 +43,7 @@ export function CartProvider({ children }) {
       let next;
       if (idx >= 0) {
         next = [...prev];
-        next[idx] = { ...next[idx], ...meta, qty: replace ? qty : next[idx].qty + qty };
+        next[idx] = { ...next[idx], ...meta, ...pendingCartMeta(next[idx],meta), qty: replace ? qty : next[idx].qty + qty };
       } else {
         next = [...prev, { variant_id, qty, ...meta }];
       }

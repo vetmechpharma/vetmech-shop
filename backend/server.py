@@ -23,7 +23,8 @@ from backup import export_database, export_uploads, backup_stats as database_bac
 from security import get_current_admin, require_module
 from seed_data import run_seed
 from seed_tickets import run_seed_tickets
-from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations, pricing, seo, ledger
+from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations, pricing, seo, ledger, pending_routes
+from pending_items import backfill_pending_items
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -249,6 +250,7 @@ app.include_router(quotations.router)
 app.include_router(pricing.router)
 app.include_router(seo.router)
 app.include_router(ledger.router)
+app.include_router(pending_routes.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -272,12 +274,15 @@ async def startup():
     await db.orders.create_index("order_number")
     await db.orders.create_index("invoice_key", unique=True, sparse=True)
     await db.orders.create_index("customer_id")
+    await db.orders.create_index("pending_items.variant_id")
+    await db.orders.create_index("pending_reorders.pending_id")
     await db.ledger_entries.create_index([("customer_id", 1), ("transaction_date", 1)])
     await db.ledger_entries.create_index([("entry_type", 1), ("status", 1)])
     await run_seed(db)
     if demo_enabled():
         await run_seed_tickets(db)
     await migrate_customers(db)
+    await backfill_pending_items(db)
     await pricing.ensure_settings()
 
 

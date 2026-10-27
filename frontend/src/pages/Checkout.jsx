@@ -17,12 +17,16 @@ import { ShieldCheck, Loader2, CheckCircle2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSettings } from "@/hooks/useSettings";
+import {useQueryClient} from "@tanstack/react-query";
+import PendingOrderItems from "@/components/public/PendingOrderItems";
+import {checkoutPendingIds} from "@/lib/pendingItems.mjs";
 
 const DEFAULT_TERMS = `1. All orders are subject to confirmation and stock availability.\n2. Prices, offers and schemes are for registered B2B partners and may change without notice.\n3. No online payment is collected; billing and dispatch are arranged by our team.\n4. Free goods and rates shown are indicative; the final invoice governs.\n5. Cash Discount Bill (4%), if opted, is applied on the final invoice as per company policy.\n6. Goods once dispatched are subject to our return/replacement policy.\nBy placing an order you confirm the details are correct and authorised by you.`;
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const { calc, clear } = useCart();
+  const { calc, clear, items } = useCart();
+  const qc=useQueryClient();
   const { customer } = useAuth();
   const { data: website } = useSettings("website");
   const [authOpen, setAuthOpen] = useState(false);
@@ -69,12 +73,15 @@ export default function Checkout() {
     try {
       const { data } = await api.post("/orders", {
         items: calc.items.map((l) => ({ variant_id: l.variant_id, qty: l.qty })),
+        pending_item_ids: checkoutPendingIds(items,customer.id),
         prefix: form.prefix, name: form.name, mobile, whatsapp: form.whatsapp || mobile,
         company_name: form.company_name, category: form.category,
         address: addr, save_address: true, notes: form.notes,
         accept_terms: acceptTerms, cash_discount: cashDiscount, client_meta: clientMeta,
       });
       clear();
+      qc.invalidateQueries({queryKey:["my-pending-items"]});
+      qc.invalidateQueries({queryKey:["my-orders"]});
       toast.success(`Order ${data.order_number || ""} placed successfully!`);
       navigate("/account", { state: { order: data, justPlaced: true } });
     } catch (e) { toast.error(apiError(e)); }
@@ -82,13 +89,14 @@ export default function Checkout() {
   };
 
   if (calc.items.length === 0) {
-    return <div className="vm-container py-20 text-center text-slate-400">Your cart is empty. <a href="/products" className="text-vm-green underline">Browse products</a></div>;
+    return <div className="vm-container py-10 space-y-6"><SEO noindex title="Checkout"/><h1 className="font-heading text-3xl font-bold text-vm-ink">Checkout</h1>{customer&&<PendingOrderItems customer={customer}/>}<p className="py-10 text-center text-slate-500">Your cart is empty. <a href="/shop" className="text-vm-green underline">Browse products</a></p></div>;
   }
 
   return (
     <div className="vm-container py-10">
       <SEO noindex title="Checkout" />
       <h1 className="font-heading text-3xl font-bold text-vm-ink tracking-tight">Checkout</h1>
+      {customer&&<div className="mt-6"><PendingOrderItems customer={customer}/></div>}
 
       <div className="grid lg:grid-cols-3 gap-8 mt-6">
         <div className="lg:col-span-2 space-y-6">

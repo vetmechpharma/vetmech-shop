@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Body, Query, BackgroundTasks, Header, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from db import db, paginate
@@ -7,6 +7,7 @@ from security import get_current_customer, optional_customer, require_module, ge
 from helpers import (new_id, now_iso, next_order_number, log_audit, add_order_activity,
                      send_whatsapp, send_email, email_for, normalize_mobile)
 from pricing_engine import price_line, get_pricing_settings
+from pending_items import prepare_pending_items, pending_reorder_links
 
 router = APIRouter(prefix="/api", tags=["orders"])
 
@@ -98,6 +99,7 @@ class Address(BaseModel):
 
 class CheckoutBody(BaseModel):
     items: List[CartItem]
+    pending_item_ids: List[str] = Field(default_factory=list, max_length=100)
     # customer profile (for first-time registration)
     prefix: Optional[str] = "Mr."
     name: Optional[str] = None
@@ -167,6 +169,7 @@ async def create_order(body: CheckoutBody, request: Request, customer=Depends(ge
     lines = await resolve_cart([i.model_dump() for i in body.items], cust)
     if not lines:
         raise HTTPException(status_code=400, detail="Cart is empty")
+    pending_reorders = await pending_reorder_links(db, cust["id"], body.pending_item_ids, lines)
     order_no = await next_order_number(db)
     total_qty = sum(l["qty"] for l in lines)
     total_free = sum(l["free_qty"] for l in lines)
@@ -191,6 +194,7 @@ async def create_order(body: CheckoutBody, request: Request, customer=Depends(ge
         "customer_category": cust.get("category", "other"),
         "address": addr,
         "items": lines,
+        "pending_reorders": pending_reorders,
         "total_qty": total_qty,
         "total_free": total_free,
         "total_dispatch": total_qty + total_free,
@@ -358,9 +362,9 @@ async def admin_create_order(body: dict = Body(...), admin=Depends(require_modul
 @router.delete("/admin/orders/{oid}")
 async def delete_order(oid: str, admin=Depends(require_module("orders"))):
     order = await db.orders.find_one({"id": oid})
-    if order and (order.get("invoice") or order.get("voided_invoices")):
-        raise HTTPException(409, "Orders with invoice history must be retained for the customer ledger")
-    res = await db.orders.delete_one({"id": oid, "invoice": None, "voided_invoices.0": {"$exists": False}})
+    if order and (order.get("invoice") or order.get("voided_invoices") or order.get("pending_items")):
+        raise HTTPException(409, "Orders with invoice or pending-item history must be retained. Cancel the order instead.")
+    res = await db.orders.delete_one({"id": oid, "invoice": None, "voided_invoices.0": {"$exists": False}, "pending_items.0": {"$exists": False}})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     await log_audit(db, admin, "delete", "order", oid)
@@ -452,7 +456,7 @@ async def build_priced_lines(items, customer):
             "gst_percent": variant.get("gst_percent", 0), "gst_inclusive": variant.get("gst_inclusive", True),
             "stock_status": "out_of_stock" if bool(it.get("out_of_stock")) else variant.get("stock_status", "in_stock"),
             "out_of_stock": bool(it.get("out_of_stock")), "qty": qty,
-            "scheme_id": None, "scheme_label": scheme_label, "free_qty": free_qty, "dispatch_qty": qty + free_qty,
+            "scheme_id": None, "scheme_label": scheme_label, "free_qty": free_qty, "dispatch_qty": 0 if it.get("out_of_stock") else qty + free_qty,
             "_customer_offer": customer_offer,
         })
     return lines
@@ -506,7 +510,6 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
     updates = {"updated_at": now_iso()}
     if "items" in body:
         cust = await db.customers.find_one({"id": order.get("customer_id")}, {"_id": 0})
-        prev_oos = {l["variant_id"]: bool(l.get("out_of_stock") or l.get("stock_status") == "out_of_stock") for l in order.get("items", [])}
         requested_vids = [it.get("variant_id") for it in body["items"] if int(it.get("qty", 0)) > 0]
         lines = await build_priced_lines(body["items"], cust)
         resolved_vids = {l["variant_id"] for l in lines}
@@ -521,34 +524,9 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
         updates["items"] = lines
         updates["total_qty"] = sum(l["qty"] for l in lines)
         updates["total_free"] = sum(l["free_qty"] for l in lines)
-        updates["total_dispatch"] = updates["total_qty"] + updates["total_free"]
+        updates["total_dispatch"] = sum(line["dispatch_qty"] for line in lines)
+        updates["pending_items"] = prepare_pending_items(order, lines)
         add_order_activity(order, "Admin edited order items & pricing", admin["name"])
-        # Out-of-stock: single consolidated notification for ALL flagged items
-        oos_lines = [l for l in lines if l.get("out_of_stock")]
-        if oos_lines:
-            add_order_activity(order, f"Marked {len(oos_lines)} item(s) out of stock: " + ", ".join(l["product_name"] for l in oos_lines), admin["name"])
-            if body.get("notify_out_of_stock"):
-                tmpls = await get_templates()
-                items_text = ", ".join(f"{l['product_name']} ({l['pack_size']} {l['unit']})".strip() for l in oos_lines)
-                msg = (tmpls["order_items_out_of_stock"]["body"]
-                       .replace("{name}", order.get("customer_name", ""))
-                       .replace("{order}", order.get("order_number", ""))
-                       .replace("{items}", items_text))
-                await send_whatsapp(db, order.get("customer_whatsapp") or order.get("customer_mobile"), msg, kind="items_out_of_stock")
-                add_order_activity(order, f"Sent out-of-stock notification to customer ({len(oos_lines)} item(s) in one message)", admin["name"])
-        # Back-in-stock: items previously OOS that are now available again
-        restock_lines = [l for l in lines if prev_oos.get(l["variant_id"]) and not l.get("out_of_stock")]
-        if restock_lines:
-            add_order_activity(order, f"{len(restock_lines)} item(s) marked back in stock: " + ", ".join(l["product_name"] for l in restock_lines), admin["name"])
-            if body.get("notify_restock"):
-                tmpls = await get_templates()
-                items_text = ", ".join(f"{l['product_name']} ({l['pack_size']} {l['unit']})".strip() for l in restock_lines)
-                msg = (tmpls["order_items_back_in_stock"]["body"]
-                       .replace("{name}", order.get("customer_name", ""))
-                       .replace("{order}", order.get("order_number", ""))
-                       .replace("{items}", items_text))
-                await send_whatsapp(db, order.get("customer_whatsapp") or order.get("customer_mobile"), msg, kind="items_back_in_stock")
-                add_order_activity(order, f"Sent back-in-stock notification to customer ({len(restock_lines)} item(s) in one message)", admin["name"])
     if "address" in body:
         updates["address"] = body["address"]
         add_order_activity(order, "Admin changed delivery address", admin["name"])
@@ -558,11 +536,17 @@ async def edit_order(oid: str, body: dict = Body(...), admin=Depends(require_mod
     query = {"id": oid}
     if "items" in body:
         query["invoice.status"] = {"$ne": "posted"}
+        query["updated_at"] = order.get("updated_at")
     changed = await db.orders.update_one(query, {"$set": updates})
     if not changed.matched_count:
         raise HTTPException(409, "This order was invoiced; refresh it before changing items")
     await log_audit(db, admin, "edit", "order", oid)
-    return await db.orders.find_one({"id": oid}, {"_id": 0})
+    saved = await db.orders.find_one({"id": oid}, {"_id": 0})
+    if "items" in body and body.get("notify_out_of_stock"):
+        from routers.pending_routes import send_out_of_stock_notice
+        saved["stock_notice_result"] = await send_out_of_stock_notice(saved)
+    return saved
+
 
 
 # =============== REVIEW REMINDER CRON ===============
@@ -639,8 +623,8 @@ DEFAULT_TEMPLATES = {
     "order_processing": {"label": "Order Processing", "body": "Dear {name}, your VETMECH order {order} is now being PROCESSED and will be dispatched soon."},
     "order_dispatched": {"label": "Order Dispatched", "body": "Dear {name}, your VETMECH order {order} has been DISPATCHED via {transport} ({cases} case(s), LR {lr}, freight {freight}). Thank you!"},
     "order_delivered": {"label": "Order Delivered", "body": "Dear {name}, your VETMECH order {order} has been DELIVERED. Thank you for choosing VETMECH!"},
-    "order_items_out_of_stock": {"label": "Items Out of Stock", "body": "Dear {name}, regarding your VETMECH order {order}, the following item(s) are currently OUT OF STOCK: {items}. We will update you once they are available. The rest of your order will be processed."},
-    "order_items_back_in_stock": {"label": "Items Back in Stock", "body": "Good news {name}! The following item(s) from your VETMECH order {order} are now BACK IN STOCK: {items}. We are processing them for dispatch. Thank you for your patience!"},
+    "order_items_out_of_stock": {"label": "Items Out of Stock", "body": "Dear {name}, regarding your VETMECH order {order}, the following items are currently OUT OF STOCK:\n{items}\nWe will notify you once they are available. The other items in your order will be processed."},
+    "order_items_back_in_stock": {"label": "Items Back in Stock", "body": "Dear {name}, the following items missed from your previous VETMECH order(s) {order} are now IN STOCK:\n{items}\nYou can add them again at your next checkout. Thank you!"},
     "ticket_created": {"label": "Support Ticket Created", "body": "Dear {name}, your VETMECH support request {ticket} ({title}) has been registered. Our team will get back to you shortly."},
     "ticket_status": {"label": "Support Ticket Status", "body": "Update on your VETMECH support request {ticket}: status is now {status}."},
 }
@@ -651,6 +635,13 @@ async def get_templates():
     doc = await db.settings.find_one({"id": "message_templates"}, {"_id": 0}) or {}
     tmpls = doc.get("templates", {})
     merged = {k: {**v, **tmpls.get(k, {})} for k, v in DEFAULT_TEMPLATES.items()}
+    legacy = {
+        "order_items_out_of_stock": "Dear {name}, regarding your VETMECH order {order}, the following item(s) are currently OUT OF STOCK: {items}. We will update you once they are available. The rest of your order will be processed.",
+        "order_items_back_in_stock": "Good news {name}! The following item(s) from your VETMECH order {order} are now BACK IN STOCK: {items}. We are processing them for dispatch. Thank you for your patience!",
+    }
+    for key, old_body in legacy.items():
+        if merged[key]["body"] == old_body:
+            merged[key]["body"] = DEFAULT_TEMPLATES[key]["body"]
     return merged
 
 
