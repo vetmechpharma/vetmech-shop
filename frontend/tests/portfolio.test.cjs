@@ -35,6 +35,15 @@ test("public product structured data contains product information without offers
   assert.equal(JSON.stringify(result).includes("987654.32"),false);
 });
 
+test("corporate related products stay limited to four and omit commercial data",async()=>{
+  const { portfolioProduct } = await import("../src/lib/portfolio.mjs");
+  const result = portfolioProduct({ ...priced, related: [priced, ...Array.from({length:8},(_,i)=>({ ...priced,id:`related-${i}`,slug:`related-${i}` }))] });
+  assert.equal(result.related.length,4);
+  assert.equal(new Set(result.related.map(p=>p.id)).size,4);
+  for(const value of ["mrp","selling_price","your_price","active_schemes","product_code","sku","987654.32"]){assert.equal(JSON.stringify(result.related).includes(value),false,value);}
+  assert.equal(result.related[0].variants[0].pack_size,"100 ml");
+});
+
 test("a rendered portfolio card never shows MRP, currency, offers or cart actions",async()=>{
   const model=await import("../src/lib/portfolio.mjs");
   const compiled=babel.transformSync(fs.readFileSync(path.join(__dirname,"../src/components/corporate/PortfolioCard.jsx"),"utf8"),{babelrc:false,configFile:false,presets:[["@babel/preset-react",{runtime:"classic"}]],plugins:["@babel/plugin-transform-modules-commonjs"]}).code;

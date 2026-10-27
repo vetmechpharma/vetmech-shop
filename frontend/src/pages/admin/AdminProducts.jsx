@@ -88,7 +88,7 @@ export default function AdminProducts() {
     onError: (e) => toast.error(apiError(e)),
   });
 
-  const openNew = () => { setEditing(null); setDeletedOffers([]); setForm({ active: true, badges: {}, variants: [emptyVariant()], images: [], related_product_ids: [], seo: {} }); setOpen(true); };
+  const openNew = () => { setEditing(null); setDeletedOffers([]); setForm({ active: true, badges: {}, variants: [emptyVariant()], images: [], seo: {} }); setOpen(true); };
   const openEdit = async (row) => {
     const full = (await api.get(`/admin/products/${row.id}`)).data;
     const variants = (full.variants?.length ? full.variants : [emptyVariant()]).map((v) => ({ ...v, category_prices: {}, offers: [] }));
@@ -381,7 +381,7 @@ export default function AdminProducts() {
                 </div>
                 <ImageUpload label="" value="" square onChange={(v) => v && set("images", [...(form.images || []), v])} />
               </div>
-              <p className="text-xs text-slate-400 border-t pt-3">Related products are shown automatically based on the product's category — no manual selection needed.</p>
+              <p className="text-sm text-slate-500 border-t pt-3">Up to 4 related products are selected automatically at random, prioritising the same category. New products are included automatically.</p>
             </TabsContent>
 
             <TabsContent value="seo" className="space-y-3 mt-4">
