@@ -23,6 +23,8 @@ Legacy `enable_otp` and `enable_password_login` settings can no longer restore O
 - Dashboard sales and product/category totals exclude cancelled orders. Repeat customers are counted by identity instead of name. Category totals use one product lookup instead of a database query for every order line. Incomplete legacy order records do not break the overview.
 - Customer edits validate the mobile number, hash new passwords and do not persist plaintext password fields. Admin account creation requires an explicit password and valid email. Admin edits prevent duplicate email addresses and disabling/demoting the last active Super Admin. Admin password attempts now use a lockout after five failures, matching customer login protection.
 
+Customer rows and the customer details panel provide a visible **Delete** action. Its confirmation identifies the customer by name and mobile number. Deleting marks the account deleted, blocks access and moves it out of the default customer list into the **Deleted** tab. Administrators can still view that customer's retained order history there; this action does not permanently remove the customer record or orders.
+
 ## Deployment
 
 Deploy the frontend and backend together because registration now requires `verification_token` and `password`:

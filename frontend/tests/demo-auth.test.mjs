@@ -5,7 +5,7 @@ import { createDemoEngine } from "../src/demo/engine.mjs";
 const setup = () => {
   const values = new Map(), storage = { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) };
   const engine = createDemoEngine(storage);
-  return (path, body = {}, token = "") => engine.handle({ method: "POST", path, body, token });
+  return (path, body = {}, token = "", method = "POST") => engine.handle({ method, path, body, token });
 };
 const details = { name: "Sample Signup", mobile: "0000000011", password: "Signup@2026", category: "doctor", license_number: "SAMPLE-ONLY" };
 async function verify(call, mobile = details.mobile) {
@@ -55,4 +55,18 @@ test("demo password reset enables password login and preserves blocked status", 
   assert.ok((await call("/auth/login/password", { mobile: "0000000001", password: "Changed@2026" })).token);
   await call("/admin/customers/c1/suspend", {}, "demo-admin");
   await assert.rejects(call("/auth/login/password", { mobile: "0000000001", password: "Changed@2026" }), error => error.status === 403);
+});
+
+test("demo customer deletion moves the record to Deleted and preserves history", async () => {
+  const call = setup();
+  const before = await call("/admin/customers/c1", {}, "demo-admin", "GET");
+  await call("/admin/customers/c1", {}, "demo-admin", "DELETE");
+  const listing = await call("/admin/customers", {}, "demo-admin", "GET");
+  assert.equal(listing.items.some(customer => customer.id === "c1"), false);
+  const deleted = await call("/admin/customers?status=deleted", {}, "demo-admin", "GET");
+  assert.deepEqual(deleted.items.map(customer => customer.id), ["c1"]);
+  const after = await call("/admin/customers/c1", {}, "demo-admin", "GET");
+  assert.equal(after.active, false);
+  assert.deepEqual(after.orders, before.orders);
+  await assert.rejects(call("/auth/customer/me", {}, "demo-customer:c1", "GET"), error => error.status === 401);
 });
