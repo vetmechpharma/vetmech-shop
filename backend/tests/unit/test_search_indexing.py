@@ -67,7 +67,7 @@ async def test_product_social_previews_include_name_copy_and_absolute_image(clie
     assert '<meta name="twitter:image" content="https://vetmechpharma.in/api/uploads/share-image.webp"' in response.text
     assert 'rel="canonical" href="https://vetmechpharma.in/products/prostameg-adv"' in response.text
     assert '<h1>PROSTAMEG ADV Bolus</h1>' in response.text
-    assert '<meta name="robots" content="noindex, follow"' in response.text if prefix.startswith("/shop") else '<meta name="robots" content="index, follow"' in response.text
+    assert '<meta name="robots" content="noindex, follow"' in response.text if prefix.startswith("/shop") else '<meta name="robots" content="index, follow, max-image-preview:large"' in response.text
     assert "987654" not in response.text and "876543" not in response.text
 
 

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { mediaUrl } from "@/lib/api";
-import { siteUrl, ORG_NAME } from "@/lib/seo";
+import { siteUrl, ORG_NAME, SITE_NAME } from "@/lib/seo";
+import { searchRobots } from "@/lib/searchAppearance.mjs";
 
 function setMeta(name, content, attr = "name") {
   let el = document.querySelector(`meta[${attr}="${name}"]`);
@@ -34,6 +35,7 @@ function setJsonLd(id, data) {
   if (!data) return;
   const arr = Array.isArray(data) ? data.filter(Boolean) : [data];
   if (!arr.length) return;
+  for (const node of arr) document.getElementById(`vm-default-${node["@type"]}`)?.remove();
   const s = document.createElement("script");
   s.type = "application/ld+json";
   s.id = id;
@@ -50,8 +52,8 @@ export default function SEO({ title, description, keywords, ogImage, seo, jsonLd
     document.title = t ? (t.includes("VETMECH") ? t : `${t} | VETMECH`) : ORG_NAME;
     setMeta("description", d);
     setMeta("keywords", k);
-    setMeta("robots", process.env.REACT_APP_DEMO_MODE === "true" ? "noindex, nofollow" : noindex ? "noindex, follow" : (seo?.robots || "index, follow"));
-    setMeta("og:site_name", ORG_NAME, "property");
+    setMeta("robots", process.env.REACT_APP_DEMO_MODE === "true" ? "noindex, nofollow" : noindex ? "noindex, follow" : searchRobots(seo?.robots || "index, follow"));
+    setMeta("og:site_name", SITE_NAME, "property");
     setMeta("og:title", seo?.og_title || document.title, "property");
     setMeta("og:description", seo?.og_description || d, "property");
     setMeta("og:type", ogType, "property");

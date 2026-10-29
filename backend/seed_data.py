@@ -70,7 +70,7 @@ async def seed_settings(db):
     docs = [
         {"id": "company", "name": "VETMECH PHARMACEUTICALS PRIVATE LIMITED",
          "tagline": "Advancing Animal Health", "logo": "", "favicon": "",
-         "address": "Plot 42, Pharma Industrial Estate, Ahmedabad, Gujarat 382210, India",
+         "address": "",
          "phone": "+91 98250 00000", "whatsapp": "919825000000",
          "email": "vetmechpharma@gmail.com", "gst_number": "24ABCDE1234F1Z5",
          "social": {"facebook": "#", "instagram": "#", "linkedin": "#", "youtube": "#"},

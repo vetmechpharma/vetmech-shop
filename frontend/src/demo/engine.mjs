@@ -1,3 +1,4 @@
+import { companyAddress } from "../lib/searchAppearance.mjs";
 import { DEMO_KEY, DEMO_SCHEMA, DEMO_PASSWORD, DEMO_OTP, seedDemo } from "./seed.mjs";
 import { productProfileExample } from "./productProfileExample.mjs";
 import { passwordError } from "../lib/customerAuth.mjs";
@@ -24,6 +25,7 @@ export function createDemoEngine(storage) {
   let state;
   try { state = JSON.parse(storage.getItem(DEMO_KEY) || "null"); } catch { state = null; }
   if (!state || state.schema !== DEMO_SCHEMA) state = seedDemo();
+  if (state.settings?.company) state.settings.company.address = companyAddress(state.settings.company.address);
   state.registration_otps ||= {};
   state.ledger_entries ||= [];
   for(const order of state.orders||[])if(!Array.isArray(order.pending_items)&&(order.items||[]).some(line=>line.out_of_stock))order.pending_items=preparePending(order,order.items,uid,today);

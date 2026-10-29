@@ -25,6 +25,7 @@ from seed_data import run_seed
 from seed_tickets import run_seed_tickets
 from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations, pricing, seo, ledger, pending_routes
 from pending_items import backfill_pending_items
+from company_profile import remove_sample_company_address
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -283,6 +284,7 @@ async def startup():
         await run_seed_tickets(db)
     await migrate_customers(db)
     await backfill_pending_items(db)
+    await remove_sample_company_address(db)
     await pricing.ensure_settings()
 
 

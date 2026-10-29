@@ -1,3 +1,5 @@
+import { companyAddress } from "@/lib/searchAppearance.mjs";
+
 export const CORPORATE_DEFAULTS = {
   hero: { eyebrow: "THE SCIENCE OF ANIMAL HEALTH", title: "For animals.\nFor a better\ntomorrow.", text: "Advancing animal health through purposeful science and a commitment to the lives that depend on us.", image: "/corporate/animal-care.webp" },
   intro: { eyebrow: "A SHARED PURPOSE", title: "Animal health.\nHuman commitment.", text: "Behind every healthy animal is a world of people who care. At VETMECH, we bring veterinary pharmaceuticals, product knowledge and professional partnerships together — with animal health at the centre of everything we do." },
@@ -17,6 +19,7 @@ export function corporateContent(homepage) {
 
 export function companyContact(company) {
   const email = company?.email && !/@example\.com$/.test(company.email) ? company.email : "info@vetmech.in";
-  const address = company?.address && !company.address.includes("development demo") ? company.address : "Uthukuli, Tirupur, Tamil Nadu, India";
-  return { name: company?.name || "VETMECH PHARMACEUTICALS PRIVATE LIMITED", phone: company?.phone || "+91 99444 72488", email, address, whatsapp: String(company?.whatsapp || company?.phone || "919944472488").replace(/\D/g, "") };
+  const address = companyAddress(company?.address);
+  const displayedAddress = address && !address.includes("development demo") ? address : "Contact our team for our business address.";
+  return { name: company?.name || "VETMECH PHARMACEUTICALS PRIVATE LIMITED", phone: company?.phone || "+91 99444 72488", email, address: displayedAddress, whatsapp: String(company?.whatsapp || company?.phone || "919944472488").replace(/\D/g, "") };
 }

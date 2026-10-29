@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Body, Query
 from typing import Optional
 
 from db import db, paginate
+from company_profile import company_profile
 from security import require_module, get_current_admin
 from helpers import new_id, now_iso, log_audit, send_email, send_whatsapp
 from routers.catalog import slugify, unique_slug
@@ -44,7 +45,7 @@ async def public_setting(sid: str):
     if sid in ("whatsapp", "smtp", "email_templates"):
         raise HTTPException(status_code=403, detail="Not public")
     s = await db.settings.find_one({"id": sid}, {"_id": 0})
-    return s or {"id": sid}
+    return company_profile(s or {"id": sid}) if sid == "company" else s or {"id": sid}
 
 
 @router.get("/admin/settings/{sid}")
@@ -56,6 +57,8 @@ async def admin_setting(sid: str, admin=Depends(get_current_admin)):
 @router.put("/admin/settings/{sid}")
 async def update_setting(sid: str, body: dict = Body(...), admin=Depends(require_module("cms"))):
     body.pop("_id", None)
+    if sid == "company":
+        body = company_profile(body)
     body["id"] = sid
     body["updated_at"] = now_iso()
     await db.settings.update_one({"id": sid}, {"$set": body}, upsert=True)
