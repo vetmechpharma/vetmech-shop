@@ -28,7 +28,9 @@ async def backfill_pending_items(database):
 
 
 async def list_pending_items(database, customer_id=None, history=False):
-    query = {"pending_items.0": {"$exists": True}, "status": {"$ne": "cancelled"}}
+    query = {"pending_items.0": {"$exists": True}}
+    if not history:
+        query["status"] = {"$ne": "cancelled"}
     linked_query = {"pending_reorders.0": {"$exists": True}, "status": {"$ne": "cancelled"}}
     if customer_id:
         query["customer_id"] = linked_query["customer_id"] = customer_id
@@ -45,7 +47,7 @@ async def list_pending_items(database, customer_id=None, history=False):
     async for order in database.orders.find(query):
         for entry in order.get("pending_items", []):
             remaining = max(0, entry["requested_qty"] - allocated[entry["id"]])
-            state = "reordered" if remaining == 0 and entry["state"] != "resolved" else entry["state"]
+            state = "cancelled" if order.get("status") == "cancelled" else "reordered" if remaining == 0 and entry["state"] != "resolved" else entry["state"]
             if not history and state not in {"waiting", "available"}:
                 continue
             rows.append({**entry, "state": state, "remaining_qty": remaining, "order_id": order["id"],
