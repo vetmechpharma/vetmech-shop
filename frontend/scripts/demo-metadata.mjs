@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { portfolioText } from "../src/lib/portfolio.mjs";
 
-const ORG_NAME = "VETMECH PHARMACEUTICALS PRIVATE LIMITED";
+import { SITE_NAME } from "../src/lib/searchAppearance.mjs";
 const escape = value => String(value || "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
 const text = value => portfolioText(value).replace(/\s+/g, " ").trim();
 
@@ -12,7 +12,7 @@ function documentWithMetadata(html, { title, description, canonical, image, prod
   const tags = [
     `<title>${escape(socialTitle)}</title>`,
     meta("description", description), meta("robots", "noindex, nofollow"),
-    meta("og:site_name", ORG_NAME, "property"), meta("og:type", product ? "product" : "website", "property"),
+    meta("og:site_name", SITE_NAME, "property"), meta("og:type", product ? "product" : "website", "property"),
     meta("og:title", socialTitle, "property"), meta("og:description", description, "property"),
     meta("og:url", canonical, "property"), meta("og:image", image, "property"), meta("og:image:alt", image ? title : "", "property"),
     meta("twitter:card", image ? "summary_large_image" : "summary"), meta("twitter:title", socialTitle),

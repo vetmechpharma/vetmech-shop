@@ -1,5 +1,7 @@
 // Shared SEO / JSON-LD helpers (reused across product, category, news, home).
 import { mediaUrl } from "@/lib/api";
+import { SITE_NAME, SITE_ALTERNATE_NAMES, companyAddress } from "./searchAppearance.mjs";
+export { SITE_NAME } from "./searchAppearance.mjs";
 
 const SITE_URL = (process.env.REACT_APP_SITE_URL || window.location.origin).replace(/\/$/, "");
 export const ORG_NAME = "VETMECH PHARMACEUTICALS PRIVATE LIMITED";
@@ -63,11 +65,13 @@ export function organizationLd(company, extra = {}) {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: company?.name || ORG_NAME,
+    alternateName: [SITE_NAME, "VETMECH"],
+    "@id": siteUrl("/#organization"),
     url: SITE_URL || undefined,
     logo: company?.logo ? mediaUrl(company.logo) : siteUrl("/corporate/brand.svg"),
     ...(company?.phone ? { telephone: company.phone } : {}),
     ...(company?.email ? { email: company.email } : {}),
-    ...(company?.address ? { address: { "@type": "PostalAddress", streetAddress: company.address } } : {}),
+    ...(companyAddress(company?.address) ? { address: { "@type": "PostalAddress", streetAddress: companyAddress(company.address) } } : {}),
     ...(social.length ? { sameAs: social } : {}),
     ...extra,
   };
@@ -77,7 +81,9 @@ export function websiteLd() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: ORG_NAME,
+    "@id": siteUrl("/#website"),
+    name: SITE_NAME,
+    alternateName: SITE_ALTERNATE_NAMES,
     url: SITE_URL || undefined,
     potentialAction: {
       "@type": "SearchAction",

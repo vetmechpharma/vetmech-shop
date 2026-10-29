@@ -17,9 +17,11 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from db import db
 from security import require_module
 from helpers import now_iso
+from company_profile import company_profile
 
 router = APIRouter(prefix="/api", tags=["seo"])
 ORG_NAME = "VETMECH PHARMACEUTICALS PRIVATE LIMITED"
+SITE_NAME = "VETMECH Pharmaceuticals"
 
 
 def _base():
@@ -90,8 +92,10 @@ async def social_image(name: str):
 
 
 def _org_ld(company):
+    company = company_profile(company)
     social = [v for v in (company.get("social") or {}).values() if v and v != "#"]
     ld = {"@context": "https://schema.org", "@type": "Organization", "name": company.get("name") or ORG_NAME,
+          "@id": site_url("/#organization"), "alternateName": [SITE_NAME, "VETMECH"],
           "url": _base() or None, "logo": media_abs(company.get("logo")) or site_url("/corporate/brand.svg")}
     if company.get("phone"):
         ld["telephone"] = company["phone"]
@@ -105,7 +109,8 @@ def _org_ld(company):
 
 
 def _website_ld():
-    return {"@context": "https://schema.org", "@type": "WebSite", "name": ORG_NAME, "url": _base() or None,
+    return {"@context": "https://schema.org", "@type": "WebSite", "@id": site_url("/#website"),
+            "name": SITE_NAME, "alternateName": ["VETMECH", ORG_NAME], "url": _base() or None,
             "potentialAction": {"@type": "SearchAction", "target": f"{site_url('/products')}?q={{search_term_string}}",
                                 "query-input": "required name=search_term_string"}}
 
@@ -124,14 +129,32 @@ def _faq_ld(faqs):
             "mainEntity": [{"@type": "Question", "name": f["q"], "acceptedAnswer": {"@type": "Answer", "text": f["a"]}} for f in lst]}
 
 
+def search_robots(value):
+    value = str(value or "index, follow")
+    if re.search(r"\b(?:noindex|none|nosnippet|noimageindex)\b|max-image-preview\s*:", value, re.I):
+        return value
+    return value + ", max-image-preview:large"
+
+
+def image_html(image, label):
+    if not image:
+        return ""
+    parsed = urlsplit(str(image))
+    if parsed.scheme not in {"", "http", "https"} or parsed.username or parsed.password or str(image).startswith("//"):
+        return ""
+    return f'<figure><img src="{esc(media_abs(image))}" alt="{esc(label)}" style="max-width:100%;height:auto"/></figure>'
+
+
 def _doc(title, description, canonical, og_image, jsonld, robots="index, follow", og_type="website", body="", status_code=200,
          og_title=None, og_description=None):
+    robots = search_robots(robots)
     m = [
         f"<title>{esc(title)}</title>",
+        f'<link rel="icon" type="image/png" sizes="96x96" href="{esc(site_url("/corporate/favicon.png"))}"/>',
         f'<meta name="description" content="{esc(description)}"/>',
         f'<meta name="robots" content="{esc(robots)}"/>',
         f'<link rel="canonical" href="{esc(canonical)}"/>',
-        f'<meta property="og:site_name" content="{esc(ORG_NAME)}"/>',
+        f'<meta property="og:site_name" content="{esc(SITE_NAME)}"/>',
         f'<meta property="og:type" content="{esc(og_type)}"/>',
         f'<meta property="og:title" content="{esc(og_title or title)}"/>',
         f'<meta property="og:description" content="{esc(og_description or description)}"/>',
@@ -184,7 +207,7 @@ async def seo_render(path: str = Query("/")):
     if len(p) > 1:
         p = p.rstrip("/") or "/"
     seo = await db.settings.find_one({"id": "seo"}, {"_id": 0}) or {}
-    company = await db.settings.find_one({"id": "company"}, {"_id": 0}) or {}
+    company = company_profile(await db.settings.find_one({"id": "company"}, {"_id": 0}))
     default_img = media_abs(seo.get("default_og_image"))
     org, website = _org_ld(company), _website_ld()
 
@@ -219,7 +242,8 @@ async def seo_render(path: str = Query("/")):
                 crumbs.append({"name": cat["name"], "path": f"/categories/{cat['slug']}"})
             crumbs.append({"name": prod["name"], "path": f"/products/{slug}"})
             product_ld = {"@context": "https://schema.org", "@type": "Product", "name": prod["name"],
-                          "image": img or default_img, "description": desc,
+                          "image": img, "description": desc, "url": canonical,
+                          "@id": canonical + "#product", "mainEntityOfPage": canonical,
                           "brand": {"@type": "Brand", "name": prod.get("brand_name") or "VETMECH"}}
             extra = "".join(f"<h2>{esc(l)}</h2><p>{esc(text(prod.get(k)))}</p>" for l, k in
                             [("Composition", "composition"), ("Indications", "indications"), ("Dosage", "dosage")] if prod.get(k))
@@ -229,10 +253,15 @@ async def seo_render(path: str = Query("/")):
             extra += "".join(f"<h2>{esc(f['q'])}</h2><p>{esc(text(f['a']))}</p>" for f in (s.get("faqs") or [])
                              if f and f.get("q") and f.get("a"))
             body = (f"<h1>{esc(prod['name'])}</h1><p>{esc(desc)}</p>"
+                    f"{image_html(img, prod['name'])}"
                     f"<p>Brand: {esc(prod.get('brand_name') or 'VETMECH')} | Pack: {esc(v0.get('pack_size'))}</p>"
                     f"{('<p>'+esc(text(prod.get('full_description')) )+'</p>') if prod.get('full_description') else ''}{extra}")
+            page_ld = {"@context": "https://schema.org", "@type": "WebPage", "@id": canonical,
+                       "url": canonical, "name": title, "mainEntity": {"@id": canonical + "#product"}}
+            if img:
+                page_ld["primaryImageOfPage"] = {"@type": "ImageObject", "url": img}
             return _doc(title, desc, canonical, share_image(img or default_img),
-                        [product_ld, _breadcrumb_ld(crumbs), _faq_ld(s.get("faqs"))],
+                        [product_ld, page_ld, _breadcrumb_ld(crumbs), _faq_ld(s.get("faqs"))],
                         robots="noindex, follow" if shop_product else s.get("robots", "index, follow"),
                         og_type="product", body=body,
                         og_title=text(s.get("og_title")), og_description=text(s.get("og_description")))
@@ -313,19 +342,52 @@ async def seo_render(path: str = Query("/")):
     s = page.get("seo") or {}
     heading = page.get("title") or static_titles[p]
     title = _title(s.get("title") or heading)
-    desc = text(s.get("meta_description") or page.get("subtitle") or seo.get("default_description")
-                or "Veterinary pharmaceutical products, company information and professional partnerships.")
+    descriptions = {
+        "/": seo.get("default_description") or "Discover VETMECH Pharmaceuticals, our veterinary product portfolio and our commitment to animal health.",
+        "/products": "Explore VETMECH veterinary products, compositions, pack sizes and product information.",
+        "/about": "Discover the purpose and people behind VETMECH Pharmaceuticals Private Limited.",
+        "/quality": "Learn about VETMECH's approach to veterinary product quality and clear product information.",
+        "/infrastructure": "Explore VETMECH Pharmaceuticals company infrastructure and operational information.",
+        "/research": "Explore VETMECH's approach to veterinary formulations, product information and professional collaboration.",
+        "/news": "Read the latest news, articles and product updates from VETMECH Pharmaceuticals.",
+        "/gallery": "Explore the VETMECH Pharmaceuticals gallery, company events and activities.",
+        "/careers": "Explore career opportunities and current vacancies at VETMECH Pharmaceuticals.",
+        "/contact": "Contact VETMECH Pharmaceuticals for veterinary product information and professional partnerships.",
+        "/privacy": "Read how VETMECH Pharmaceuticals handles personal information and website privacy.",
+        "/terms": "Read the terms and conditions for using the VETMECH Pharmaceuticals website and partner ordering services.",
+    }
+    desc = text(s.get("meta_description") or page.get("subtitle") or descriptions[p])
     canonical = site_url(p if p != "/" else "/")
     body = f"<h1>{esc(heading)}</h1><p>{esc(desc)}</p>"
+    page_img = media_abs(s.get("og_image")) or default_img
+    if p == "/":
+        homepage = await db.settings.find_one({"id": "homepage"}, {"_id": 0}) or {}
+        hero = ((homepage.get("corporate") or {}).get("hero") or {}).get("image") or "/corporate/animal-care.webp"
+        page_img = media_abs(s.get("og_image") or hero)
+        body += image_html(hero, "VETMECH veterinary animal care")
+    if p == "/contact":
+        body += "<address>" + f"<p>{esc(company.get('name') or ORG_NAME)}</p>"
+        if company.get("address"):
+            body += f"<p>{esc(company['address'])}</p>"
+        if company.get("phone"):
+            body += f"<p>Phone: {esc(company['phone'])}</p>"
+        if company.get("email"):
+            body += f"<p>Email: {esc(company['email'])}</p>"
+        body += "</address>"
     if page.get("content"):
         body += f"<p>{esc(text(page['content']))}</p>"
     if p in {"/", "/products", "/news"}:
         coll = db.news if p == "/news" else db.products
         prefix = "/news/" if p == "/news" else "/products/"
         items = await coll.find({"active": True}, {"_id": 0}).limit(5000).to_list(5000)
-        body += "<ul>" + "".join(f'<li><a href="{esc(site_url(prefix + item["slug"]))}">{esc(item.get("name") or item.get("title"))}</a></li>'
-                                for item in items if item.get("slug") and indexable(item)) + "</ul>"
-    return _doc(title, desc, canonical, default_img, [org, website] if p == "/" else [org],
+        links = []
+        for index, item in enumerate(item for item in items if item.get("slug") and indexable(item)):
+            label = item.get("name") or item.get("title")
+            image = next((value for value in [*(item.get("images") or []), item.get("image"), item.get("featured_image")] if value), "")
+            photo = image_html(image, label) if index < 8 else ""
+            links.append(f'<li><a href="{esc(site_url(prefix + item["slug"]))}">{esc(label)}</a>{photo}</li>')
+        body += "<ul>" + "".join(links) + "</ul>"
+    return _doc(title, desc, canonical, page_img, [org, website] if p == "/" else [org],
                 robots=s.get("robots", "index, follow"), body=body)
 
 

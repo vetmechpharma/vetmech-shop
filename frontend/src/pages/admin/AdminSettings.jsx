@@ -1,3 +1,4 @@
+import { companyAddress } from "@/lib/searchAppearance.mjs";
 import { corporateContent } from "@/components/corporate/content";
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -48,7 +49,8 @@ export function CompanySettings() {
       <F label="Company Name" value={form.name} onChange={(v) => set("name", v)} />
       <F label="Tagline" value={form.tagline} onChange={(v) => set("tagline", v)} />
       <ImageUpload label="Logo" value={form.logo} onChange={(v) => set("logo", v)} />
-      <F label="Address" value={form.address} onChange={(v) => set("address", v)} textarea />
+      <F label="Address" value={companyAddress(form.address) ? form.address : ""} onChange={(v) => set("address", v)} textarea />
+      {!companyAddress(form.address) && <p role="status" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">Enter your full business contact address. It will appear on your website and in the company information supplied to Google.</p>}
       <div className="grid sm:grid-cols-2 gap-4">
         <F label="Phone" value={form.phone} onChange={(v) => set("phone", v)} />
         <F label="WhatsApp Number (with country code)" value={form.whatsapp} onChange={(v) => set("whatsapp", v)} />
