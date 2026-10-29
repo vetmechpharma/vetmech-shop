@@ -1,3 +1,4 @@
+import {customer360} from "./customer360.mjs";
 import { companyAddress } from "../lib/searchAppearance.mjs";
 import { DEMO_KEY, DEMO_SCHEMA, DEMO_PASSWORD, DEMO_OTP, seedDemo } from "./seed.mjs";
 import { productProfileExample } from "./productProfileExample.mjs";
@@ -206,6 +207,7 @@ export function createDemoEngine(storage) {
       result = parts[2] === "reorder" ? { items: linesFor(order.items, customer) } : copy(order);
     } else if (path === "/admin/dashboard") result = dashboard();
     else if (path === "/admin/customers-pending-count") result = { count: state.customers.filter(c => c.status === "pending").length };
+    else if (/^\/admin\/customers\/[^/]+\/360$/.test(path)) { if(method!=="GET")throw new DemoError(405,"Method not allowed");result=customer360(state,parts[2],params,DemoError); }
     else if (parts[0] === "admin" && parts[1] === "customers") result = customersApi(method, parts, params, body);
     else if (parts[0] === "admin" && parts[1] === "orders") result = ordersApi(method, parts, params, body);
     else if (path === "/admin/dispatches") result = pages(state.orders.filter(o => o.dispatch).map(o => ({ ...copy(o), ...o.dispatch })), params);

@@ -17,14 +17,15 @@ import { Loader2, Eye, Plus, Check, X, Ban, RotateCw, KeyRound, Trash2 } from "l
 import { toast } from "sonner";
 import { CUSTOMER_CATEGORIES, CUSTOMER_STATUSES, customerStatusMeta, statusMeta, PREFIXES } from "@/lib/constants";
 import { exportRows } from "@/lib/exportUtils";
-import {Link} from "react-router-dom";
+import {Link,useSearchParams} from "react-router-dom";
 
 export default function AdminCustomers() {
   const qc = useQueryClient();
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
   const [q, setQ] = useState("");
-  const [detailId, setDetailId] = useState(null);
+  const [params] = useSearchParams();
+  const [detailId, setDetailId] = useState(params.get("customer_id") || null);
   const [addOpen, setAddOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -71,7 +72,7 @@ export default function AdminCustomers() {
                 const sm = customerStatusMeta(c.status);
                 return (
                   <TableRow key={c.id} data-testid={`customer-row-${c.id}`}>
-                    <TableCell className="font-medium text-vm-ink">{c.prefix} {c.name}</TableCell>
+                    <TableCell className="font-medium text-vm-ink"><Link className="hover:text-vm-green" to={`/admin/customers/${encodeURIComponent(c.id)}/360`}>{c.prefix} {c.name}</Link></TableCell>
                     <TableCell className="text-sm">{c.company_name || "—"}</TableCell>
                     <TableCell className="text-sm">{c.mobile}</TableCell>
                     <TableCell className="text-sm">{CUSTOMER_CATEGORIES.find((x) => x.value === c.category)?.label}</TableCell>
@@ -83,6 +84,7 @@ export default function AdminCustomers() {
                       {c.status === "active" && <StatusBtn cid={c.id} action="suspend" invalidate={invalidate} icon={Ban} cls="text-amber-600" title="Suspend" />}
                       {(c.status === "suspended" || c.status === "rejected") && <StatusBtn cid={c.id} action="reactivate" invalidate={invalidate} icon={RotateCw} cls="text-green-600" title="Reactivate" />}
                       <Button variant="ghost" size="icon" onClick={() => setDetailId(c.id)} aria-label={`View ${c.name}`} data-testid={`view-customer-${c.id}`}><Eye className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="sm" asChild><Link to={`/admin/customers/${encodeURIComponent(c.id)}/360`} data-testid={`customer-360-${c.id}`}>360 view</Link></Button>
                       <Button variant="outline" size="sm" asChild><Link to={`/admin/ledger?customer_id=${encodeURIComponent(c.id)}`} data-testid={`ledger-link-${c.id}`}>Ledger</Link></Button>
                       <DeleteCustomerAction customer={c} onDeleted={invalidate} />
                     </TableCell>

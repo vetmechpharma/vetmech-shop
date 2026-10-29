@@ -7,11 +7,11 @@ export function preparePending(order,lines,uid,now){
   return previous;
 }
 
-export function pendingRows(state,customerId){
+export function pendingRows(state,customerId,history=false){
   const allocated=new Map();
   for(const order of state.orders.filter(o=>o.status!=="cancelled"&&(!customerId||o.customer_id===customerId))){const budgets=new Map();for(const line of order.items||[])budgets.set(line.variant_id,(budgets.get(line.variant_id)||0)+line.qty);for(const link of order.pending_reorders||[]){const qty=Math.min(link.qty,budgets.get(link.variant_id)||0);allocated.set(link.pending_id,(allocated.get(link.pending_id)||0)+qty);budgets.set(link.variant_id,(budgets.get(link.variant_id)||0)-qty);}}
   const rows=[];
-  for(const order of state.orders.filter(o=>o.status!=="cancelled"&&(!customerId||o.customer_id===customerId)))for(const entry of order.pending_items||[]){const remaining_qty=Math.max(0,entry.requested_qty-(allocated.get(entry.id)||0));if(!["waiting","available"].includes(entry.state)||!remaining_qty)continue;const product=state.products.find(p=>p.active===true&&p.variants.some(v=>v.id===entry.variant_id)),variant=product?.variants.find(v=>v.id===entry.variant_id);rows.push({...entry,remaining_qty,order_id:order.id,order_number:order.order_number,customer_id:order.customer_id,customer_name:order.customer_name,customer_mobile:order.customer_mobile,can_reorder:!!product,slug:product?.slug||entry.slug,min_order_qty:variant?.min_order_qty||1});}
+  for(const order of state.orders.filter(o=>(history||o.status!=="cancelled")&&(!customerId||o.customer_id===customerId)))for(const entry of order.pending_items||[]){const remaining_qty=Math.max(0,entry.requested_qty-(allocated.get(entry.id)||0));const status=order.status==="cancelled"?"cancelled":!remaining_qty&&entry.state!=="resolved"?"reordered":entry.state;if(!history&&(!["waiting","available"].includes(status)||!remaining_qty))continue;const product=state.products.find(p=>p.active===true&&p.variants.some(v=>v.id===entry.variant_id)),variant=product?.variants.find(v=>v.id===entry.variant_id);rows.push({...entry,state:status,remaining_qty,order_id:order.id,order_number:order.order_number,customer_id:order.customer_id,customer_name:order.customer_name,customer_mobile:order.customer_mobile,can_reorder:!!product,slug:product?.slug||entry.slug,min_order_qty:variant?.min_order_qty||1});}
   return rows.sort((a,b)=>b.created_at.localeCompare(a.created_at)||b.id.localeCompare(a.id));
 }
 

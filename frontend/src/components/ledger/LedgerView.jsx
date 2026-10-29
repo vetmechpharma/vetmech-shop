@@ -12,7 +12,7 @@ import "./ledger.css";
 
 export function useLedgerRefresh() {
   const qc = useQueryClient();
-  return () => { for (const key of ["admin-ledger", "my-ledger", "admin-pending-payments", "admin-orders", "admin-order", "admin-dashboard", "my-orders"]) qc.invalidateQueries({ queryKey: [key] }); };
+  return () => { for (const key of ["customer-360", "admin-ledger", "my-ledger", "admin-pending-payments", "admin-orders", "admin-order", "admin-dashboard", "my-orders"]) qc.invalidateQueries({ queryKey: [key] }); };
 }
 
 export function PaymentReview({ entry, action, onDone }) {

@@ -24,6 +24,7 @@ from security import get_current_admin, require_module
 from seed_data import run_seed
 from seed_tickets import run_seed_tickets
 from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations, pricing, seo, ledger, pending_routes
+from routers import customer_360
 from pending_items import backfill_pending_items
 from company_profile import remove_sample_company_address
 
@@ -252,6 +253,7 @@ app.include_router(pricing.router)
 app.include_router(seo.router)
 app.include_router(ledger.router)
 app.include_router(pending_routes.router)
+app.include_router(customer_360.router)
 
 app.add_middleware(
     CORSMiddleware,
