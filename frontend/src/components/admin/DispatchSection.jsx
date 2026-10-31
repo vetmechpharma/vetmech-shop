@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Truck, Printer, Loader2, CheckCircle2, FileText, Save } from "lucide-react";
-import { printEnvelope } from "@/lib/envelope";
+import { Truck, Loader2, CheckCircle2, FileText, Save } from "lucide-react";
+import EnvelopePanel from "./EnvelopePanel";
 
 export default function DispatchSection({ order, onDone }) {
   // Show the "Dispatched" summary only when a real dispatch record exists (cases + transport captured).
@@ -16,7 +16,7 @@ export default function DispatchSection({ order, onDone }) {
   const hasDispatch = !!(order.dispatch && order.dispatch.cases && order.dispatch.transport);
   const [form, setForm] = useState(order.dispatch || { cases: "", transport: "", freight: "to_pay", dispatch_date: new Date().toISOString().slice(0, 10), invoice_number: "", invoice_value: "", invoice_date: new Date().toISOString().slice(0, 10), remarks: "" });
   const [envPrinted, setEnvPrinted] = useState(false);
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setEnvPrinted(false); };
   const { data: transports } = useQuery({ queryKey: ["transports"], queryFn: async () => (await api.get("/admin/transports")).data });
 
   // LR is intentionally NOT collected here — it is obtained from transport and entered AFTER dispatch.
@@ -60,7 +60,7 @@ export default function DispatchSection({ order, onDone }) {
 
       <p className="text-[11px] text-slate-400 mt-2">LR / Tracking number is entered after dispatch (once received from the transporter).</p>
 
-      <Button variant="outline" className="mt-3 w-full" onClick={() => { printEnvelope(order); setEnvPrinted(true); }} data-testid="print-envelope"><Printer className="w-4 h-4 mr-2" /> Print Envelope</Button>
+      <EnvelopePanel order={order} dispatch={form} onDone={onDone} onChanged={setEnvPrinted}/><label className="flex items-center gap-2 mt-3 text-sm"><input type="checkbox" checked={envPrinted} onChange={e=>setEnvPrinted(e.target.checked)}/>Envelope printed and checked</label>
 
       <div className="mt-3 space-y-1.5 bg-vm-bg rounded-lg p-3">
         {checklist.map((c) => (
@@ -119,7 +119,7 @@ function DispatchedSummary({ order, onDone, transports }) {
             <span>LR: <b>{d.lr_number || "—"}</b></span><span>Invoice: <b>{d.invoice_number || "—"}</b></span>
             <span>Inv. Value: <b>{d.invoice_value ? `₹${d.invoice_value}` : "—"}</b></span><span>By: <b>{d.dispatched_by}</b></span>
           </div>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => printEnvelope(order)} data-testid="reprint-envelope"><Printer className="w-4 h-4 mr-1" /> Reprint Envelope</Button>
+          <EnvelopePanel order={order} dispatch={d} onDone={onDone}/>
         </>
       ) : (
         <div className="mt-3">
