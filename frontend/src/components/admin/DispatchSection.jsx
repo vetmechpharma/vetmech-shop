@@ -14,7 +14,7 @@ export default function DispatchSection({ order, onDone }) {
   // Show the "Dispatched" summary only when a real dispatch record exists (cases + transport captured).
   // Setting status to "dispatched" via the dropdown alone must NOT lock editing.
   const hasDispatch = !!(order.dispatch && order.dispatch.cases && order.dispatch.transport);
-  const [form, setForm] = useState(order.dispatch || { cases: "", transport: "", freight: "to_pay", dispatch_date: new Date().toISOString().slice(0, 10), invoice_number: "", invoice_value: "", invoice_date: new Date().toISOString().slice(0, 10), remarks: "" });
+  const [form, setForm] = useState(order.dispatch || order.dispatch_preparation || { cases: "", transport: "", freight: "to_pay", dispatch_date: new Date().toISOString().slice(0, 10), invoice_number: "", invoice_value: "", invoice_date: new Date().toISOString().slice(0, 10), remarks: "" });
   const [envPrinted, setEnvPrinted] = useState(false);
   const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setEnvPrinted(false); };
   const { data: transports } = useQuery({ queryKey: ["transports"], queryFn: async () => (await api.get("/admin/transports")).data });

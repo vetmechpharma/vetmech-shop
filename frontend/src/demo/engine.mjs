@@ -1,3 +1,4 @@
+import { addEnvelopeSamples } from "./envelopeSamples.mjs";
 import {customer360} from "./customer360.mjs";
 import { companyAddress } from "../lib/searchAppearance.mjs";
 import { DEMO_KEY, DEMO_SCHEMA, DEMO_PASSWORD, DEMO_OTP, seedDemo } from "./seed.mjs";
@@ -38,6 +39,8 @@ export function createDemoEngine(storage) {
     }
     state.product_profile_demo_v2 = true;
   }
+  addEnvelopeSamples(state, DEMO_PASSWORD);
+  for(const order of state.orders||[])if(order.dispatch&&!order.dispatch.transport)order.dispatch.transport=order.dispatch.transport_name||state.transports?.find(t=>t.id===order.dispatch.transport_id)?.name||"";
   const persist = () => { try { storage.setItem(DEMO_KEY, JSON.stringify(state)); } catch { throw new DemoError(507, "Demo storage is full. Export or reset the demo to continue."); } };
   const get = (collection, id, field = "id") => {
     const value = (state[collection] || []).find(row => row[field] === id);
@@ -288,9 +291,16 @@ export function createDemoEngine(storage) {
     if (action === "offers") return Object.fromEntries(order.items.map(i => [i.variant_id, offerList({ id: i.variant_id, product_id: i.product_id }, c).map(s => ({ ...s, type: s.scheme_type, buy: s.buy_quantity, free: s.free_quantity, min: s.min_quantity }))]));
     if (action === "prev-pricing") return { items: order.items.map(i => ({ ...i, rate: i.unit_price, qty: i.qty })) };
     if (action === "status") order.status = body.status;
-    if (action === "dispatch") { if (!Number(body.cases) || !body.transport_id) throw new DemoError(400, "Choose a transport and enter cases."); order.dispatch = { ...order.dispatch, ...copy(body), transport_name: get("transports", body.transport_id).name }; order.status = "dispatched"; }
+    if (action === "dispatch") {
+      const previous=order.dispatch||{}, cases=Number(body.cases??previous.cases), freight=body.freight||previous.freight||"to_pay";
+      const transport=body.transport|| (body.transport_id?get("transports",body.transport_id).name:previous.transport);
+      if(!Number.isInteger(cases)||cases<1||cases>100000||!transport||!["paid","to_pay"].includes(freight))throw new DemoError(400,"Choose a transport, valid cases and freight.");
+      order.dispatch={...previous,...copy(body),cases,freight,transport,transport_name:transport,dispatched_by:"Demo Admin",dispatched_at:previous.dispatched_at||today()};order.status="dispatched";
+    }
     if (!action && method === "PUT") {
       if (body.items) { order.items = linesFor(body.items, c, true);order.pending_items=preparePending(order,order.items,uid,today);for(const line of order.items)if(line.out_of_stock)line.dispatch_qty=0;order.sales_value = money(order.items.reduce((n, i) => n + i.qty * i.unit_price, 0)); order.total_qty = order.items.reduce((n, i) => n + i.qty, 0); order.total_free = order.items.reduce((n, i) => n + i.free_qty, 0); order.total_dispatch = order.items.reduce((n,i)=>n+i.dispatch_qty,0);if(body.notify_out_of_stock)order.stock_notice_result=recordOosNotice(state,order,uid,today);}
+      if (body.address != null) order.address = copy(body.address);
+      if (body.internal_notes != null) order.internal_notes = body.internal_notes;
       if (body.notes != null) order.notes = body.notes;
     }
     if (method !== "GET") { order.updated_at = today(); order.activity.push({ id: uid("activity"), text: `Demo ${action || "order"} updated`, actor: "Demo Admin", at: today() }); }
