@@ -16,3 +16,7 @@ Only variable text is printed, in black. Recipient name, main area, PIN and mobi
 Reprints are available from dispatched orders and posted-invoice orders. Posted-invoice orders can enter print-only cases/freight without editing their accounting record.
 
 Physical printer calibration remains necessary: print one test envelope first. A browser cannot verify paper feeding, printer scaling, or successful physical printing. Type 2 is deferred until its dimensions and sample are supplied.
+
+## Browser demo fixtures
+
+Demo tools → Sample envelope order opens SAMPLE-ENV-TO-PAY directly. The synthetic customer is Dr. Sample Customer (mobile 0000000004), with a saved Koduvai delivery address and three 24-unit sample product lines. Preparation is prefilled with three cases, Demo Logistics and TO PAY. SAMPLE-ENV-PAID provides a dispatched order with three cases, PAID, sample invoice reference and sample LR for reprinting. These records live only in browser-demo storage. Existing demo users receive them once without resetting existing edits; deleting a sample does not recreate it on every reload.

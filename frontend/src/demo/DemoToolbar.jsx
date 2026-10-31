@@ -27,6 +27,7 @@ export default function DemoToolbar() {
       <div className="vm-demo-studio-head"><span className="vm-demo-eyebrow">YOUR DEVELOPMENT WORKSPACE</span><button onClick={close} aria-label="Close demo tools"><X size={17} /></button></div>
       <h2>Explore VETMECH</h2><p>Preview the corporate website, Partner Shop and admin workspace with sample records.</p>
       <button className="vm-demo-primary" onClick={() => go("admin", "/admin")} data-testid="demo-enter-admin"><ShieldCheck size={18} /><span>Open admin workspace<small>Products, customers, orders & reports</small></span><ArrowUpRight size={17} /></button>
+      <button className="vm-demo-primary" onClick={()=>go("admin","/admin/orders?order_id=sample-envelope-ready")} data-testid="demo-envelope-order"><ShoppingBag size={18}/><span>Sample envelope order<small>Customer, 3 products, 3 cases · TO PAY</small></span><ArrowUpRight size={17}/></button>
       <div className="vm-demo-two"><button onClick={() => go("doctor", "/shop")} data-testid="demo-enter-customer"><ShoppingBag size={17} /> Doctor demo</button><button onClick={() => go("agency", "/shop/quick-order")}><Users size={17} /> Agency demo</button></div>
       <button className="vm-demo-text" onClick={() => go("public", "/")}>View corporate website <ArrowUpRight size={14} /></button>
       <div className="vm-demo-note">Changes stay in this browser. Prices are illustrative. WhatsApp and email are simulated.</div>

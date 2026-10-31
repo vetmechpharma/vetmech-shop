@@ -1,3 +1,4 @@
+import { addEnvelopeSamples } from "./envelopeSamples.mjs";
 import { productProfileExample } from "./productProfileExample.mjs";
 
 export const DEMO_SCHEMA = 1;
@@ -47,7 +48,7 @@ export function seedDemo() {
   const crm_customers = customers.map(c => ({ ...c, phone: c.mobile, contact_name: c.name, customer_type: "Veterinary Clinic", company_name: c.company_name, notes: "Sample CRM contact", source: "demo", total_tickets: 1, open_tickets: 1, total_orders: 2, total_value: 3000 }));
   const tickets = ["open", "in_progress", "closed"].map((status, i) => ({ id: `t${i + 1}`, ticket_number: `DEMO-T-${101 + i}`, title: ["Product availability enquiry", "Sample dispatch follow-up", "Quotation clarification"][i], description: "Sample follow-up for testing the support workflow.", type: "Enquiry", priority: ["medium", "high", "low"][i], status, effective_status: status, is_overdue: false, days_overdue: 0, customer_id: customers[i].id, customer_name: customers[i].name, customer_phone: customers[i].mobile, customer_email: customers[i].email, company_name: customers[i].company_name, assignee_id: admin.id, assignee_name: admin.name, due_date: date(-3), created_at: date(i + 1), updated_at: date(0), activity: [], updates: [], attachments: [] }));
   const company = { id: "company", name: "VETMECH PHARMACEUTICALS PRIVATE LIMITED", tagline: "The Science of Animal Health", logo: "/demo/logo.svg", favicon: "/demo/logo.svg", address: "Uthukuli, Tirupur, Tamil Nadu — development demo", phone: "", whatsapp: "", email: "demo@example.com", gst_number: "", social: {}, business_hours: "Development demo" };
-  return {
+  const state = {
     schema: DEMO_SCHEMA, product_profile_demo_v2: true, created_at: date(0), products, customers, orders, crm_customers, tickets,
     admin_users: [admin], categories, brands: [{ id: "vetmech", name: "VETMECH", active: true }],
     units: ["Bottle", "Vial", "Pack", "Box", "Pcs"].map((name, i) => ({ id: `unit${i}`, name })),
@@ -68,4 +69,6 @@ export function seedDemo() {
       message_templates: { order_received: "Demo order {order} received.", order_confirmed: "Demo order {order} confirmed.", order_dispatched: "Demo order {order} dispatched." }, email_templates: {}, menu: { items: [{ label: "Home", url: "/" }, { label: "About Us", url: "/about" }, { label: "Contact", url: "/contact" }] },
     },
   };
+  addEnvelopeSamples(state, DEMO_PASSWORD);
+  return state;
 }
