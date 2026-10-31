@@ -1,7 +1,7 @@
 // Type 1: black variable text only, on a pre-printed 220 × 140 mm envelope.
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-export const ENVELOPE_SETTINGS_KEY = "vm_colour_envelope_alignment_v2";
-export const ENVELOPE_DEFAULTS = {ax:40,ay:56,aw:130,ah:40,cx:32,cy:30,px:120,py:30,tx:148,ty:30};
+export const ENVELOPE_SETTINGS_KEY = "vm_colour_envelope_alignment_v3";
+export const ENVELOPE_DEFAULTS = {ax:40,ay:56,aw:130,ah:40,cx:20,cy:30,px:120,py:30,tx:148,ty:30};
 export function envelopeSettings(input = {}) {
   const next={...ENVELOPE_DEFAULTS};
   for(const key of Object.keys(next))if(typeof input?.[key]==="number"&&Number.isFinite(input[key]))next[key]=input[key];
@@ -34,11 +34,11 @@ function fit(){const s=values();let bad=!valid(s);if(!bad){recipient.style.left=
 button.onclick=()=>{if(fit())window.print()};window.addEventListener('beforeprint',fit);window.addEventListener('load',fit);
 for(const key of Object.keys(defaults))document.getElementById(key).oninput=()=>{document.querySelector('#saved').textContent='Alignment changed. Save to reuse on this browser.';fit()};
 document.querySelector('#save').onclick=()=>{if(!fit())return;try{localStorage.setItem(storageKey,JSON.stringify(values()));document.querySelector('#saved').textContent='Alignment saved on this browser.'}catch{document.querySelector('#saved').textContent='Browser storage unavailable. Current alignment can still be printed.'}};
-document.querySelector('#reset').onclick=()=>{for(const key of Object.keys(defaults))document.getElementById(key).value=defaults[key];try{localStorage.removeItem(storageKey)}catch{}document.querySelector('#saved').textContent='Default alignment restored.';fit()};
+document.querySelector('#reset').onclick=()=>{for(const key of Object.keys(defaults))document.getElementById(key).value=defaults[key];try{localStorage.removeItem(storageKey);localStorage.removeItem("vm_colour_envelope_alignment_v2")}catch{}document.querySelector('#saved').textContent='Default alignment restored.';fit()};
 </script></body></html>`;
 }
 export function printEnvelope(order, dispatch = order.dispatch || {}) {
-  let settings={};try{settings=JSON.parse(window.localStorage.getItem(ENVELOPE_SETTINGS_KEY)||"{}")}catch{}
+  let settings={};try{const current=window.localStorage.getItem(ENVELOPE_SETTINGS_KEY);if(current!==null)settings=JSON.parse(current);else{settings=JSON.parse(window.localStorage.getItem("vm_colour_envelope_alignment_v2")||"{}");if(settings?.cx===32)settings.cx=20}}catch{}
   const html=envelopeDocument(order,dispatch,settings),preview=window.open("","_blank","width=1100,height=800");
   if(!preview)throw new Error("Allow pop-ups to open the envelope preview.");
   preview.opener=null;preview.document.open();preview.document.write(html);preview.document.close();return true;
