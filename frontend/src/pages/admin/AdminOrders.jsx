@@ -18,6 +18,7 @@ import { ORDER_STATUSES, statusMeta, CUSTOMER_CATEGORIES, INDIAN_STATES } from "
 import { exportRows } from "@/lib/exportUtils";
 import OrderInvoicePanel from "@/components/ledger/OrderInvoicePanel";
 import DispatchSection from "@/components/admin/DispatchSection";
+import EnvelopePanel from "@/components/admin/EnvelopePanel";
 
 export default function AdminOrders() {
   const qc = useQueryClient();
@@ -310,6 +311,7 @@ function OrderDetail({ id, onClose, onChange }) {
               </div>
 
               {!order.invoice&&<DispatchSection key={order.id + (order.dispatch?.cases ? "-d" : "-p")} order={order} onDone={() => { qc.invalidateQueries({ queryKey: ["admin-order", id] }); onChange(); }} />}
+              {order.invoice&&<EnvelopePanel standalone order={order} dispatch={order.dispatch||{}} onDone={()=>{qc.invalidateQueries({queryKey:["admin-order",id]});onChange();}}/>}
               <OrderInvoicePanel key={order.id+"-"+(order.invoice?.id||"open")} order={order} onDone={onChange}/>
 
               <div>
