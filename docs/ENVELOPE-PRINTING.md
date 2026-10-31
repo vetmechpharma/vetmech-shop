@@ -20,3 +20,18 @@ Physical printer calibration remains necessary: print one test envelope first. A
 ## Browser demo fixtures
 
 Demo tools → Sample envelope order opens SAMPLE-ENV-TO-PAY directly. The synthetic customer is Dr. Sample Customer (mobile 0000000004), with a saved Koduvai delivery address and three 24-unit sample product lines. Preparation is prefilled with three cases, Demo Logistics and TO PAY. SAMPLE-ENV-PAID provides a dispatched order with three cases, PAID, sample invoice reference and sample LR for reprinting. These records live only in browser-demo storage. Existing demo users receive them once without resetting existing edits; deleting a sample does not recreate it on every reload.
+
+## Add print-test records to the actual VPS database
+
+Deployment alone does not insert data. After deploying the latest code, run the maintenance command using the application's virtual-environment Python:
+
+```bash
+cd /opt/vetmech-shop
+backend/venv/bin/python backend/manage.py add-envelope-samples --apply
+```
+
+Use `.venv/bin/python` instead if that is the existing installation's virtual environment. Omit `--apply` for a read-only preview. The command reads `backend/.env`; never paste its contents into a terminal transcript.
+
+Creates one customer named SAMPLE — Dr. Sample Customer and SAMPLE-ENV-TO-PAY / SAMPLE-ENV-PAID. Both contain three print-only product snapshots, 72 units, a saved Koduvai address and three cases; the first has dispatch preparation prefilled and the second has dispatch references for reprinting. Rates and references are fictional. No public products, stock changes, posted invoices or ledger entries are created. No sample login/password is added. The reserved invalid mobile 0000000004 is blocked before WhatsApp gateway access, and no customer email is stored. Review reminders skip sample orders.
+
+The operation is explicit and repeatable: it inserts missing records only, never resets sample edits, and refuses conflicting non-sample IDs or mobile numbers before writing. Samples are marked `sample_data=envelope-print-v1` and SAMPLE in their names/order numbers. They are real database records and appear in ordinary order/customer reports; remove them through the existing Admin delete actions after testing if no longer needed. Existing non-sample records and settings are unchanged.

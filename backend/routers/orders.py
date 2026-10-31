@@ -557,6 +557,8 @@ async def _run_review_reminders():
     base = os.environ.get("APP_BASE_URL") or os.environ.get("SITE_URL") or ""
     orders = await db.orders.find({"status": {"$in": ["delivered", "closed"]}, "review_reminder_sent": {"$ne": True}}, {"_id": 0}).to_list(500)
     for o in orders:
+        if o.get("sample_data"):
+            continue
         da = o.get("delivered_at") or o.get("updated_at") or ""
         if da and da > cutoff:
             continue

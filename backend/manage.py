@@ -12,6 +12,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from backup import (export_database, export_uploads, read_backup, restore_database,
                     restore_uploads, validate_uploads)
 from homepage_presentation import HERO_IMAGE, refresh_homepage, restore_homepage
+from envelope_samples import add_envelope_samples
 
 ROOT = Path(__file__).resolve().parent
 
@@ -36,7 +37,9 @@ async def main(args):
     try:
         db = client[os.environ["DB_NAME"]]
         await client.admin.command("ping")
-        if args.command == "refresh-homepage":
+        if args.command == "add-envelope-samples":
+            print(json.dumps(await add_envelope_samples(db, args.apply), indent=2))
+        elif args.command == "refresh-homepage":
             print(json.dumps(await refresh_homepage(db, args.output, args.apply), indent=2))
         elif args.command == "restore-homepage":
             print(json.dumps(await restore_homepage(db, args.backup, args.apply), indent=2))
@@ -72,6 +75,8 @@ async def main(args):
 def parser():
     root = argparse.ArgumentParser(description="VETMECH Shop backup, validation and empty-database restore")
     commands = root.add_subparsers(dest="command", required=True)
+    samples = commands.add_parser("add-envelope-samples", help="Preview or add labelled envelope-print samples without notifications")
+    samples.add_argument("--apply", action="store_true", help="Insert the sample customer and orders; preserve existing records")
     backup = commands.add_parser("backup", help="Export every collection, index and local upload")
     backup.add_argument("--output", default="backups")
     homepage = commands.add_parser("refresh-homepage", help="Preview or apply the connected homepage presentation")

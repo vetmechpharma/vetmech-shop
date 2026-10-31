@@ -158,6 +158,10 @@ def format_wa_number(m):
 
 
 async def send_whatsapp(db, to_number, message, kind="generic"):
+    # Reserved synthetic envelope-test mobile must never reach a real gateway.
+    from envelope_samples import SAMPLE_MOBILE
+    if normalize_mobile(to_number) == SAMPLE_MOBILE:
+        return {"status": "simulated", "simulated": True, "kind": kind, "reason": "Sample envelope recipient"}
     settings = await db.settings.find_one({"id": "whatsapp"}, {"_id": 0}) or {}
     api_key = (settings.get("api_key") or "").strip()
     session_id = (settings.get("session_id") or "").strip()
