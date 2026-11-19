@@ -8,32 +8,11 @@ const Img = (row) => row.image ? <img src={mediaUrl(row.image)} alt="" className
 const Bool = (v) => v ? <span className="text-green-600 text-xs font-medium">Yes</span> : <span className="text-slate-400 text-xs">No</span>;
 
 export function AdminCategories() {
-  const { data: cats } = useQuery({ queryKey: ["all-cats-opts"], queryFn: async () => (await api.get("/admin/categories")).data });
-  const parentOptions = () => [{ value: "none", label: "— None (Top level) —" }, ...(cats || []).filter((c) => !c.parent_id).map((c) => ({ value: c.id, label: c.name }))];
-  return (
-    <CrudManager
-      title="Categories" subtitle="Manage product categories and subcategories"
-      endpoint="/admin/categories" listKey="admin-categories"
-      columns={[
-        { key: "image", label: "Image", render: Img },
-        { key: "name", label: "Name" },
-        { key: "slug", label: "Slug" },
-        { key: "parent", label: "Type", render: (r) => r.parent_id ? "Subcategory" : "Main" },
-        { key: "active", label: "Active", render: (r) => Bool(r.active) },
-      ]}
-      defaults={{ active: true, order: 0, parent_id: "none" }}
-      fields={[
-        { name: "name", label: "Category Name", type: "text", span: 2 },
-        { name: "slug", label: "URL Slug (optional)", type: "text" },
-        { name: "parent_id", label: "Parent Category", type: "select", options: parentOptions },
-        { name: "description", label: "Description", type: "textarea", span: 2 },
-        { name: "image", label: "Category Image", type: "image", span: 2 },
-        { name: "seo", label: "SEO (title, description, keywords, intro)", type: "seogroup", span: 2 },
-        { name: "order", label: "Display Order", type: "number" },
-        { name: "active", label: "Active", type: "switch" },
-      ]}
-    />
-  );
+  const {data:cats}=useQuery({queryKey:["all-cats-opts"],queryFn:async()=>(await api.get("/admin/categories")).data});
+  const main=(cats||[]).filter(c=>c.fixed_main);
+  const metadata=[{name:"description",label:"Description",type:"textarea",span:2},{name:"image",label:"Category Image",type:"image",span:2},{name:"seo",label:"SEO (title, description, keywords, intro)",type:"seogroup",span:2},{name:"order",label:"Display Order",type:"number"}];
+  return <div className="space-y-8"><CrudManager title="Main categories" subtitle="Six fixed animal groups. Products can belong to more than one." endpoint="/admin/categories" listKey="main-categories" listTransform={rows=>rows.filter(c=>c.fixed_main)} allowCreate={false} allowDelete={false} columns={[{key:"name",label:"Name"},{key:"slug",label:"URL"}]} fields={metadata}/>
+    <CrudManager title="Subcategories" subtitle="Create subcategories manually under a main animal group. Legacy categories without a valid parent need reassignment." endpoint="/admin/categories" listKey="sub-categories" listTransform={rows=>rows.filter(c=>!c.fixed_main)} defaults={{active:true,order:0,parent_id:""}} columns={[{key:"name",label:"Name"},{key:"parent_id",label:"Main category",render:r=>main.find(c=>c.id===r.parent_id)?.name||"Needs reassignment"},{key:"active",label:"Active",render:r=>Bool(r.active)}]} fields={[{name:"name",label:"Subcategory Name",type:"text",span:2},{name:"slug",label:"URL Slug (optional)",type:"text"},{name:"parent_id",label:"Main category (required)",type:"select",options:()=>main.map(c=>({value:c.id,label:c.name}))},...metadata,{name:"active",label:"Active",type:"switch"}]}/></div>;
 }
 
 export function AdminBrands() {

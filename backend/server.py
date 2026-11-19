@@ -284,6 +284,8 @@ async def startup():
     await run_seed(db)
     if demo_enabled():
         await run_seed_tickets(db)
+    from catalog_taxonomy import ensure_animal_categories
+    await ensure_animal_categories(db)
     await migrate_customers(db)
     await backfill_pending_items(db)
     await remove_sample_company_address(db)

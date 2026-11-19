@@ -1,4 +1,5 @@
 import re
+from catalog_taxonomy import validate_subcategory_parent, normalize_assignments
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from typing import Optional
 
@@ -33,7 +34,7 @@ async def unique_slug(collection, base, exclude_id=None):
 # =============== CATEGORIES ===============
 @router.get("/categories")
 async def public_categories():
-    cats = await db.categories.find({"active": True}, {"_id": 0}).sort("order", 1).to_list(500)
+    cats = await db.categories.find({"active": True, "legacy_main": {"$ne": True}}, {"_id": 0}).sort("order", 1).to_list(500)
     return cats
 
 
@@ -55,6 +56,9 @@ async def admin_categories(admin=Depends(require_module("categories"))):
 
 @router.post("/admin/categories")
 async def create_category(body: dict = Body(...), admin=Depends(require_module("categories"))):
+    await validate_subcategory_parent(db, body.get("parent_id"))
+    if not (body.get("name") or "").strip():
+        raise HTTPException(400, "Subcategory name is required")
     doc = {
         "id": new_id(),
         "name": body.get("name", "Untitled"),
@@ -79,6 +83,20 @@ async def update_category(cid: str, body: dict = Body(...), admin=Depends(requir
     existing = await db.categories.find_one({"id": cid})
     if not existing:
         raise HTTPException(status_code=404, detail="Not found")
+    if existing.get("fixed_main"):
+        body["legacy_main"] = False
+        if any(key in body and body[key] != existing.get(key) for key in ["name", "parent_id", "slug", "active"]):
+            raise HTTPException(400, "The six main animal categories cannot be renamed, moved or disabled")
+    else:
+        await validate_subcategory_parent(db, body.get("parent_id", existing.get("parent_id")))
+        if body.get("parent_id", existing.get("parent_id")) != existing.get("parent_id"):
+            if await db.categories.find_one({"parent_id": cid}):
+                raise HTTPException(409, "Reassign child subcategories first")
+            linked = await db.products.find_one({"$or": [{"subcategory_id": cid}, {"subcategory_ids": cid}]})
+            if linked:
+                raise HTTPException(409, "Remove this subcategory from assigned products before moving it")
+        body["legacy_main"] = False
+    body.pop("fixed_main", None)
     body.pop("id", None)
     body.pop("_id", None)
     if body.get("slug"):
@@ -90,6 +108,13 @@ async def update_category(cid: str, body: dict = Body(...), admin=Depends(requir
 
 @router.delete("/admin/categories/{cid}")
 async def delete_category(cid: str, admin=Depends(require_module("categories"))):
+    existing = await db.categories.find_one({"id": cid})
+    if existing and existing.get("fixed_main"):
+        raise HTTPException(400, "Default main categories cannot be deleted")
+    if await db.products.find_one({"$or": [{"category_id": cid}, {"category_ids": cid}, {"subcategory_id": cid}, {"subcategory_ids": cid}]}):
+        raise HTTPException(409, "Remove this category from assigned products before deleting it")
+    if await db.categories.find_one({"parent_id": cid}):
+        raise HTTPException(409, "Reassign child subcategories before deleting this category")
     await db.categories.delete_one({"id": cid})
     await log_audit(db, admin, "delete", "category", cid)
     return {"deleted": True}
@@ -166,8 +191,8 @@ def build_product(body, existing=None):
         "sku": body.get("sku", base.get("sku", "")),
         "category_id": body.get("category_id", base.get("category_id")),
         "subcategory_id": body.get("subcategory_id", base.get("subcategory_id")),
-        "category_ids": body.get("category_ids", base.get("category_ids")) or [x for x in [body.get("category_id", base.get("category_id"))] if x],
-        "subcategory_ids": body.get("subcategory_ids", base.get("subcategory_ids")) or [x for x in [body.get("subcategory_id", base.get("subcategory_id"))] if x],
+        "category_ids": body["category_ids"] if "category_ids" in body else base.get("category_ids", [x for x in [body.get("category_id", base.get("category_id"))] if x]),
+        "subcategory_ids": body["subcategory_ids"] if "subcategory_ids" in body else base.get("subcategory_ids", [x for x in [body.get("subcategory_id", base.get("subcategory_id"))] if x]),
         "image": body.get("image", base.get("image", "")),
         "images": body.get("images", base.get("images", [])),
         "short_description": body.get("short_description", base.get("short_description", "")),
@@ -315,12 +340,15 @@ async def public_product(slug: str, customer=Depends(optional_customer)):
 @router.get("/admin/products")
 async def admin_products(q: Optional[str] = None, category: Optional[str] = None,
                          page: int = 1, limit: int = 20, admin=Depends(require_module("products"))):
-    query = {}
+    query = {"deleted_at": {"$exists": False}}
+    filters = []
     if category:
-        query["$or"] = [{"category_id": category}, {"category_ids": category}]
+        filters.append({"$or": [{"category_id": category}, {"category_ids": category}]})
     if q:
         rx = {"$regex": re.escape(q), "$options": "i"}
-        query["$or"] = [{"name": rx}, {"product_code": rx}, {"sku": rx}]
+        filters.append({"$or": [{"name": rx}, {"product_code": rx}, {"sku": rx}]})
+    if filters:
+        query["$and"] = filters
     return await paginate(db.products, query, page, limit, sort_field="order", sort_dir=1)
 
 
@@ -334,6 +362,7 @@ async def admin_product(pid: str, admin=Depends(require_module("products"))):
 
 @router.post("/admin/products")
 async def create_product(body: dict = Body(...), admin=Depends(require_module("products"))):
+    body = await normalize_assignments(db, body)
     doc = build_product(body)
     doc["id"] = new_id()
     doc["slug"] = await unique_slug(db.products, slugify(body.get("slug") or doc["name"]))
@@ -350,6 +379,9 @@ async def update_product(pid: str, body: dict = Body(...), admin=Depends(require
     existing = await db.products.find_one({"id": pid})
     if not existing:
         raise HTTPException(status_code=404, detail="Not found")
+    if existing.get("deleted_at"):
+        raise HTTPException(404, "Product has been deleted from the catalogue")
+    body = await normalize_assignments(db, body, existing)
     doc = build_product(body, existing)
     if body.get("slug"):
         doc["slug"] = await unique_slug(db.products, slugify(body["slug"]), exclude_id=pid)
@@ -360,7 +392,9 @@ async def update_product(pid: str, body: dict = Body(...), admin=Depends(require
 
 @router.delete("/admin/products/{pid}")
 async def delete_product(pid: str, admin=Depends(require_module("products"))):
-    await db.products.delete_one({"id": pid})
+    result = await db.products.update_one({"id": pid, "deleted_at": {"$exists": False}}, {"$set": {"active": False, "deleted_at": now_iso(), "deleted_by": admin["id"]}})
+    if not result.matched_count:
+        raise HTTPException(404, "Product not found or already deleted")
     await log_audit(db, admin, "delete", "product", pid)
     return {"deleted": True}
 
