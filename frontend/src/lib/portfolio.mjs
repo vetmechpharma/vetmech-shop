@@ -31,7 +31,7 @@ export function portfolioJsonLd(product, url, image) {
 }
 
 export function speciesCategory(species, categories = []) {
-  const terms = { cattle: ["cattle", "buffalo", "large animal", "livestock"], sheep: ["sheep", "goat", "ruminant", "large animal"], poultry: ["poultry", "avian", "bird"], companion: ["companion", "small animal", "pet"] };
+  const terms = { cattle: ["cattle", "buffalo", "large animal", "livestock", "ruminant"], sheep: ["sheep", "goat", "ruminant", "large animal"], poultry: ["poultry", "avian", "bird"], companion: ["companion", "small animal", "pet"] };
   const needles = terms[species] || [];
   return categories.find(category => needles.some(term => `${category.name || ""} ${category.slug || ""}`.toLowerCase().replaceAll("-", " ").includes(term)))?.slug || null;
 }

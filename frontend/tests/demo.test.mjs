@@ -154,7 +154,7 @@ test("the product-page sample is added to older demos without overwriting edits 
   assert.equal(updated.snapshot().products.filter(product => product.id === "demo-quino-taz-profile").length, 1);
   await updated.handle({ method: "DELETE", path: "/admin/products/demo-quino-taz-profile", token: "demo-admin" });
   const reopened = createDemoEngine(storage);
-  assert.equal(reopened.snapshot().products.some(product => product.id === "demo-quino-taz-profile"), false);
+  assert.equal(reopened.snapshot().products.some(product => product.id === "demo-quino-taz-profile" && !product.deleted_at), false);
   assert.equal(reopened.snapshot().products[0].name, "My edited sample");
 });
 

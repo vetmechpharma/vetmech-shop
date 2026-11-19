@@ -22,7 +22,7 @@ import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
  *   columns: [{key,label,render?}], fields: [{name,label,type,options?,placeholder?,default?,span?}],
  *   defaults: {}, listTransform?(data)=>array
  */
-export default function CrudManager({ title, subtitle, endpoint, listKey, columns, fields, defaults = {}, listTransform }) {
+export default function CrudManager({ title, subtitle, endpoint, listKey, columns, fields, defaults = {}, listTransform, allowCreate = true, allowDelete = true }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -42,13 +42,13 @@ export default function CrudManager({ title, subtitle, endpoint, listKey, column
       if (editing) return (await api.put(`${endpoint}/${editing.id}`, payload)).data;
       return (await api.post(endpoint, payload)).data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: [listKey] }); setOpen(false); toast.success("Saved"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [listKey] }); if(endpoint==="/admin/categories"){qc.invalidateQueries({queryKey:["admin-categories"]});qc.invalidateQueries({queryKey:["all-cats-opts"]});} setOpen(false); toast.success("Saved"); },
     onError: (e) => toast.error(apiError(e)),
   });
 
   const del = useMutation({
     mutationFn: async (id) => (await api.delete(`${endpoint}/${id}`)).data,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: [listKey] }); toast.success("Deleted"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [listKey] }); if(endpoint==="/admin/categories"){qc.invalidateQueries({queryKey:["admin-categories"]});qc.invalidateQueries({queryKey:["all-cats-opts"]});} toast.success("Deleted"); },
     onError: (e) => toast.error(apiError(e)),
   });
 
@@ -60,7 +60,7 @@ export default function CrudManager({ title, subtitle, endpoint, listKey, column
     <div>
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="font-heading text-2xl font-bold text-vm-ink">{title}</h1>{subtitle && <p className="text-slate-500 text-sm">{subtitle}</p>}</div>
-        <Button className="bg-vm-green hover:bg-vm-greenhover" onClick={openNew} data-testid={`add-${listKey}`}><Plus className="w-4 h-4 mr-2" /> Add New</Button>
+        {allowCreate&&<Button className="bg-vm-green hover:bg-vm-greenhover" onClick={openNew} data-testid={`add-${listKey}`}><Plus className="w-4 h-4 mr-2" /> Add New</Button>}
       </div>
 
       <div className="border border-[#E2E8F0] rounded-lg overflow-x-auto bg-white">
@@ -77,13 +77,13 @@ export default function CrudManager({ title, subtitle, endpoint, listKey, column
                   {columns.map((c) => <TableCell key={c.key}>{c.render ? c.render(row) : String(row[c.key] ?? "—")}</TableCell>)}
                   <TableCell className="text-right whitespace-nowrap">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(row)} aria-label={`Edit ${row.name || row.title || "record"}`} data-testid={`edit-${row.id}`}><Pencil className="w-4 h-4" /></Button>
-                    <AlertDialog>
+                    {allowDelete&&<AlertDialog>
                       <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500" aria-label={`Delete ${row.name || row.title || "record"}`} data-testid={`delete-${row.id}`}><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader><AlertDialogTitle>Delete this item?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => del.mutate(row.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                       </AlertDialogContent>
-                    </AlertDialog>
+                    </AlertDialog>}
                   </TableCell>
                 </TableRow>
               ))}

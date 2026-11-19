@@ -42,8 +42,8 @@ test("demo includes newly added products automatically and keeps the same four-i
   const memory = new Map();
   const engine = createDemoEngine({ getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) });
   const call = (method, path, body, token = "demo-admin") => engine.handle({ method, path, body, token });
-  const current = await call("POST", "/admin/products", product("", { name: "Category test", slug: "category-test", category_id: "unique-category" }));
-  const added = await call("POST", "/admin/products", product("", { name: "Automatic related product", slug: "automatic-related", category_ids: ["unique-category"] }));
+  const current = await call("POST", "/admin/products", product("", { name: "Category test", slug: "category-test", category_id: "species-horses" }));
+  const added = await call("POST", "/admin/products", product("", { name: "Automatic related product", slug: "automatic-related", category_ids: ["species-horses"] }));
   const response = await call("GET", `/products/${current.slug}`, undefined, "");
   assert.equal(response.related[0].id, added.id);
   assert.equal(response.related.length, 4);

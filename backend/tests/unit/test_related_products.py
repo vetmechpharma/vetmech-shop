@@ -62,6 +62,7 @@ async def test_new_product_participates_automatically_with_customer_rates_and_no
     await database.products.insert_one(product("current", category_id="cattle"))
     await database.admin_users.insert_one({"id": "owner", "role": "super_admin", "active": True})
     admin = {"Authorization": "Bearer " + create_token("owner", "admin")}
+    await database.categories.insert_one({"id": "cattle", "name": "Ruminants", "fixed_main": True})
     created = client.post("/api/admin/products", headers=admin, json={
         "name": "New product", "category_id": "cattle", "variants": [{"id": "new-pack", "pack_size": "100 ml", "mrp": 500}],
     })

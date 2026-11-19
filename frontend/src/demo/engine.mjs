@@ -1,3 +1,4 @@
+import {ensureDemoTaxonomy,validateDemoAssignments} from "./speciesTaxonomy.mjs";
 import { addEnvelopeSamples } from "./envelopeSamples.mjs";
 import {customer360} from "./customer360.mjs";
 import { companyAddress } from "../lib/searchAppearance.mjs";
@@ -39,6 +40,7 @@ export function createDemoEngine(storage) {
     }
     state.product_profile_demo_v2 = true;
   }
+  ensureDemoTaxonomy(state);
   addEnvelopeSamples(state, DEMO_PASSWORD);
   for(const order of state.orders||[])if(order.dispatch&&!order.dispatch.transport)order.dispatch.transport=order.dispatch.transport_name||state.transports?.find(t=>t.id===order.dispatch.transport_id)?.name||"";
   const persist = () => { try { storage.setItem(DEMO_KEY, JSON.stringify(state)); } catch { throw new DemoError(507, "Demo storage is full. Export or reset the demo to continue."); } };
@@ -184,8 +186,9 @@ export function createDemoEngine(storage) {
       const id = parts[parts.length - 1]; if (mutation) state.settings[id] = { ...state.settings[id], ...copy(body), id }; result = copy(state.settings[id] || { id });
     } else if (path === "/products" || path === "/admin/products" || path === "/products/by-ids") {
       if (method === "GET") {
-        let rows = search(state.products.filter(p => admin || p.active !== false), params.q || params.search);
-        if (params.category || params.category_id) { const id = state.categories.find(c => c.slug === params.category || c.id === params.category_id)?.id; rows = rows.filter(p => [p.category_id, p.subcategory_id, ...(p.category_ids || []), ...(p.subcategory_ids || [])].includes(id)); }
+        let rows = search(state.products.filter(p => !p.deleted_at&&(admin || p.active !== false)), params.q || params.search);
+        if (params.category || params.category_id) { const id = state.categories.find(c => c.slug === params.category || c.id === (params.category_id||params.category))?.id; rows = rows.filter(p => [p.category_id, p.subcategory_id, ...(p.category_ids || []), ...(p.subcategory_ids || [])].includes(id)); }
+        if(params.subcategory){const sub=state.categories.find(c=>c.id===params.subcategory||c.slug===params.subcategory)?.id;rows=rows.filter(p=>[p.subcategory_id,...(p.subcategory_ids||[])].includes(sub))}
         if (params.brand || params.brand_id) rows = rows.filter(p => p.brand_id === (params.brand_id || params.brand));
         if (params.badge) rows = rows.filter(p => p.badges?.[params.badge]);
         if (params.ids) rows = rows.filter(p => String(params.ids).split(",").includes(p.id));
@@ -247,22 +250,37 @@ export function createDemoEngine(storage) {
       const collection = { products: "products", categories: "categories", brands: "brands", units: "units", transports: "transports", users: "admin_users", schemes: "schemes", news: "news", gallery: "gallery", careers: "careers", enquiries: "enquiries", applications: "applications", reviews: "reviews", notifications: "notification_logs", "audit-logs": "audit_logs", pages: "pages" }[route];
       if (!collection) throw new DemoError(501, "This operation needs the connected backend. The development demo keeps data on this device.");
       const id = parts[0] === "admin" ? parts[2] : parts[1];
-      result = collectionApi(collection, method, id, params, body, ["products", "notifications", "audit_logs"].includes(collection));
+      result = collection==="categories"&&!admin&&method==="GET"&&!id?copy(state.categories.filter(c=>c.active&&!c.legacy_main)):collectionApi(collection, method, id, params, body, ["products", "notifications", "audit_logs"].includes(collection));
     }
     if (mutation) { audit(method.toLowerCase(), path, result?.id || "demo"); persist(); }
     return copy(result);
   }
 
   function normalizeProduct(body, existing) {
+    if(existing?.deleted_at)throw new DemoError(404,"Product has been deleted");
+    body=validateDemoAssignments(body,existing,state.categories,DemoError);
     const name = body.name || existing?.name || "Sample Product";
     return { image: "/demo/product-1.svg", images: [], category_ids: [], subcategory_ids: [], badges: {}, seo: {}, active: true, brand_name: "VETMECH", ...existing, ...copy(body), id: existing?.id || uid("product"), name, slug: body.slug || existing?.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), variants: (body.variants || existing?.variants || []).map(v => ({ min_order_qty: 1, stock_status: "in_stock", ...v, id: v.id || uid("variant") })), created_at: existing?.created_at || today() };
   }
   function collectionApi(name, method, id, params, body, paginated = false) {
     const field = name === "pages" ? "slug" : "id";
-    if (method === "GET") { if (id) return copy(get(name, id, ["news", "categories"].includes(name) && !state[name].some(r => r.id === id) ? "slug" : field)); const rows = search(state[name], params.q); return paginated ? pages(copy(rows), params) : copy(rows); }
+    if(name==='categories'&&method!=='GET'){
+      const old=state.categories.find(c=>c.id===id);
+      if(old?.fixed_main){if(method==='DELETE'||['name','parent_id','slug','active'].some(k=>Object.hasOwn(body,k)&&body[k]!==old[k]))throw new DemoError(400,'Default main animal categories are protected');body={...body,legacy_main:false};}
+      else if(method!=='DELETE'){
+        const parent=body.parent_id??old?.parent_id;
+        if(!state.categories.some(c=>c.id===parent&&c.fixed_main))throw new DemoError(400,'Select a main animal category; only subcategories can be created manually');
+        body={...body,fixed_main:false,legacy_main:false};
+      }
+      if(old&&((method==='DELETE')||(body.parent_id&&body.parent_id!==old.parent_id))){
+        if(state.products.some(p=>[p.category_id,...(p.category_ids||[]),p.subcategory_id,...(p.subcategory_ids||[])].includes(id))||state.categories.some(c=>c.parent_id===id))throw new DemoError(409,'Remove product assignments and reassign child subcategories first');
+      }
+    }
+
+    if (method === "GET") { if (id) return copy(get(name, id, ["news", "categories"].includes(name) && !state[name].some(r => r.id === id) ? "slug" : field)); const rows = search(state[name].filter(r=>name!=="products"||!r.deleted_at), params.q); return paginated ? pages(copy(rows), params) : copy(rows); }
     if (method === "POST") { const row = name === "products" ? normalizeProduct(body) : { ...copy(body), id: uid(name), parent_id: body.parent_id === "none" ? null : body.parent_id, slug: body.slug || (body.name || body.title || "sample").toLowerCase().replace(/[^a-z0-9]+/g, "-"), created_at: today() }; state[name].unshift(row); return copy(row); }
     const row = get(name, id, field);
-    if (method === "DELETE") { if (name === "admin_users" && id === "demo-admin") throw new DemoError(400, "Keep the main demo administrator. You can reset sample data from Demo tools."); state[name] = state[name].filter(r => r[field] !== id); return { deleted: true }; }
+    if (method === "DELETE") { if(name==="products"){row.active=false;row.deleted_at=today();return {deleted:true};} if (name === "admin_users" && id === "demo-admin") throw new DemoError(400, "Keep the main demo administrator. You can reset sample data from Demo tools."); state[name] = state[name].filter(r => r[field] !== id); return { deleted: true }; }
     const next = name === "products" ? normalizeProduct(body, row) : { ...row, ...copy(body), parent_id: body.parent_id === "none" ? null : body.parent_id ?? row.parent_id };
     Object.assign(row, next); return copy(row);
   }

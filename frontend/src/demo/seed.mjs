@@ -1,3 +1,4 @@
+import {ensureDemoTaxonomy} from "./speciesTaxonomy.mjs";
 import { addEnvelopeSamples } from "./envelopeSamples.mjs";
 import { productProfileExample } from "./productProfileExample.mjs";
 
@@ -69,6 +70,7 @@ export function seedDemo() {
       message_templates: { order_received: "Demo order {order} received.", order_confirmed: "Demo order {order} confirmed.", order_dispatched: "Demo order {order} dispatched." }, email_templates: {}, menu: { items: [{ label: "Home", url: "/" }, { label: "About Us", url: "/about" }, { label: "Contact", url: "/contact" }] },
     },
   };
+  ensureDemoTaxonomy(state);
   addEnvelopeSamples(state, DEMO_PASSWORD);
   return state;
 }

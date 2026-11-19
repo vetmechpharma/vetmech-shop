@@ -1,3 +1,4 @@
+import {assignedIds, productSelection, toggleProductCategory} from "@/lib/productCategories.mjs";
 import LoadError from "@/components/LoadError";
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogDescription, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ImageUpload from "@/components/admin/ImageUpload";
 import { toast } from "sonner";
 import { CUSTOMER_CATEGORIES } from "@/lib/constants";
@@ -83,11 +84,16 @@ export default function AdminProducts() {
   const { data: units } = useQuery({ queryKey: ["units"], queryFn: async () => (await api.get("/units")).data });
 
   const toggleActive = useMutation({
-    mutationFn: async (p) => (await api.put(`/admin/products/${p.id}`, { ...p, active: !p.active })).data,
+    mutationFn: async (p) => (await api.put(`/admin/products/${p.id}`, { active: !p.active })).data,
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-products"] }); toast.success("Status updated"); },
     onError: (e) => toast.error(apiError(e)),
   });
 
+  const deleteProduct = useMutation({
+    mutationFn: async p => (await api.delete(`/admin/products/${p.id}`)).data,
+    onSuccess: () => {qc.invalidateQueries({queryKey:["admin-products"]});toast.success("Product deleted from catalogue; order history retained");},
+    onError: e => toast.error(apiError(e)),
+  });
   const openNew = () => { setEditing(null); setDeletedOffers([]); setForm({ active: true, badges: {}, variants: [emptyVariant()], images: [], seo: {} }); setOpen(true); };
   const openEdit = async (row) => {
     const full = (await api.get(`/admin/products/${row.id}`)).data;
@@ -149,12 +155,14 @@ export default function AdminProducts() {
 
   const submit = async () => {
     if (!form.name) { toast.error("Product name required"); return; }
+    const selection=productSelection(form,cats||[]);
+    if (!selection.category_ids.length) {toast.error("Select at least one main animal category");return;}
     setSaving(true);
     try {
       const brand = brands?.find((b) => b.id === form.brand_id);
       const payload = { ...form, brand_name: brand?.name || form.brand_name || "",
-        category_ids: Array.from(new Set([form.category_id, ...(form.category_ids || [])].filter(Boolean))),
-        subcategory_ids: Array.from(new Set([form.subcategory_id, ...(form.subcategory_ids || [])].filter(Boolean))) };
+        category_ids: selection.category_ids, category_id: selection.category_id,
+        subcategory_ids: selection.subcategory_ids, subcategory_id: selection.subcategory_id };
       const saved = editing
         ? (await api.put(`/admin/products/${editing.id}`, payload)).data
         : (await api.post("/admin/products", payload)).data;
@@ -187,11 +195,12 @@ export default function AdminProducts() {
                 <TableRow key={p.id} data-testid={`product-row-${p.id}`}>
                   <TableCell>{p.image ? <img src={mediaUrl(p.image)} alt="" className="w-10 h-10 object-contain bg-[#F8FAF9] rounded" /> : "—"}</TableCell>
                   <TableCell><span className="font-medium text-vm-ink">{p.name}</span></TableCell>
-                  <TableCell className="text-sm">{catName(p.category_id)}</TableCell>
+                  <TableCell className="text-sm">{assignedIds(p,"category_ids","category_id").map(catName).join(", ")||"Needs category assignment"}</TableCell>
                   <TableCell className="text-sm">{p.variants?.length || 0}</TableCell>
                   <TableCell><Switch checked={!!p.active} onCheckedChange={() => toggleActive.mutate(p)} aria-label={`Active status for ${p.name}`} data-testid={`toggle-active-${p.id}`} /></TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`} data-testid={`edit-product-${p.id}`}><Pencil className="w-4 h-4" /></Button>
+                    <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-600" disabled={deleteProduct.isPending} aria-label={`Delete ${p.name}`} data-testid={`delete-product-${p.id}`}><Trash2 className="w-4 h-4"/></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {p.name}?</AlertDialogTitle><AlertDialogDescription>This removes the product from the catalogue and new orders. Existing order, invoice and customer history is retained.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-600" onClick={()=>deleteProduct.mutate(p)}>Delete product</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}
@@ -218,35 +227,9 @@ export default function AdminProducts() {
                 <Select value={form.brand_id || ""} onValueChange={(v) => set("brand_id", v)}><SelectTrigger data-testid="pf-brand"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>{(brands || []).map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent></Select>
               </div>
-              <div><Label>Category</Label>
-                <Select value={form.category_id || ""} onValueChange={(v) => { set("category_id", v); setForm((f) => ({ ...f, category_ids: Array.from(new Set([v, ...(f.category_ids || [])])) })); }}><SelectTrigger data-testid="pf-category"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{(cats || []).filter((c) => !c.parent_id).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
-              </div>
-              <div><Label>Subcategory</Label>
-                <Select value={form.subcategory_id || ""} onValueChange={(v) => set("subcategory_id", v)}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>{(cats || []).filter((c) => c.parent_id === form.category_id).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
-              </div>
-              <div className="sm:col-span-2">
-                <Label>Also appears in (main categories)</Label>
-                <div className="flex flex-wrap gap-2 mt-1" data-testid="pf-extra-categories">
-                  {(cats || []).filter((c) => !c.parent_id).map((c) => {
-                    const on = (form.category_ids || (form.category_id ? [form.category_id] : [])).includes(c.id);
-                    const primary = c.id === form.category_id;
-                    return <button type="button" key={c.id} disabled={primary} data-testid={`pf-cat-${c.id}`}
-                      onClick={() => setForm((f) => { const cur = new Set(f.category_ids || (f.category_id ? [f.category_id] : [])); cur.has(c.id) ? cur.delete(c.id) : cur.add(c.id); return { ...f, category_ids: Array.from(cur) }; })}
-                      className={`text-xs rounded-full px-2.5 py-1 border ${on ? "bg-vm-green text-white border-vm-green" : "border-[#E2E8F0] text-slate-600"} ${primary ? "opacity-60" : ""}`}>{c.name}{primary ? " (primary)" : ""}</button>;
-                  })}
-                </div>
-                <Label className="mt-3 block">Also in (subcategories)</Label>
-                <div className="flex flex-wrap gap-2 mt-1" data-testid="pf-extra-subcategories">
-                  {(cats || []).filter((c) => c.parent_id && (form.category_ids || (form.category_id ? [form.category_id] : [])).includes(c.parent_id)).map((c) => {
-                    const on = (form.subcategory_ids || (form.subcategory_id ? [form.subcategory_id] : [])).includes(c.id);
-                    return <button type="button" key={c.id} data-testid={`pf-sub-${c.id}`}
-                      onClick={() => setForm((f) => { const cur = new Set(f.subcategory_ids || (f.subcategory_id ? [f.subcategory_id] : [])); cur.has(c.id) ? cur.delete(c.id) : cur.add(c.id); return { ...f, subcategory_ids: Array.from(cur) }; })}
-                      className={`text-xs rounded-full px-2.5 py-1 border ${on ? "bg-vm-accent text-white border-vm-accent" : "border-[#E2E8F0] text-slate-600"}`}>{c.name}</button>;
-                  })}
-                </div>
-              </div>
+              <fieldset className="sm:col-span-2 border rounded-lg p-3"><legend className="font-semibold px-1">Main categories · select all that apply</legend><div className="grid sm:grid-cols-3 gap-3" data-testid="pf-main-categories">{(cats||[]).filter(c=>c.fixed_main).map(c=><label key={c.id} className="flex gap-2 items-center text-sm"><input type="checkbox" checked={productSelection(form,cats||[]).category_ids.includes(c.id)} onChange={()=>setForm(f=>toggleProductCategory(f,cats||[],c.id))} data-testid={`pf-cat-${c.id}`}/>{c.name}</label>)}</div></fieldset>
+              <fieldset className="sm:col-span-2 border rounded-lg p-3"><legend className="font-semibold px-1">Subcategories · select any</legend><p className="text-xs text-slate-500 mb-2">Create subcategories manually in Categories. Only subcategories of the selected animal groups appear here.</p><div className="grid sm:grid-cols-2 gap-3" data-testid="pf-subcategories">{(cats||[]).filter(c=>c.parent_id&&!c.legacy_main&&productSelection(form,cats||[]).category_ids.includes(c.parent_id)).map(c=><label key={c.id} className="flex gap-2 items-center text-sm"><input type="checkbox" checked={productSelection(form,cats||[]).subcategory_ids.includes(c.id)} onChange={()=>setForm(f=>toggleProductCategory(f,cats||[],c.id,true))} data-testid={`pf-sub-${c.id}`}/>{c.name}<small className="text-slate-500">({catName(c.parent_id)})</small></label>)}</div></fieldset>
+              {!!(form.legacy_category_ids?.length||form.legacy_subcategory_ids?.length)&&<p className="sm:col-span-2 text-sm text-amber-700">This product had legacy categories. Review its main and subcategory selections; the previous IDs remain in its history.</p>}
               <div className="sm:col-span-2"><Label>Short Description</Label><Textarea value={form.short_description || ""} onChange={(e) => set("short_description", e.target.value)} /></div>
               <div className="flex items-center justify-between sm:col-span-2 border rounded-md px-3 py-2"><Label>Active (visible on site)</Label><Switch checked={!!form.active} onCheckedChange={(v) => set("active", v)} data-testid="pf-active" /></div>
             </TabsContent>

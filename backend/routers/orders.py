@@ -33,6 +33,8 @@ async def resolve_cart(items, customer=None):
         if qty <= 0:
             continue
         product = await db.products.find_one({"variants.id": vid}, {"_id": 0})
+        if product and product.get("deleted_at"):
+            raise HTTPException(400, "A product was deleted from the catalogue. Remove it from the order before continuing.")
         if not product:
             continue
         variant = next((v for v in product.get("variants", []) if v["id"] == vid), None)
