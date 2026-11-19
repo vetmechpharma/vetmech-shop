@@ -257,11 +257,13 @@ async def seo_render(path: str = Query("/")):
                     f"<p>Brand: {esc(prod.get('brand_name') or 'VETMECH')} | Pack: {esc(v0.get('pack_size'))}</p>"
                     f"{('<p>'+esc(text(prod.get('full_description')) )+'</p>') if prod.get('full_description') else ''}{extra}")
             page_ld = {"@context": "https://schema.org", "@type": "WebPage", "@id": canonical,
-                       "url": canonical, "name": title, "mainEntity": {"@id": canonical + "#product"}}
+                       "url": canonical, "name": prod["name"], "description": desc}
+            if shop_product:
+                page_ld["mainEntity"] = {"@id": canonical + "#product"}
             if img:
                 page_ld["primaryImageOfPage"] = {"@type": "ImageObject", "url": img}
             return _doc(title, desc, canonical, share_image(img or default_img),
-                        [product_ld, page_ld, _breadcrumb_ld(crumbs), _faq_ld(s.get("faqs"))],
+                        ([product_ld] if shop_product else []) + [page_ld, _breadcrumb_ld(crumbs), _faq_ld(s.get("faqs"))],
                         robots="noindex, follow" if shop_product else s.get("robots", "index, follow"),
                         og_type="product", body=body,
                         og_title=text(s.get("og_title")), og_description=text(s.get("og_description")))

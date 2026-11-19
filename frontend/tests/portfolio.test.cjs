@@ -28,6 +28,8 @@ test("corporate product projection omits commercial data even when the API retur
 test("public product structured data contains product information without offers or prices",async()=>{
   const { portfolioJsonLd } = await import("../src/lib/portfolio.mjs");
   const result=portfolioJsonLd(priced,"https://example.com/products/vetmech-product","/product.png");
+  assert.equal(result["@type"],"WebPage");
+  assert.equal(result.primaryImageOfPage.url,"/product.png");
   assert.equal(result.name,priced.name);
   assert.equal(result.url,"https://example.com/products/vetmech-product");
   assert.equal("offers" in result,false);

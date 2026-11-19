@@ -159,8 +159,10 @@ async def test_jsonld_cannot_close_its_script_tag(client, database):
     await database.products.insert_one({"id": "p", "slug": "safe", "active": True, "name": name})
     page = client.get("/api/seo/render", params={"path": "/products/safe"}).text
     scripts = re.findall(r'<script type="application/ld\+json">(.*?)</script>', page)
-    product = next(json.loads(value) for value in scripts if json.loads(value).get("@type") == "Product")
-    assert product["name"] == name
+    nodes = [json.loads(value) for value in scripts]
+    assert not any(node.get("@type") == "Product" for node in nodes)
+    profile = next(node for node in nodes if node.get("@type") == "WebPage")
+    assert profile["name"] == name
     assert "<script>alert(1)</script>" not in page
 
 
@@ -179,3 +181,20 @@ async def test_audit_flags_copied_canonical_and_mismatched_product_titles(client
     assert 0 <= audit["products"][0]["score"] <= 100
     stored = await database.products.find_one({"id": "p"})
     assert stored["seo"]["title"] == "OldBrand Powder"  # Audit never rewrites approved content.
+
+
+@pytest.mark.asyncio
+async def test_sitemap_associates_cover_gallery_and_variant_images_with_product(client, database):
+    from xml.etree import ElementTree
+    await database.products.insert_one({
+        "active": True, "slug": "sample", "image": "/api/uploads/cover.jpg",
+        "images": ["/api/uploads/gallery.jpg", "/api/uploads/cover.jpg"],
+        "variants": [{"images": ["/api/uploads/variant.jpg"]}],
+    })
+    ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9",
+          "i": "http://www.google.com/schemas/sitemap-image/1.1"}
+    xml = ElementTree.fromstring(client.get("/sitemap.xml").content)
+    row = next(row for row in xml if row.find("s:loc", ns).text.endswith("/products/sample"))
+    assert [img.text.rsplit("/", 1)[-1] for img in row.findall("i:image/i:loc", ns)] == [
+        "cover.jpg", "gallery.jpg", "variant.jpg",
+    ]

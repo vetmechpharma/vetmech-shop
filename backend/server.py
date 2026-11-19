@@ -195,26 +195,24 @@ async def _sitemap_urls():
 async def sitemap():
     base = _site_base()
 
-    def _media(u):
-        if not u:
-            return ""
-        return u if str(u).startswith("http") else base + u
-
     parts = []
     for path, lastmod, cf, pr in await _sitemap_urls():
         lm = f"<lastmod>{_xml_escape(str(lastmod)[:10])}</lastmod>" if lastmod else ""
         parts.append(f"<url><loc>{_xml_escape(base + path)}</loc>{lm}<changefreq>{cf}</changefreq><priority>{pr}</priority></url>")
-    # Products with image entries (Google Image indexing)
-    prods = await db.products.find({"active": True}, {"_id": 0, "slug": 1, "name": 1, "image": 1, "images": 1, "updated_at": 1, "created_at": 1, "seo": 1}).to_list(5000)
+    # Associate each catalog image with its canonical product landing page.
+    prods = await db.products.find({"active": True}, {"_id": 0, "slug": 1, "image": 1, "images": 1, "variants.images": 1, "updated_at": 1, "created_at": 1, "seo": 1}).to_list(5000)
     for p in prods:
         if not p.get("slug") or not seo.indexable(p):
             continue
         lastmod = p.get("updated_at") or p.get("created_at")
         lm = f"<lastmod>{_xml_escape(str(lastmod)[:10])}</lastmod>" if lastmod else ""
-        imgs = p.get("images") or ([p.get("image")] if p.get("image") else [])
-        itags = "".join(f"<image:image><image:loc>{_xml_escape(_media(i))}</image:loc>"
-                        f"<image:title>{_xml_escape(p.get('name'))}</image:title></image:image>"
-                        for i in imgs[:6] if i)
+        candidates = [p.get("image"), *(p.get("images") or [])]
+        for variant in p.get("variants") or []:
+            candidates.extend(variant.get("images") or [])
+        imgs = list(dict.fromkeys(seo.media_abs(i.strip()) for i in candidates
+                                 if isinstance(i, str) and i.strip().startswith(("/", "https://", "http://"))))
+        itags = "".join(f"<image:image><image:loc>{_xml_escape(i)}</image:loc></image:image>"
+                        for i in imgs if i)
         parts.append(f"<url><loc>{_xml_escape(base + '/products/' + p['slug'])}</loc>{lm}<changefreq>weekly</changefreq><priority>0.8</priority>{itags}</url>")
     xml = ('<?xml version="1.0" encoding="UTF-8"?>'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '

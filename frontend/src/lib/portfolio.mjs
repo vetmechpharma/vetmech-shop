@@ -26,8 +26,8 @@ export function portfolioText(value) {
 
 export function portfolioJsonLd(product, url, image) {
   const p = portfolioProduct(product);
-  return { "@context": "https://schema.org", "@type": "Product", name: p.name, description: portfolioText(p.short_description || p.composition),
-    image, url, "@id": `${url}#product`, mainEntityOfPage: url, brand: { "@type": "Brand", name: p.brand_name || "VETMECH" } };
+  return { "@context": "https://schema.org", "@type": "WebPage", name: p.name, description: portfolioText(p.short_description || p.composition),
+    url, "@id": url, ...(image ? { primaryImageOfPage: { "@type": "ImageObject", url: image } } : {}) };
 }
 
 export function speciesCategory(species, categories = []) {
