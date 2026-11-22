@@ -76,3 +76,21 @@ async def test_deleted_products_cannot_be_added_from_an_old_cart(database,monkey
     with pytest.raises(HTTPException) as caught:
         await orders.resolve_cart([{'variant_id':'v','qty':1}])
     assert caught.value.status_code==400
+
+
+@pytest.mark.asyncio
+async def test_existing_pig_duplicate_same_slug_and_id(database):
+    from catalog_taxonomy import MIGRATION, ensure_animal_categories
+    await database.settings.insert_one({"id": MIGRATION})
+    for cid in ["species-pig", "species-pig", "pig-alt"]:
+        await database.categories.insert_one({"id": cid, "slug": "pig", "name": "Pig", "fixed_main": True})
+    await database.categories.insert_one({"id": "injection", "slug": "injections", "parent_id": "pig-alt", "parent_ids": ["pig-alt", "pets"]})
+    await database.products.insert_one({"id": "p", "category_id": "pig-alt", "category_ids": ["pets", "pig-alt", "species-pig"], "subcategory_ids": ["injection"]})
+    for _ in range(2):
+        await ensure_animal_categories(database)
+    assert await database.categories.count_documents({"slug": "pig"}) == 1
+    product = await database.products.find_one({"id": "p"})
+    assert product["category_id"] == "species-pig" and product["category_ids"] == ["pets", "species-pig"]
+    assert product["subcategory_ids"] == ["injection"]
+    child = await database.categories.find_one({"id": "injection"})
+    assert child["parent_id"] == "species-pig" and child["parent_ids"] == ["species-pig", "pets"]

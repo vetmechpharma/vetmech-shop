@@ -17,7 +17,33 @@ def ids(record, singular, plural):
     return list(dict.fromkeys([*(record.get(plural) or []), *([record[singular]] if record.get(singular) else [])]))
 
 
+async def merge_pig_roots(db):
+    # Use Mongo _id: historical rows can share both the public id and slug.
+    rows = [c async for c in db.categories.find({"slug": "pig"}).sort("_id", 1)
+            if c.get("parent_id") in (None, "", "none") and not c.get("parent_ids")
+            and str(c.get("name", "")).strip().casefold() in {"pig", "pigs", "swine"}]
+    if len(rows) < 2:
+        return
+    rows.sort(key=lambda c: (not c.get("fixed_main"), c["id"] != "species-pig"))
+    keep, extras = rows[0], rows[1:]
+    canonical = keep["id"]
+    aliases = list({c["id"] for c in extras} - {canonical})
+    for collection, single, plural in ((db.products, "category_id", "category_ids"),
+                                       (db.categories, "parent_id", "parent_ids")):
+        query = {"$or": [{field: {"$in": aliases}} for field in (single, plural)]}
+        async for doc in collection.find(query):
+            changes = {}
+            if doc.get(single) in aliases:
+                changes[single] = canonical
+            if isinstance(doc.get(plural), list):
+                changes[plural] = list(dict.fromkeys(canonical if v in aliases else v for v in doc[plural]))
+            if changes:
+                await collection.update_one({"_id": doc["_id"]}, {"$set": changes})
+    await db.categories.delete_many({"_id": {"$in": [c["_id"] for c in extras]}})
+
+
 async def ensure_animal_categories(db):
+    await merge_pig_roots(db)
     if await db.settings.find_one({"id": MIGRATION}):
         return
     rows = await db.categories.find({}, {"_id": 0}).to_list(None)
