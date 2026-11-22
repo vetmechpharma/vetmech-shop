@@ -1,3 +1,4 @@
+import { companyContacts } from "./companyContacts";
 // Shared SEO / JSON-LD helpers (reused across product, category, news, home).
 import { mediaUrl } from "@/lib/api";
 import { SITE_NAME, SITE_ALTERNATE_NAMES, companyAddress } from "./searchAppearance.mjs";
@@ -69,8 +70,9 @@ export function organizationLd(company, extra = {}) {
     "@id": siteUrl("/#organization"),
     url: SITE_URL || undefined,
     logo: siteUrl("/corporate/vetmech-mark.jpg"),
-    ...(company?.phone ? { telephone: company.phone } : {}),
-    ...(company?.email ? { email: company.email } : {}),
+    telephone: companyContacts(company).phones.map(p => p.number),
+    email: companyContacts(company).emails.map(e => e.label),
+    contactPoint: companyContacts(company).phones.map(p => ({"@type":"ContactPoint", contactType:p.role, telephone:p.number})),
     ...(companyAddress(company?.address) ? { address: { "@type": "PostalAddress", streetAddress: companyAddress(company.address) } } : {}),
     ...(social.length ? { sameAs: social } : {}),
     ...extra,

@@ -1,3 +1,4 @@
+import CompanyLinks from "@/components/CompanyLinks";
 import Brand from "@/components/corporate/Brand";
 import { companyAddress } from "@/lib/searchAppearance.mjs";
 import React from "react";
@@ -54,9 +55,9 @@ export default function Footer() {
           <h4 className="text-white font-heading font-bold mb-4 text-sm uppercase tracking-wider">Contact</h4>
           <ul className="space-y-3 text-sm">
             <li className="flex gap-2"><MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-vm-accent" /><span>{companyAddress(company?.address) || "Contact our team for our business address."}</span></li>
-            <li className="flex gap-2"><Phone className="w-4 h-4 flex-shrink-0 text-vm-accent" /><span>{company?.phone}</span></li>
-            <li className="flex gap-2"><Mail className="w-4 h-4 flex-shrink-0 text-vm-accent" /><span>{company?.email}</span></li>
-            <li><a href={`https://wa.me/${company?.whatsapp || "919825000000"}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-vm-accent hover:underline"><MessageCircle className="w-4 h-4" /> Order on WhatsApp</a></li>
+            <li className="flex gap-2"><Phone className="w-4 h-4 flex-shrink-0 text-vm-accent" /><div><CompanyLinks company={company} type="phones"/></div></li>
+            <li className="flex gap-2"><Mail className="w-4 h-4 flex-shrink-0 text-vm-accent" /><div><CompanyLinks company={company} type="emails"/></div></li>
+            <li><a href={`https://wa.me/${company?.whatsapp || "919944472488"}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-vm-accent hover:underline"><MessageCircle className="w-4 h-4" /> Order on WhatsApp</a></li>
           </ul>
         </div>
       </div>

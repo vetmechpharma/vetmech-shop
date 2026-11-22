@@ -33,7 +33,7 @@ export default function Home() {
 
   const topCats = (cats || []).filter((c) => !c.parent_id);
   const hero = home?.hero || {};
-  const waNumber = company?.whatsapp || "919825000000";
+  const waNumber = company?.whatsapp || "919944472488";
 
   return (
     <div>

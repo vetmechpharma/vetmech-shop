@@ -1,3 +1,4 @@
+import CompanyLinks from "@/components/CompanyLinks";
 import Brand from "@/components/corporate/Brand";
 import React, { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
@@ -37,7 +38,7 @@ export default function Header() {
     return { label: n.label, to, external: !!n.external || /^https?:\/\//.test(to) };
   });
   const navigate = useNavigate();
-  const waNumber = company?.whatsapp || "919825000000";
+  const waNumber = company?.whatsapp || "919944472488";
   const { data: cats } = useQuery({ queryKey: ["categories"], queryFn: async () => (await api.get("/categories")).data });
   const catList = (cats || []).filter((c) => !String(c.name).startsWith("TEST_"));
   const mainCats = catList.filter((c) => !c.parent_id);
@@ -48,7 +49,7 @@ export default function Header() {
       <div className="bg-vm-ink text-white text-xs">
         <div className="vm-container flex items-center justify-between h-9">
           <span className="hidden sm:flex items-center gap-2">
-            <Phone className="w-3 h-3" /> {company?.phone || "+91 98250 00000"}
+            <CompanyLinks company={company} type="phones" icon={Phone}/><CompanyLinks company={company} type="emails"/>
           </span>
           <span className="truncate">{company?.tagline || "Advancing Animal Health"}</span>
           <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noreferrer"

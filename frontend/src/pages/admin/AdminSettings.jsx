@@ -53,9 +53,11 @@ export function CompanySettings() {
       <F label="Address" value={companyAddress(form.address) ? form.address : ""} onChange={(v) => set("address", v)} textarea />
       {!companyAddress(form.address) && <p role="status" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">Enter your full business contact address. It will appear on your website and in the company information supplied to Google.</p>}
       <div className="grid sm:grid-cols-2 gap-4">
-        <F label="Phone" value={form.phone} onChange={(v) => set("phone", v)} />
+        <F label="Support phone" value={form.support_phone} onChange={(v) => set("support_phone", v)} />
+        <F label="Sales phone" value={form.phone} onChange={(v) => set("phone", v)} />
         <F label="WhatsApp Number (with country code)" value={form.whatsapp} onChange={(v) => set("whatsapp", v)} />
-        <F label="Email" value={form.email} onChange={(v) => set("email", v)} />
+        <F label="Alternate email" value={form.alternate_email} onChange={(v) => set("alternate_email", v)} />
+        <F label="Company email" value={form.email} onChange={(v) => set("email", v)} />
         <F label="GST Number" value={form.gst_number} onChange={(v) => set("gst_number", v)} />
       </div>
       <F label="Business Hours" value={form.business_hours} onChange={(v) => set("business_hours", v)} />

@@ -29,7 +29,7 @@ from seed_tickets import run_seed_tickets
 from routers import auth_routes, catalog, orders, cms, admin_routes, tickets, quotations, pricing, seo, ledger, pending_routes
 from routers import customer_360
 from pending_items import backfill_pending_items
-from company_profile import remove_sample_company_address
+from company_profile import remove_sample_company_address, install_company_contacts
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -295,6 +295,7 @@ async def startup():
     await migrate_customers(db)
     await backfill_pending_items(db)
     await remove_sample_company_address(db)
+    await install_company_contacts(db)
     await pricing.ensure_settings()
 
 

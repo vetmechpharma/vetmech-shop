@@ -1,3 +1,4 @@
+import CompanyLinks from "@/components/CompanyLinks";
 import React, { useState } from "react";
 import { api, apiError } from "@/lib/api";
 import { useSettings } from "@/hooks/useSettings";
@@ -33,10 +34,10 @@ export default function Contact() {
           <h2 className="font-heading text-2xl font-bold text-vm-ink">Get in touch</h2>
           <div className="mt-6 space-y-4 text-slate-600">
             <div className="flex gap-3"><MapPin className="w-5 h-5 text-vm-accent flex-shrink-0" /><span>{company?.address}</span></div>
-            <div className="flex gap-3"><Phone className="w-5 h-5 text-vm-accent flex-shrink-0" /><span>{company?.phone}</span></div>
-            <div className="flex gap-3"><Mail className="w-5 h-5 text-vm-accent flex-shrink-0" /><span>{company?.email}</span></div>
+            <div className="flex gap-3"><Phone className="w-5 h-5 text-vm-accent flex-shrink-0" /><div><CompanyLinks company={company} type="phones"/></div></div>
+            <div className="flex gap-3"><Mail className="w-5 h-5 text-vm-accent flex-shrink-0" /><div><CompanyLinks company={company} type="emails"/></div></div>
             <div className="flex gap-3"><Clock className="w-5 h-5 text-vm-accent flex-shrink-0" /><span>{company?.business_hours}</span></div>
-            <a href={`https://wa.me/${company?.whatsapp || "919825000000"}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-vm-green font-medium hover:underline"><MessageCircle className="w-5 h-5" /> Chat on WhatsApp</a>
+            <a href={`https://wa.me/${company?.whatsapp || "919944472488"}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-vm-green font-medium hover:underline"><MessageCircle className="w-5 h-5" /> Chat on WhatsApp</a>
           </div>
         </div>
         <form onSubmit={submit} className="border border-[#E2E8F0] rounded-lg p-6 space-y-4" data-testid="contact-form">

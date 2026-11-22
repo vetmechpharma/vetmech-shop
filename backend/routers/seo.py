@@ -17,7 +17,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from db import db
 from security import require_module
 from helpers import now_iso
-from company_profile import company_profile
+from company_profile import company_profile, COMPANY_CONTACTS
 
 router = APIRouter(prefix="/api", tags=["seo"])
 ORG_NAME = "VETMECH PHARMACEUTICALS PRIVATE LIMITED"
@@ -97,10 +97,11 @@ def _org_ld(company):
     ld = {"@context": "https://schema.org", "@type": "Organization", "name": company.get("name") or ORG_NAME,
           "@id": site_url("/#organization"), "alternateName": [SITE_NAME, "VETMECH"],
           "url": _base() or None, "logo": site_url("/corporate/vetmech-mark.jpg")}
-    if company.get("phone"):
-        ld["telephone"] = company["phone"]
-    if company.get("email"):
-        ld["email"] = company["email"]
+    contacts = {k: company.get(k) or v for k, v in COMPANY_CONTACTS.items()}
+    ld["contactPoint"] = [{"@type": "ContactPoint", "contactType": label, "telephone": contacts[key]}
+                          for label, key in (("Sales", "phone"), ("Support", "support_phone"))]
+    ld["telephone"] = [contacts["phone"], contacts["support_phone"]]
+    ld["email"] = [contacts["email"], contacts["alternate_email"]]
     if company.get("address"):
         ld["address"] = {"@type": "PostalAddress", "streetAddress": company["address"]}
     if social:
@@ -371,10 +372,11 @@ async def seo_render(path: str = Query("/")):
         body += "<address>" + f"<p>{esc(company.get('name') or ORG_NAME)}</p>"
         if company.get("address"):
             body += f"<p>{esc(company['address'])}</p>"
-        if company.get("phone"):
-            body += f"<p>Phone: {esc(company['phone'])}</p>"
-        if company.get("email"):
-            body += f"<p>Email: {esc(company['email'])}</p>"
+        for label, key in (("Sales", "phone"), ("Support", "support_phone"),
+                           ("Email", "email"), ("Alternate email", "alternate_email")):
+            value = company.get(key) or COMPANY_CONTACTS[key]
+            href = ("tel:" + re.sub(r"[^+0-9]", "", value)) if "phone" in key else "mailto:" + value
+            body += f'<p>{label}: <a href="{esc(href)}">{esc(value)}</a></p>'
         body += "</address>"
     if page.get("content"):
         body += f"<p>{esc(text(page['content']))}</p>"

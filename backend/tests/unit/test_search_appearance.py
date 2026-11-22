@@ -101,3 +101,18 @@ async def test_sample_cleanup_is_idempotent_and_preserves_a_genuine_address(clie
 async def test_existing_search_restrictions_are_preserved(client, database, robots):
     await database.pages.insert_one({'slug': 'about', 'seo': {'robots': robots}})
     assert Page(client.get('/api/seo/render', params={'path': '/about'}).text).meta('robots') == robots
+
+
+@pytest.mark.asyncio
+async def test_confirmed_contacts_in_public_page_and_later_admin_edit_survives(client, database):
+    from company_profile import install_company_contacts
+    await database.settings.insert_one({"id": "company", "phone": "old number", "address": "Saved office"})
+    await install_company_contacts(database)
+    page = Page(client.get("/api/seo/render", params={"path": "/contact"}).text)
+    links = {attrs.get("href") for tag, attrs in page.tags if tag == "a"}
+    assert {"tel:+919944472488", "tel:+919342704047", "mailto:info@vetmech.in",
+            "mailto:vetmechpharma@gmail.com"} <= links
+    await database.settings.update_one({"id": "company"}, {"$set": {"support_phone": "+91 1234567890"}})
+    await install_company_contacts(database)
+    saved = await database.settings.find_one({"id": "company"})
+    assert saved["support_phone"] == "+91 1234567890" and saved["address"] == "Saved office"
