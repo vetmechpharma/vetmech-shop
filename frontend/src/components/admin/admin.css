@@ -2,7 +2,7 @@
 .vm-admin-shell h1,.vm-admin-shell h2,.vm-admin-shell h3,.vm-admin-shell .font-heading,.vm-admin-login h1{font-family:Manrope,sans-serif;letter-spacing:-.035em}
 .vm-admin-sidebar{width:272px;background:#151618;color:#c7c8cd;position:fixed;inset:0 auto 0 0;flex-direction:column;overflow-y:auto;z-index:40}
 .vm-admin-brand{padding:32px 25px 24px;border-bottom:1px solid #ffffff12}
-.vm-admin-brand>.corp-brand strong{font-size:25px}.vm-admin-brand>.corp-brand svg{width:30px}.vm-admin-brand>.corp-brand small{font-size:7px;letter-spacing:2.9px}
+.vm-admin-brand>.corp-brand strong{font-size:25px}.vm-admin-brand>.corp-brand-mark{width:40px}.vm-admin-brand>.corp-brand small{font-size:7px;letter-spacing:2.9px}
 .vm-admin-brand>span{display:block;font-size:10px;letter-spacing:.2em;color:#8c8e96;margin:20px 0 0 3px;font-weight:600}
 .vm-admin-nav{padding:22px 14px;flex:1}
 .vm-admin-nav-label{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:#8e9099;padding:0 14px;margin:0 0 14px;font-weight:600}

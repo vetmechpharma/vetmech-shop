@@ -143,7 +143,7 @@ export default function AdminLayout() {
   const groups = permittedGroups(can);
   const activeItem = currentAdminDestination(groups, pathname);
   const role = ROLE_LABELS[admin.role] || admin.role;
-  const brand = <div className="vm-admin-brand"><Brand light /><span>ADMINISTRATION</span></div>;
+  const brand = <div className="vm-admin-brand"><Brand light to="/admin" /><span>ADMINISTRATION</span></div>;
   const profile = <div className="vm-admin-profile"><span>{(admin.name || "V").slice(0, 1).toUpperCase()}</span><div><strong>{admin.name}</strong><small>{role}</small></div></div>;
 
   return <div className="vm-admin-shell">
@@ -160,7 +160,8 @@ export default function AdminLayout() {
               {brand}<SidebarLinks groups={groups} onNav={() => setMobileOpen(false)} />{profile}
             </SheetContent>
           </Sheet>
-          <div className="vm-admin-breadcrumb"><span>Administration</span><span>/</span><strong>{activeItem?.label || "Workspace"}</strong></div>
+          <div className="lg:hidden"><Brand to="/admin" /></div>
+          <div className="hidden lg:block"><div className="vm-admin-breadcrumb"><span>Administration</span><span>/</span><strong>{activeItem?.label || "Workspace"}</strong></div></div>
         </div>
         <div className="vm-admin-header-actions">
           {can("tickets") && <NotificationBell />}
@@ -169,7 +170,7 @@ export default function AdminLayout() {
         </div>
       </header>
       <main id="admin-main" className="vm-admin-main"><Outlet /></main>
-      <footer className="vm-admin-footer"><span>VETMECH Pharmaceuticals</span><span>The Science of Animal Health</span></footer>
+      <footer className="vm-admin-footer"><Brand to="/admin" /><span>The Science of Animal Health</span></footer>
     </div>
   </div>;
 }

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import Brand from "@/components/corporate/Brand";
 import ImageUpload from "@/components/admin/ImageUpload";
 import { toast } from "sonner";
 import { Loader2, Save, Plus, X } from "lucide-react";
@@ -48,7 +49,7 @@ export function CompanySettings() {
     <Wrap title="Company Settings" subtitle="Business identity & contact info" onSave={save} saving={saving}>
       <F label="Company Name" value={form.name} onChange={(v) => set("name", v)} />
       <F label="Tagline" value={form.tagline} onChange={(v) => set("tagline", v)} />
-      <ImageUpload label="Logo" value={form.logo} onChange={(v) => set("logo", v)} />
+      <div><p className="text-sm font-medium mb-2">Official website and admin logo</p><Brand to="/admin" /></div>
       <F label="Address" value={companyAddress(form.address) ? form.address : ""} onChange={(v) => set("address", v)} textarea />
       {!companyAddress(form.address) && <p role="status" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">Enter your full business contact address. It will appear on your website and in the company information supplied to Google.</p>}
       <div className="grid sm:grid-cols-2 gap-4">

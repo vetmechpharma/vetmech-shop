@@ -1,3 +1,4 @@
+import Brand from "@/components/corporate/Brand";
 import { companyAddress } from "@/lib/searchAppearance.mjs";
 import React from "react";
 import { Link } from "react-router-dom";
@@ -13,10 +14,7 @@ export default function Footer() {
     <footer className="bg-vm-ink text-slate-300 mt-16">
       <div className="vm-container py-14 grid grid-cols-1 md:grid-cols-4 gap-10">
         <div>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-9 h-9 rounded-md bg-vm-accent text-white grid place-items-center font-heading font-extrabold">V</div>
-            <div className="font-heading font-extrabold text-white text-lg">VETMECH</div>
-          </div>
+          <div className="mb-4"><Brand light /></div>
           <p className="text-sm leading-relaxed text-slate-400">
             {website?.footer_about || "Trusted Indian veterinary pharmaceutical company delivering quality-assured medicines for animals."}
           </p>

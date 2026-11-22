@@ -52,7 +52,7 @@ export function articleLd({ title, description, image, datePublished, dateModifi
     datePublished,
     dateModified: dateModified || datePublished,
     author: { "@type": author ? "Person" : "Organization", name: author || ORG_NAME },
-    publisher: { "@type": "Organization", name: ORG_NAME, logo: { "@type": "ImageObject", url: siteUrl("/corporate/brand.svg") } },
+    publisher: { "@type": "Organization", name: ORG_NAME, logo: { "@type": "ImageObject", url: siteUrl("/corporate/vetmech-mark.jpg") } },
     mainEntityOfPage: siteUrl(path),
   };
   if (image) ld.image = [mediaUrl(image)];
@@ -68,7 +68,7 @@ export function organizationLd(company, extra = {}) {
     alternateName: [SITE_NAME, "VETMECH"],
     "@id": siteUrl("/#organization"),
     url: SITE_URL || undefined,
-    logo: company?.logo ? mediaUrl(company.logo) : siteUrl("/corporate/brand.svg"),
+    logo: siteUrl("/corporate/vetmech-mark.jpg"),
     ...(company?.phone ? { telephone: company.phone } : {}),
     ...(company?.email ? { email: company.email } : {}),
     ...(companyAddress(company?.address) ? { address: { "@type": "PostalAddress", streetAddress: companyAddress(company.address) } } : {}),

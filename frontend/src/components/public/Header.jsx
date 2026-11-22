@@ -1,3 +1,4 @@
+import Brand from "@/components/corporate/Brand";
 import React, { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -59,19 +60,7 @@ export default function Header() {
 
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/95 border-b border-[#E2E8F0]">
         <div className="vm-container flex items-center justify-between h-16 gap-4">
-          <Link to="/" className="flex items-center gap-2" data-testid="logo-link">
-            {company?.logo ? (
-              <img src={company.logo} alt="VETMECH" className="h-9" />
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-md bg-vm-green text-white grid place-items-center font-heading font-extrabold">V</div>
-                <div className="leading-none">
-                  <div className="font-heading font-extrabold text-vm-ink text-lg tracking-tight">VETMECH</div>
-                  <div className="text-[9px] tracking-[0.28em] text-vm-accent font-bold">PHARMACEUTICALS</div>
-                </div>
-              </div>
-            )}
-          </Link>
+          <Brand data-testid="logo-link" />
 
           <nav className="hidden lg:flex items-center">
             <NavigationMenu>

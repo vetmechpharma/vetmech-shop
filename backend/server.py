@@ -17,6 +17,9 @@ import zipfile
 from datetime import datetime, timezone
 from PIL import Image
 
+from starlette.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse
+from product_watermark import PHOTO_EXTENSIONS, product_photo_query, public_copy
 from db import db
 from config import demo_enabled
 from backup import export_database, export_uploads, backup_stats as database_backup_stats
@@ -150,9 +153,12 @@ CONTENT_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg
 @app.get("/api/uploads/{name}")
 async def serve_upload(name: str):
     path = UPLOAD_DIR / name
-    if not path.exists() or ".." in name:
+    if name.startswith(".") or not path.is_file() or ".." in name:
         raise HTTPException(status_code=404, detail="Not found")
     ext = os.path.splitext(name)[1].lower()
+    if ext in PHOTO_EXTENSIONS and await db.products.find_one(product_photo_query(name, _site_base()), {"_id": 1}):
+        marked = await run_in_threadpool(public_copy, path)
+        return FileResponse(marked, media_type="image/webp", headers={"Cache-Control": "no-cache"})
     return Response(content=path.read_bytes(),
                     media_type=CONTENT_TYPES.get(ext, "application/octet-stream"))
 
@@ -271,6 +277,8 @@ async def startup():
     await db.customers.create_index("normalized_mobile")
     await db.login_attempts.create_index("identifier")
     await db.products.create_index("slug")
+    for field in ("image", "images", "variants.images", "seo.og_image"):
+        await db.products.create_index(field, sparse=True)
     await db.categories.create_index("slug")
     await db.orders.create_index("order_number")
     await db.orders.create_index("invoice_key", unique=True, sparse=True)

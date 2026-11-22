@@ -96,7 +96,7 @@ def _org_ld(company):
     social = [v for v in (company.get("social") or {}).values() if v and v != "#"]
     ld = {"@context": "https://schema.org", "@type": "Organization", "name": company.get("name") or ORG_NAME,
           "@id": site_url("/#organization"), "alternateName": [SITE_NAME, "VETMECH"],
-          "url": _base() or None, "logo": media_abs(company.get("logo")) or site_url("/corporate/brand.svg")}
+          "url": _base() or None, "logo": site_url("/corporate/vetmech-mark.jpg")}
     if company.get("phone"):
         ld["telephone"] = company["phone"]
     if company.get("email"):
@@ -322,7 +322,7 @@ async def seo_render(path: str = Query("/")):
                           "description": desc, "datePublished": art.get("publish_date"),
                           "dateModified": art.get("updated_at") or art.get("publish_date"),
                           "author": {"@type": "Person" if art.get("author") else "Organization", "name": art.get("author") or ORG_NAME},
-                          "publisher": {"@type": "Organization", "name": ORG_NAME, "logo": {"@type": "ImageObject", "url": site_url("/corporate/brand.svg")}},
+                          "publisher": {"@type": "Organization", "name": ORG_NAME, "logo": {"@type": "ImageObject", "url": site_url("/corporate/vetmech-mark.jpg")}},
                           "mainEntityOfPage": canonical}
             if img:
                 article_ld["image"] = [img]
